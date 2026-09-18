@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Brain, 
+  PenTool,
   RotateCcw, 
   Volume2, 
   ChevronRight, 
@@ -9,9 +10,13 @@ import {
   Check,
   Eye,
   XCircle,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
+/* =========================================================================
+   KHU VỰC DỮ LIỆU TỪ VỰNG
+   ========================================================================= */
 const VOCAB_SETS = [
   {
     id: 1,
@@ -158,11 +163,29 @@ export default function VocabApp() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [rememberedCount, setRememberedCount] = useState(0);
 
+  // State Trắc nghiệm
   const [quizOptions, setQuizOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
 
+  // State Gõ từ (Hàng chờ lặp lại khi gõ sai)
   const currentSet = VOCAB_SETS[selectedSetIndex];
+  const [typeQueue, setTypeQueue] = useState([]);
+  const [typeIndex, setTypeIndex] = useState(0);
+  const [typedInput, setTypedInput] = useState('');
+  const [typeResult, setTypeResult] = useState(null); // 'correct' | 'incorrect' | null
+  const [reviewCount, setReviewCount] = useState(0);
+
   const currentWord = currentSet.words[currentIndex] || currentSet.words[0];
+  const currentTypeWord = typeQueue[typeIndex];
+
+  // Khởi tạo hàng chờ gõ từ
+  const initTypeQueue = () => {
+    setTypeQueue([...currentSet.words]);
+    setTypeIndex(0);
+    setTypedInput('');
+    setTypeResult(null);
+    setReviewCount(0);
+  };
 
   const handleSpeak = (e, text) => {
     e?.stopPropagation();
@@ -189,6 +212,7 @@ export default function VocabApp() {
     }
   };
 
+  // Trắc nghiệm
   useEffect(() => {
     if (activeTab === 'quiz' && currentWord) {
       const wrongWords = currentSet.words
@@ -201,6 +225,32 @@ export default function VocabApp() {
       setSelectedOption(null);
     }
   }, [currentIndex, activeTab, selectedSetIndex]);
+
+  // Xử lý kiểm tra gõ từ
+  const handleCheckType = (e) => {
+    e.preventDefault();
+    if (!typedInput.trim() || !currentTypeWord) return;
+
+    const isCorrect = typedInput.trim().toLowerCase() === currentTypeWord.word.toLowerCase();
+
+    if (isCorrect) {
+      setTypeResult('correct');
+      handleSpeak(null, currentTypeWord.word);
+    } else {
+      setTypeResult('incorrect');
+      // Đưa từ bị gõ sai vào cuối hàng chờ để lặp lại sau!
+      if (!typeQueue.slice(typeIndex + 1).some(item => item.id === currentTypeWord.id)) {
+        setTypeQueue(prev => [...prev, currentTypeWord]);
+        setReviewCount(prev => prev + 1);
+      }
+    }
+  };
+
+  const handleNextTypeWord = () => {
+    setTypedInput('');
+    setTypeResult(null);
+    setTypeIndex(prev => prev + 1);
+  };
 
   return (
     <div className="min-h-screen bg-[#F7F4EB] text-[#2C2A29] p-4 md:p-8 font-sans selection:bg-[#E2DBC8]">
@@ -237,6 +287,15 @@ export default function VocabApp() {
             }`}
           >
             <Brain size={18} /> Trắc nghiệm (4 đáp án)
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('type'); initTypeQueue(); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'type' ? 'bg-[#EFEAD8] text-black shadow-sm font-bold' : 'text-gray-600'
+            }`}
+          >
+            <PenTool size={18} /> Gõ từ (Có lặp lại từ sai)
           </button>
         </div>
 
@@ -374,6 +433,112 @@ export default function VocabApp() {
                 Câu tiếp theo <ChevronRight size={16} />
               </button>
             </div>
+          </div>
+        )}
+
+        {/* MODE 3: GÕ TỪ (CÓ LẶP LẠI TỪ SAI) */}
+        {activeTab === 'type' && (
+          <div>
+            {typeIndex < typeQueue.length ? (
+              <div className="space-y-6">
+                <div className="bg-[#EFEAD8]/60 rounded-3xl p-8 text-center border border-[#E0D8C3] space-y-3">
+                  <div className="flex justify-between items-center text-xs font-semibold text-gray-500">
+                    <span>Lượt gõ: {typeIndex + 1} / {typeQueue.length}</span>
+                    {reviewCount > 0 && (
+                      <span className="text-orange-600 bg-orange-100 px-2.5 py-0.5 rounded-full">
+                        Cần ôn lại: {reviewCount} từ
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block pt-2">Nghĩa tiếng Việt:</span>
+                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">
+                    {currentTypeWord.meaning}
+                  </h2>
+                  {currentTypeWord.pronunciation && (
+                    <span className="inline-block text-xs bg-[#E0D8C3] text-gray-700 px-3 py-1 rounded-full font-medium">
+                      Gợi ý phiên âm: /{currentTypeWord.pronunciation}/
+                    </span>
+                  )}
+                </div>
+
+                {/* Ô nhập từ */}
+                <form onSubmit={handleCheckType} className="space-y-4">
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      value={typedInput}
+                      onChange={(e) => { setTypedInput(e.target.value); setTypeResult(null); }}
+                      placeholder="Gõ từ tiếng Anh tương ứng vào đây..."
+                      className={`w-full p-4 rounded-2xl border text-lg outline-none transition-all ${
+                        typeResult === 'correct' 
+                          ? 'border-green-500 bg-green-50 text-green-900 font-bold' 
+                          : typeResult === 'incorrect' 
+                          ? 'border-red-500 bg-red-50 text-red-900' 
+                          : 'border-gray-300 focus:border-black bg-white'
+                      }`}
+                    />
+                    {typeResult === null && (
+                      <button 
+                        type="submit"
+                        className="absolute right-2 top-2 bottom-2 bg-black text-white px-5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+                      >
+                        Kiểm tra
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Thông báo kết quả gõ */}
+                  {typeResult === 'correct' && (
+                    <div className="p-4 rounded-2xl bg-green-100 border border-green-300 text-green-800 text-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={18} className="text-green-600 shrink-0" />
+                        <span>Chính xác 100%! Từ là: <strong>{currentTypeWord.word}</strong></span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={handleNextTypeWord}
+                        className="bg-green-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-800"
+                      >
+                        Từ tiếp theo →
+                      </button>
+                    </div>
+                  )}
+
+                  {typeResult === 'incorrect' && (
+                    <div className="p-4 rounded-2xl bg-red-100 border border-red-300 text-red-800 text-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <XCircle size={18} className="text-red-600 shrink-0" />
+                          <span>Chưa chính xác! (Từ này sẽ lặp lại ở cuối bài)</span>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={handleNextTypeWord}
+                          className="bg-red-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-800"
+                        >
+                          Đã hiểu, tiếp tục →
+                        </button>
+                      </div>
+                      <p className="text-xs text-red-700 pl-6">Đáp án chuẩn: <strong>{currentTypeWord.word}</strong></p>
+                    </div>
+                  )}
+                </form>
+              </div>
+            ) : (
+              /* Hoàn thành danh sách gõ */
+              <div className="bg-[#EFEAD8]/80 rounded-3xl p-8 text-center border border-[#E0D8C3] space-y-4">
+                <CheckCircle2 size={48} className="text-green-600 mx-auto" />
+                <h2 className="text-2xl font-bold text-gray-900">Chúc mừng! Bạn đã gõ chính xác toàn bộ từ vựng!</h2>
+                <p className="text-sm text-gray-600">Tất cả các từ gõ sai đều đã được ôn tập và hoàn thành xuất sắc.</p>
+                <button 
+                  onClick={initTypeQueue}
+                  className="inline-flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800"
+                >
+                  <RefreshCw size={16} /> Luyện tập lại bộ này
+                </button>
+              </div>
+            )}
           </div>
         )}
 
