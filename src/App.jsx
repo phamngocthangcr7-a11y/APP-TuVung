@@ -2,163 +2,96 @@ import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Brain, 
-  PenTool,
+  PenTool, 
   RotateCcw, 
   Volume2, 
   ChevronRight, 
   ChevronLeft, 
-  Check,
-  Eye,
-  XCircle,
-  CheckCircle2,
-  RefreshCw
+  Check, 
+  Eye, 
+  XCircle, 
+  CheckCircle2, 
+  RefreshCw,
+  FolderOpen
 } from 'lucide-react';
 
 /* =========================================================================
-   KHU VỰC DỮ LIỆU TỪ VỰNG
+   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP (CÓ THỂ MỞ RỘNG)
    ========================================================================= */
 const VOCAB_SETS = [
   {
     id: 1,
-    title: "Từ vựng thông dụng & Phiên âm",
+    title: "1. Từ vựng ảnh của bạn (13 từ)",
     words: [
-      { 
-        id: 1, 
-        word: "significantly", 
-        meaning: "đáng kể, một cách đáng kể", 
-        pronunciation: "sig-NIF-i-cần-li", 
-        examples: [
-          { en: "Sales increased significantly this quarter.", vi: "Doanh số đã tăng đáng kể trong quý này." },
-          { en: "The new policy significantly changed our workflow.", vi: "Chính sách mới đã thay đổi đáng kể quy trình làm việc của chúng tôi." }
-        ]
-      },
-      { 
-        id: 2, 
-        word: "persuasively", 
-        meaning: "một cách thuyết phục", 
-        pronunciation: "pờ-SUÂY-siv-li", 
-        examples: [
-          { en: "She spoke persuasively during the meeting.", vi: "Cô ấy nói chuyện một cách thuyết phục trong cuộc họp." },
-          { en: "He argued persuasively for the proposal.", vi: "Anh ấy đã lập luận một cách thuyết phục cho đề xuất này." }
-        ]
-      },
-      { 
-        id: 3, 
-        word: "proficiently", 
-        meaning: "một cách thành thạo", 
-        pronunciation: "pờ-FI-shần-li", 
-        examples: [
-          { en: "He uses the software proficiently.", vi: "Anh ấy sử dụng phần mềm một cách thành thạo." },
-          { en: "She speaks three languages proficiently.", vi: "Cô ấy nói thành thạo ba ngôn ngữ." }
-        ]
-      },
-      { 
-        id: 4, 
-        word: "gladly", 
-        meaning: "vui lòng, sẵn lòng", 
-        pronunciation: "GLAD-li", 
-        examples: [
-          { en: "I would gladly help you with this project.", vi: "Tôi rất sẵn lòng giúp bạn dự án này." },
-          { en: "They gladly accepted our invitation.", vi: "Họ đã vui vẻ chấp nhận lời mời của chúng tôi." }
-        ]
-      },
-      { 
-        id: 5, 
-        word: "administrative", 
-        meaning: "thuộc về hành chính", 
-        pronunciation: "ợd-MIN-ờ-strây-tiv", 
-        examples: [
-          { en: "She handles administrative tasks.", vi: "Cô ấy đảm nhận các công việc hành chính." },
-          { en: "The company reduced administrative expenses.", vi: "Công ty đã cắt giảm chi phí hành chính." }
-        ]
-      },
-      { 
-        id: 6, 
-        word: "establish", 
-        meaning: "thành lập, thiết lập", 
-        pronunciation: "i-STAB-lish", 
-        examples: [
-          { en: "They want to establish a new company.", vi: "Họ muốn thành lập một công ty mới." },
-          { en: "We need to establish clear rules.", vi: "Chúng ta cần thiết lập các quy tắc rõ ràng." }
-        ]
-      },
-      { 
-        id: 7, 
-        word: "explicit policies", 
-        meaning: "các chính sách rõ ràng/cụ thể", 
-        pronunciation: "ik-SPLI-sịt PO-lờ-siz", 
-        examples: [
-          { en: "The company has explicit policies regarding attendance.", vi: "Công ty có các chính sách rõ ràng liên quan đến việc đi làm." },
-          { en: "You must follow the explicit policies of the firm.", vi: "Bạn phải tuân thủ các chính sách cụ thể của công ty." }
-        ]
-      },
-      { 
-        id: 8, 
-        word: "diligently", 
-        meaning: "siêng năng, chăm chỉ", 
-        pronunciation: "DIL-i-jần-li", 
-        examples: [
-          { en: "He worked diligently to complete the report.", vi: "Anh ấy làm việc chăm chỉ để hoàn thành báo cáo." },
-          { en: "She studies diligently for her final exams.", vi: "Cô ấy học tập chăm chỉ cho kỳ thi cuối kỳ." }
-        ]
-      },
-      { 
-        id: 9, 
-        word: "curiously", 
-        meaning: "một cách tò mò", 
-        pronunciation: "KYUR-i-ợs-li", 
-        examples: [
-          { en: "The child looked curiously at the package.", vi: "Đứa trẻ nhìn gói hàng một cách tò mò." },
-          { en: "Everyone listened curiously to his story.", vi: "Mọi người tò mò lắng nghe câu chuyện của anh ấy." }
-        ]
-      },
-      { 
-        id: 10, 
-        word: "extremely", 
-        meaning: "cực kỳ, vô cùng", 
-        pronunciation: "ik-STRIIM-li", 
-        examples: [
-          { en: "This task is extremely important.", vi: "Nhiệm vụ này cực kỳ quan trọng." },
-          { en: "The weather was extremely hot yesterday.", vi: "Thời tiết hôm qua vô cùng nóng." }
-        ]
-      },
-      { 
-        id: 11, 
-        word: "grown", 
-        meaning: "đã lớn, phát triển", 
-        pronunciation: "grôun", 
-        examples: [
-          { en: "The market has grown rapidly.", vi: "Thị trường đã phát triển nhanh chóng." },
-          { en: "She has grown into a confident professional.", vi: "Cô ấy đã trở thành một chuyên gia tự tin." }
-        ]
-      },
-      { 
-        id: 12, 
-        word: "industry", 
-        meaning: "ngành công nghiệp", 
-        pronunciation: "IN-dờ-stri", 
-        examples: [
-          { en: "Technology is a fast-growing industry.", vi: "Công nghệ là một ngành công nghiệp phát triển nhanh." },
-          { en: "He has worked in the tech industry for 10 years.", vi: "Anh ấy đã làm việc trong ngành công nghệ 10 năm." }
-        ]
-      },
-      { 
-        id: 13, 
-        word: "rapidly", 
-        meaning: "nhanh chóng", 
-        pronunciation: "RAP-id-li", 
-        examples: [
-          { en: "The population is expanding rapidly.", vi: "Dân số đang tăng trưởng nhanh chóng." },
-          { en: "Business costs are rising rapidly.", vi: "Chi phí kinh doanh đang tăng nhanh chóng." }
-        ]
-      }
+      { id: 101, word: "significantly", meaning: "đáng kể, một cách đáng kể", pronunciation: "sig-NIF-i-cần-li", example: "Sales increased significantly this quarter.", exampleTranslation: "Doanh số đã tăng đáng kể trong quý này." },
+      { id: 102, word: "persuasively", meaning: "một cách thuyết phục", pronunciation: "pờ-SUÂY-siv-li", example: "She spoke persuasively during the meeting.", exampleTranslation: "Cô ấy nói chuyện một cách thuyết phục trong cuộc họp." },
+      { id: 103, word: "proficiently", meaning: "một cách thành thạo", pronunciation: "pờ-FI-shần-li", example: "He uses the software proficiently.", exampleTranslation: "Anh ấy sử dụng phần mềm một cách thành thạo." },
+      { id: 104, word: "gladly", meaning: "vui lòng, sẵn lòng", pronunciation: "GLAD-li", example: "I would gladly help you with this project.", exampleTranslation: "Tôi rất sẵn lòng giúp bạn dự án này." },
+      { id: 105, word: "administrative", meaning: "thuộc về hành chính", pronunciation: "ợd-MIN-ờ-strây-tiv", example: "She handles administrative tasks.", exampleTranslation: "Cô ấy đảm nhận các công việc hành chính." },
+      { id: 106, word: "establish", meaning: "thành lập, thiết lập", pronunciation: "i-STAB-lish", example: "They want to establish a new company.", exampleTranslation: "Họ muốn thành lập một công ty mới." },
+      { id: 107, word: "explicit policies", meaning: "các chính sách rõ ràng/cụ thể", pronunciation: "ik-SPLI-sịt PO-lờ-siz", example: "The company has explicit policies regarding attendance.", exampleTranslation: "Công ty có các chính sách rõ ràng liên quan đến việc đi làm." },
+      { id: 108, word: "diligently", meaning: "siêng năng, chăm chỉ", pronunciation: "DIL-i-jần-li", example: "He worked diligently to complete the report.", exampleTranslation: "Anh ấy làm việc chăm chỉ để hoàn thành báo cáo." },
+      { id: 109, word: "curiously", meaning: "một cách tò mò", pronunciation: "KYUR-i-ợs-li", example: "The child looked curiously at the package.", exampleTranslation: "Đứa trẻ nhìn gói hàng một cách tò mò." },
+      { id: 110, word: "extremely", meaning: "cực kỳ, vô cùng", pronunciation: "ik-STRIIM-li", example: "This task is extremely important.", exampleTranslation: "Nhiệm vụ này cực kỳ quan trọng." },
+      { id: 111, word: "grown", meaning: "đã lớn, phát triển", pronunciation: "grôun", example: "The market has grown rapidly.", exampleTranslation: "Thị trường đã phát triển nhanh chóng." },
+      { id: 112, word: "industry", meaning: "ngành công nghiệp", pronunciation: "IN-dờ-stri", example: "Technology is a fast-growing industry.", exampleTranslation: "Công nghệ là một ngành công nghiệp phát triển nhanh." },
+      { id: 113, word: "rapidly", meaning: "nhanh chóng", pronunciation: "RAP-id-li", example: "The population is expanding rapidly.", exampleTranslation: "Dân số đang tăng trưởng nhanh chóng." }
+    ]
+  },
+  {
+    id: 2,
+    title: "2. TOEIC Công sở & Doanh nghiệp (20 từ)",
+    words: [
+      { id: 201, word: "implement", meaning: "thực thi, áp dụng", pronunciation: "IM-plơ-mơnt", example: "We need to implement the new safety rules.", exampleTranslation: "Chúng ta cần áp dụng quy tắc an toàn mới." },
+      { id: 202, word: "accommodate", meaning: "đáp ứng, cung cấp chỗ ở", pronunciation: "ơ-KOM-ơ-đêit", example: "The hotel can accommodate 500 guests.", exampleTranslation: "Khách sạn có thể đáp ứng cho 500 khách." },
+      { id: 203, word: "prospective", meaning: "tiềm năng (khách hàng)", pronunciation: "prơ-SPEK-tiv", example: "We sent brochures to prospective clients.", exampleTranslation: "Chúng tôi gửi tờ rơi đến khách hàng tiềm năng." },
+      { id: 204, word: "mandatory", meaning: "bắt buộc", pronunciation: "MAN-đơ-tơ-ri", example: "Attendance at the orientation is mandatory.", exampleTranslation: "Việc tham gia buổi định hướng là bắt buộc." },
+      { id: 205, word: "reluctant", meaning: "lưỡng lự, miễn cưỡng", pronunciation: "ri-LAK-tơnt", example: "He was reluctant to sign the contract.", exampleTranslation: "Anh ấy đã lưỡng lự khi ký hợp đồng." },
+      { id: 206, word: "designate", meaning: "chỉ định, dành riêng", pronunciation: "ĐEZ-ig-nêit", example: "This area is designated for non-smokers.", exampleTranslation: "Khu vực này được dành riêng cho người không hút thuốc." },
+      { id: 207, word: "negotiate", meaning: "đàm phán, thương lượng", pronunciation: "ni-GÔ-shi-êit", example: "They are negotiating a higher salary.", exampleTranslation: "Họ đang thương lượng mức lương cao hơn." },
+      { id: 208, word: "incentive", meaning: "sự khuyến khích, phần thưởng", pronunciation: "in-SEN-tiv", example: "The company offers financial incentives.", exampleTranslation: "Công ty đưa ra các khoản tiền thưởng kích thích." },
+      { id: 209, word: "confidential", meaning: "bảo mật, bí mật", pronunciation: "kon-fi-ĐEN-shơl", example: "These documents contain confidential info.", exampleTranslation: "Các tài liệu này chứa thông tin bảo mật." },
+      { id: 210, word: "compensation", meaning: "tiền bồi thường, thù lao", pronunciation: "kom-pen-SÊI-shơl", example: "Victims received financial compensation.", exampleTranslation: "Các nạn nhân đã nhận được tiền bồi thường." },
+      { id: 211, word: "collaborate", meaning: "hợp tác", pronunciation: "kơ-LAB-ơ-rêit", example: "Two departments collaborated on this project.", exampleTranslation: "Hai phòng ban đã hợp tác trong dự án này." },
+      { id: 212, word: "substantial", meaning: "đáng kể, lớn", pronunciation: "sơb-STAN-shơl", example: "There was a substantial increase in profits.", exampleTranslation: "Đã có sự gia tăng đáng kể về lợi nhuận." },
+      { id: 213, word: "comply with", meaning: "tuân thủ (luật/quy định)", pronunciation: "kơm-PLAI width", example: "All products must comply with safety standards.", exampleTranslation: "Tất cả sản phẩm phải tuân thủ tiêu chuẩn an toàn." },
+      { id: 214, word: "inconvenience", meaning: "sự bất tiện", pronunciation: "in-kơn-VI-ni-ơns", example: "We apologize for any inconvenience caused.", exampleTranslation: "Chúng tôi xin lỗi vì bất kỳ sự bất tiện nào." },
+      { id: 215, word: "inquiry", meaning: "câu hỏi, thắc mắc", pronunciation: "in-KWAI-ơ-ri", example: "Please send us your inquiries.", exampleTranslation: "Vui lòng gửi cho chúng tôi các thắc mắc của bạn." },
+      { id: 216, word: "promote", meaning: "thăng chức, quảng bá", pronunciation: "prơ-MÔUT", example: "She was promoted to Senior Manager.", exampleTranslation: "Cô ấy đã được thăng chức lên Quản lý cấp cao." },
+      { id: 217, word: "renovate", meaning: "cải tạo, sửa chữa", pronunciation: "REN-ơ-vêit", example: "The restaurant is closed for renovation.", exampleTranslation: "Nhà hàng đang đóng cửa để cải tạo." },
+      { id: 218, word: "schedule", meaning: "lịch trình, lên lịch", pronunciation: "SKED-ju-ơl", example: "The meeting is scheduled for tomorrow.", exampleTranslation: "Cuộc họp được lên lịch vào ngày mai." },
+      { id: 219, word: "evaluate", meaning: "đánh giá", pronunciation: "i-VAL-ju-êit", example: "Managers evaluate employee performance.", exampleTranslation: "Cấp quản lý đánh giá hiệu suất nhân viên." },
+      { id: 220, word: "temporarily", meaning: "tạm thời", pronunciation: "tem-pơ-RER-ơ-li", example: "The office is temporarily closed.", exampleTranslation: "Văn phòng tạm thời đóng cửa." }
+    ]
+  },
+  {
+    id: 3,
+    title: "3. Giao tiếp & Đời sống hàng ngày (17 từ)",
+    words: [
+      { id: 301, word: "appreciate", meaning: "trân trọng, cảm kích", pronunciation: "ơ-PRI-shi-êit", example: "I really appreciate your help.", exampleTranslation: "Tôi thực sự cảm kích sự giúp đỡ của bạn." },
+      { id: 302, word: "apparently", meaning: "hình như, dường như", pronunciation: "ơ-PAR-ơnt-li", example: "Apparently, the flight has been delayed.", exampleTranslation: "Hình như chuyến bay đã bị hoãn." },
+      { id: 303, word: "crucial", meaning: "cực kỳ quan trọng", pronunciation: "KRU-shơl", example: "Sleep is crucial for good health.", exampleTranslation: "Giấc ngủ cực kỳ quan trọng đối với sức khỏe." },
+      { id: 304, word: "exhausted", meaning: "kiệt sức, mệt mỏi", pronunciation: "ig-ZO-stid", example: "I was completely exhausted after work.", exampleTranslation: "Tôi hoàn toàn kiệt sức sau giờ làm." },
+      { id: 305, word: "hesitate", meaning: "ngập ngừng, do dự", pronunciation: "HEZ-i-têit", example: "Don't hesitate to contact me.", exampleTranslation: "Đừng ngần ngại liên hệ với tôi." },
+      { id: 306, word: "flexible", meaning: "linh hoạt", pronunciation: "FLEK-sơ-bơl", example: "My working hours are quite flexible.", exampleTranslation: "Giờ làm việc của tôi khá linh hoạt." },
+      { id: 307, word: "apologize", meaning: "xin lỗi", pronunciation: "ơ-POL-ơ-jaiz", example: "You should apologize for being late.", exampleTranslation: "Bạn nên xin lỗi vì đã đến muộn." },
+      { id: 308, word: "recommendation", meaning: "lời gợi ý, đề xuất", pronunciation: "re-kơ-men-ĐÊI-shơn", example: "Do you have any restaurant recommendations?", exampleTranslation: "Bạn có gợi ý nhà hàng nào không?" },
+      { id: 309, word: "obvious", meaning: "rõ ràng, hiển nhiên", pronunciation: "OB-vi-ơs", example: "It is obvious that he likes you.", exampleTranslation: "Rõ ràng là anh ấy thích bạn." },
+      { id: 310, word: "unfortunate", meaning: "không may, đáng tiếc", pronunciation: "an-FOR-chơ-nơt", example: "It was an unfortunate accident.", exampleTranslation: "Đó là một tai nạn không may." },
+      { id: 311, word: "familiar", meaning: "quen thuộc", pronunciation: "fơ-MIL-i-ơ", example: "Her voice sounds very familiar.", exampleTranslation: "Giọng của cô ấy nghe rất quen." },
+      { id: 312, word: "option", meaning: "sự lựa chọn", pronunciation: "OP-shơn", example: "We have several options to choose.", exampleTranslation: "Chúng tôi có một vài sự lựa chọn." },
+      { id: 313, word: "punctual", meaning: "đúng giờ", pronunciation: "PANK-chơ-ơl", example: "Please try to be punctual.", exampleTranslation: "Hãy cố gắng đến đúng giờ." },
+      { id: 314, word: "incredible", meaning: "tuyệt vời, đáng kinh ngạc", pronunciation: "in-KRED-ơ-bơl", example: "The food here is incredible!", exampleTranslation: "Đồ ăn ở đây ngon tuyệt vời!" },
+      { id: 315, word: "consider", meaning: "cân nhắc, suy xét", pronunciation: "kơn-SI-đơ", example: "I am considering buying a new car.", exampleTranslation: "Tôi đang cân nhắc mua một chiếc xe mới." },
+      { id: 316, word: "take advantage of", meaning: "tận dụng, khai thác", pronunciation: "têik ơd-VAN-tij ov", example: "Take advantage of this special discount.", exampleTranslation: "Hãy tận dụng đợt giảm giá đặc biệt này." },
+      { id: 317, word: "figure out", meaning: "tìm ra, hiểu ra giải pháp", pronunciation: "FIG-jơ aut", example: "I can't figure out how to solve this.", exampleTranslation: "Tôi không thể tìm ra cách giải quyết việc này." }
     ]
   }
 ];
 
 export default function VocabApp() {
   const [activeTab, setActiveTab] = useState('flashcard');
-  const [selectedSetIndex] = useState(0);
+  const [selectedSetIndex, setSelectedSetIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [rememberedCount, setRememberedCount] = useState(0);
@@ -172,13 +105,29 @@ export default function VocabApp() {
   const [typeQueue, setTypeQueue] = useState([]);
   const [typeIndex, setTypeIndex] = useState(0);
   const [typedInput, setTypedInput] = useState('');
-  const [typeResult, setTypeResult] = useState(null); // 'correct' | 'incorrect' | null
+  const [typeResult, setTypeResult] = useState(null);
   const [reviewCount, setReviewCount] = useState(0);
 
   const currentWord = currentSet.words[currentIndex] || currentSet.words[0];
   const currentTypeWord = typeQueue[typeIndex];
 
-  // Khởi tạo hàng chờ gõ từ
+  // Đổi bộ từ vựng
+  const handleSelectSet = (index) => {
+    setSelectedSetIndex(index);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSelectedOption(null);
+    setRememberedCount(0);
+    
+    // Reset gõ từ cho bộ mới
+    const newSet = VOCAB_SETS[index];
+    setTypeQueue([...newSet.words]);
+    setTypeIndex(0);
+    setTypedInput('');
+    setTypeResult(null);
+    setReviewCount(0);
+  };
+
   const initTypeQueue = () => {
     setTypeQueue([...currentSet.words]);
     setTypeIndex(0);
@@ -226,7 +175,7 @@ export default function VocabApp() {
     }
   }, [currentIndex, activeTab, selectedSetIndex]);
 
-  // Xử lý kiểm tra gõ từ
+  // Kiểm tra gõ từ
   const handleCheckType = (e) => {
     e.preventDefault();
     if (!typedInput.trim() || !currentTypeWord) return;
@@ -238,7 +187,6 @@ export default function VocabApp() {
       handleSpeak(null, currentTypeWord.word);
     } else {
       setTypeResult('incorrect');
-      // Đưa từ bị gõ sai vào cuối hàng chờ để lặp lại sau!
       if (!typeQueue.slice(typeIndex + 1).some(item => item.id === currentTypeWord.id)) {
         setTypeQueue(prev => [...prev, currentTypeWord]);
         setReviewCount(prev => prev + 1);
@@ -256,20 +204,44 @@ export default function VocabApp() {
     <div className="min-h-screen bg-[#F7F4EB] text-[#2C2A29] p-4 md:p-8 font-sans selection:bg-[#E2DBC8]">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        {/* Header */}
-        <header className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-[#1C1A19]">Sổ tay từ vựng</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Bộ {selectedSetIndex + 1}/{VOCAB_SETS.length}: {currentSet.title}
-            </p>
+        {/* Header & Chọn bộ từ */}
+        <header className="space-y-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-serif font-bold text-[#1C1A19]">Sổ tay từ vựng</h1>
+              <p className="text-sm text-gray-600 mt-0.5">
+                Đang học: <strong className="text-black">{currentSet.title}</strong>
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-gray-500 whitespace-nowrap bg-[#EFEAD8] px-3 py-1 rounded-full">
+              {currentSet.words.length} TỪ
+            </span>
           </div>
-          <span className="text-sm font-semibold text-gray-500 whitespace-nowrap">
-            {currentSet.words.length} TỪ
-          </span>
+
+          {/* Chọn Bộ Từ Vựng */}
+          <div className="bg-[#EFEAD8]/60 p-2.5 rounded-2xl border border-[#E0D8C3] space-y-1.5">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+              <FolderOpen size={14} /> Chọn bộ bài học:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {VOCAB_SETS.map((set, idx) => (
+                <button
+                  key={set.id}
+                  onClick={() => handleSelectSet(idx)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    selectedSetIndex === idx 
+                      ? 'bg-black text-white shadow-sm' 
+                      : 'bg-white/80 text-gray-700 hover:bg-white'
+                  }`}
+                >
+                  {set.title}
+                </button>
+              ))}
+            </div>
+          </div>
         </header>
 
-        {/* Tabs */}
+        {/* Tabs Chế độ học */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-gray-300">
           <button 
             onClick={() => { setActiveTab('flashcard'); setIsFlipped(false); }}
@@ -304,7 +276,7 @@ export default function VocabApp() {
           <div className="space-y-4">
             <div 
               onClick={() => setIsFlipped(!isFlipped)}
-              className="cursor-pointer bg-[#EFEAD8]/70 rounded-3xl p-8 md:p-10 text-center shadow-sm border border-[#E0D8C3] min-h-[300px] flex flex-col justify-center items-center relative transition-all hover:border-gray-400"
+              className="cursor-pointer bg-[#EFEAD8]/70 rounded-3xl p-8 md:p-10 text-center shadow-sm border border-[#E0D8C3] min-h-[280px] flex flex-col justify-center items-center relative transition-all hover:border-gray-400"
             >
               <span className="absolute top-4 right-4 text-xs font-semibold text-gray-400 flex items-center gap-1">
                 <Eye size={14} /> Chạm để {isFlipped ? 'ẩn' : 'lật mặt sau'}
@@ -336,23 +308,21 @@ export default function VocabApp() {
                     {currentWord.meaning}
                   </h2>
                   
-                  <div className="space-y-3 pt-2 text-left bg-white/50 p-4 rounded-2xl border border-[#E0D8C3]">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Ví dụ minh họa:</span>
-                    {currentWord.examples.map((ex, idx) => (
-                      <div key={idx} className="space-y-0.5 border-b border-gray-200/60 pb-2 last:border-none last:pb-0">
-                        <p className="text-sm md:text-base italic text-gray-800 flex items-center justify-between gap-2">
-                          <span>"{ex.en}"</span>
-                          <button 
-                            onClick={(e) => handleSpeak(e, ex.en)} 
-                            className="p-1 hover:bg-[#E0D8C3] rounded-full shrink-0"
-                          >
-                            <Volume2 size={16} className="text-gray-600" />
-                          </button>
-                        </p>
-                        <p className="text-xs md:text-sm text-gray-600">→ {ex.vi}</p>
-                      </div>
-                    ))}
-                  </div>
+                  {currentWord.example && (
+                    <div className="space-y-1 pt-2 text-left bg-white/50 p-4 rounded-2xl border border-[#E0D8C3]">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Ví dụ minh họa:</span>
+                      <p className="text-sm md:text-base italic text-gray-800 flex items-center justify-between gap-2">
+                        <span>"{currentWord.example}"</span>
+                        <button 
+                          onClick={(e) => handleSpeak(e, currentWord.example)} 
+                          className="p-1 hover:bg-[#E0D8C3] rounded-full shrink-0"
+                        >
+                          <Volume2 size={16} className="text-gray-600" />
+                        </button>
+                      </p>
+                      <p className="text-xs md:text-sm text-gray-600">→ {currentWord.exampleTranslation}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -436,7 +406,7 @@ export default function VocabApp() {
           </div>
         )}
 
-        {/* MODE 3: GÕ TỪ (CÓ LẶP LẠI TỪ SAI) */}
+        {/* MODE 3: GÕ TỪ */}
         {activeTab === 'type' && (
           <div>
             {typeIndex < typeQueue.length ? (
@@ -462,7 +432,6 @@ export default function VocabApp() {
                   )}
                 </div>
 
-                {/* Ô nhập từ */}
                 <form onSubmit={handleCheckType} className="space-y-4">
                   <div className="relative">
                     <input 
@@ -488,7 +457,6 @@ export default function VocabApp() {
                     )}
                   </div>
 
-                  {/* Thông báo kết quả gõ */}
                   {typeResult === 'correct' && (
                     <div className="p-4 rounded-2xl bg-green-100 border border-green-300 text-green-800 text-sm flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -526,11 +494,10 @@ export default function VocabApp() {
                 </form>
               </div>
             ) : (
-              /* Hoàn thành danh sách gõ */
               <div className="bg-[#EFEAD8]/80 rounded-3xl p-8 text-center border border-[#E0D8C3] space-y-4">
                 <CheckCircle2 size={48} className="text-green-600 mx-auto" />
-                <h2 className="text-2xl font-bold text-gray-900">Chúc mừng! Bạn đã gõ chính xác toàn bộ từ vựng!</h2>
-                <p className="text-sm text-gray-600">Tất cả các từ gõ sai đều đã được ôn tập và hoàn thành xuất sắc.</p>
+                <h2 className="text-2xl font-bold text-gray-900">Chúc mừng! Bạn đã hoàn thành bộ từ này!</h2>
+                <p className="text-sm text-gray-600">Tất cả từ gõ sai đều đã được ôn tập lại chuẩn xác.</p>
                 <button 
                   onClick={initTypeQueue}
                   className="inline-flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800"
@@ -544,8 +511,8 @@ export default function VocabApp() {
 
         {/* Tiến độ */}
         <div className="flex justify-between items-center text-xs font-semibold text-gray-500 px-2 pt-2 border-t border-gray-300">
-          <span>Tiến độ: {currentIndex + 1} / {currentSet.words.length} từ</span>
-          <span>Đã ghi nhớ: {rememberedCount} từ</span>
+          <span>Tiến độ bài học: {currentIndex + 1} / {currentSet.words.length} từ</span>
+          <span>Đã nhớ: {rememberedCount} từ</span>
         </div>
 
       </div>
