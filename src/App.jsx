@@ -16,9 +16,17 @@ import {
 } from 'lucide-react';
 
 /* =========================================================================
-   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP (CÓ THỂ MỞ RỘNG)
+   HÀM TỰ ĐỘNG CHUẨN HÓA UNICODE VIỆT NAM (SỬA TẤT CẢ LỖI HỞ DẤU TỰ ĐỘNG)
    ========================================================================= */
-const VOCAB_SETS = [
+const fixVietnamese = (text) => {
+  if (!text) return '';
+  return text.normalize('NFC');
+};
+
+/* =========================================================================
+   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP
+   ========================================================================= */
+const RAW_VOCAB_SETS = [
   {
     id: 1,
     title: "1. Từ vựng ảnh của bạn (13 từ)",
@@ -175,6 +183,17 @@ const VOCAB_SETS = [
   }
 ];
 
+// CHUẨN HÓA DỮ LIỆU ĐẦU VÀO ĐỂ KHÔNG BAO GIỜ BỊ LỖI UNICODE
+const VOCAB_SETS = RAW_VOCAB_SETS.map(set => ({
+  ...set,
+  title: fixVietnamese(set.title),
+  words: set.words.map(w => ({
+    ...w,
+    meaning: fixVietnamese(w.meaning),
+    exampleTranslation: fixVietnamese(w.exampleTranslation)
+  }))
+}));
+
 export default function VocabApp() {
   const [activeTab, setActiveTab] = useState('flashcard');
   const [selectedSetIndex, setSelectedSetIndex] = useState(0);
@@ -186,7 +205,7 @@ export default function VocabApp() {
   const [quizOptions, setQuizOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
 
-  // State Gõ từ (Hàng chờ lặp lại khi gõ sai)
+  // State Gõ từ
   const currentSet = VOCAB_SETS[selectedSetIndex];
   const [typeQueue, setTypeQueue] = useState([]);
   const [typeIndex, setTypeIndex] = useState(0);
@@ -205,7 +224,6 @@ export default function VocabApp() {
     setSelectedOption(null);
     setRememberedCount(0);
     
-    // Reset gõ từ cho bộ mới
     const newSet = VOCAB_SETS[index];
     setTypeQueue([...newSet.words]);
     setTypeIndex(0);
@@ -294,7 +312,7 @@ export default function VocabApp() {
         <header className="space-y-3">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-serif font-bold text-[#1C1A19]">Sổ tay từ vựng</h1>
+              <h1 className="text-3xl font-sans font-bold text-[#1C1A19]">Sổ tay từ vựng</h1>
               <p className="text-sm text-gray-600 mt-0.5">
                 Đang học: <strong className="text-black">{currentSet.title}</strong>
               </p>
@@ -370,7 +388,7 @@ export default function VocabApp() {
 
               {!isFlipped ? (
                 <div className="space-y-3">
-                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">
+                  <h2 className="text-3xl md:text-4xl font-sans font-bold text-gray-900">
                     {currentWord.word}
                   </h2>
                   {currentWord.pronunciation && (
@@ -390,7 +408,7 @@ export default function VocabApp() {
                 </div>
               ) : (
                 <div className="space-y-4 w-full max-w-xl animate-fadeIn">
-                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-green-800">
+                  <h2 className="text-2xl md:text-3xl font-sans font-bold text-green-800">
                     {currentWord.meaning}
                   </h2>
                   
@@ -437,7 +455,7 @@ export default function VocabApp() {
           <div className="space-y-6">
             <div className="bg-[#EFEAD8]/60 rounded-3xl p-6 text-center border border-[#E0D8C3] space-y-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Từ cần chọn nghĩa:</span>
-              <h2 className="text-3xl font-serif font-bold text-gray-900 flex items-center justify-center gap-2">
+              <h2 className="text-3xl font-sans font-bold text-gray-900 flex items-center justify-center gap-2">
                 {currentWord.word}
                 <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-[#E0D8C3] rounded-full">
                   <Volume2 size={20} />
@@ -508,7 +526,7 @@ export default function VocabApp() {
                   </div>
 
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block pt-2">Nghĩa tiếng Việt:</span>
-                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">
+                  <h2 className="text-2xl md:text-3xl font-sans font-bold text-gray-900">
                     {currentTypeWord.meaning}
                   </h2>
                   {currentTypeWord.pronunciation && (
