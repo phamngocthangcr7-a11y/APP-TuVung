@@ -12,7 +12,9 @@ import {
   XCircle, 
   CheckCircle2, 
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 /* =========================================================================
@@ -183,7 +185,6 @@ const RAW_VOCAB_SETS = [
   }
 ];
 
-// CHUẨN HÓA DỮ LIỆU ĐẦU VÀO ĐỂ KHÔNG BAO GIỜ BỊ LỖI UNICODE
 const VOCAB_SETS = RAW_VOCAB_SETS.map(set => ({
   ...set,
   title: fixVietnamese(set.title),
@@ -195,50 +196,64 @@ const VOCAB_SETS = RAW_VOCAB_SETS.map(set => ({
 }));
 
 export default function VocabApp() {
-  const [activeTab, setActiveTab] = useState('flashcard');
   const [selectedSetIndex, setSelectedSetIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('flashcard');
+
+  // Lấy dữ liệu đã nhớ từ LocalStorage
+  const [rememberedIds, setRememberedIds] = useState(() => {
+    const saved = localStorage.getItem('vocab_remembered_ids');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const currentSet = VOCAB_SETS[selectedSetIndex];
+
+  // Danh sách từ hiện tại của bộ (được lọc các từ ĐÃ NHỚ)
+  const [activeQueue, setActiveQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [rememberedCount, setRememberedCount] = useState(0);
 
   // State Trắc nghiệm
   const [quizOptions, setQuizOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
 
   // State Gõ từ
-  const currentSet = VOCAB_SETS[selectedSetIndex];
   const [typeQueue, setTypeQueue] = useState([]);
   const [typeIndex, setTypeIndex] = useState(0);
   const [typedInput, setTypedInput] = useState('');
   const [typeResult, setTypeResult] = useState(null);
-  const [reviewCount, setReviewCount] = useState(0);
 
-  const currentWord = currentSet.words[currentIndex] || currentSet.words[0];
-  const currentTypeWord = typeQueue[typeIndex];
+  // Lưu progress vào localStorage
+  useEffect(() => {
+    localStorage.setItem('vocab_remembered_ids', JSON.stringify(rememberedIds));
+  }, [rememberedIds]);
 
-  // Đổi bộ từ vựng
-  const handleSelectSet = (index) => {
-    setSelectedSetIndex(index);
+  // Khởi tạo vòng lặp cho Flashcard mỗi khi chọn bộ từ hoặc danh sách Đã nhớ thay đổi
+  useEffect(() => {
+    const unrememberedWords = currentSet.words.filter(w => !rememberedIds.includes(w.id));
+    setActiveQueue(unrememberedWords);
     setCurrentIndex(0);
     setIsFlipped(false);
-    setSelectedOption(null);
-    setRememberedCount(0);
-    
-    const newSet = VOCAB_SETS[index];
-    setTypeQueue([...newSet.words]);
+  }, [selectedSetIndex, rememberedIds]);
+
+  // Khởi tạo hàng chờ cho chế độ Gõ Từ
+  const initTypeQueue = () => {
+    const unremembered = currentSet.words.filter(w => !rememberedIds.includes(w.id));
+    // Nếu đã nhớ hết thì cho luyện gõ lại toàn bộ
+    const queueToUse = unremembered.length > 0 ? unremembered : currentSet.words;
+    setTypeQueue(queueToUse);
     setTypeIndex(0);
     setTypedInput('');
     setTypeResult(null);
-    setReviewCount(0);
   };
 
-  const initTypeQueue = () => {
-    setTypeQueue([...currentSet.words]);
-    setTypeIndex(0);
-    setTypedInput('');
-    setTypeResult(null);
-    setReviewCount(0);
-  };
+  useEffect(() => {
+    if (activeTab === 'type') {
+      initTypeQueue();
+    }
+  }, [activeTab, selectedSetIndex]);
+
+  const currentWord = activeQueue[currentIndex];
+  const currentTypeWord = typeQueue[typeIndex];
 
   const handleSpeak = (e, text) => {
     e?.stopPropagation();
@@ -249,23 +264,33 @@ export default function VocabApp() {
     }
   };
 
-  const handleNext = () => {
+  // Bấm ĐÃ NHỚ: Lưu id vào danh sách ĐÃ NHỚ -> Từ sẽ tự động ẩn khỏi danh sách lặp!
+  const handleMarkRemembered = () => {
+    if (!currentWord) return;
+    setRememberedIds(prev => [...prev, currentWord.id]);
     setIsFlipped(false);
-    setSelectedOption(null);
-    if (currentIndex < currentSet.words.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    }
   };
 
-  const handlePrev = () => {
-    setIsFlipped(false);
-    setSelectedOption(null);
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
+  // Bấm CHƯA NHỚ: Đưa từ này xuống cuối danh sách chờ lặp lại!
+  const handleMarkUnremembered = () => {
+    if (!currentWord || activeQueue.length <= 1) {
+      setIsFlipped(false);
+      return;
     }
+    const updated = [...activeQueue];
+    const item = updated.splice(currentIndex, 1)[0];
+    updated.push(item);
+    setActiveQueue(updated);
+    setIsFlipped(false);
   };
 
-  // Trắc nghiệm
+  // Reset lại toàn bộ tiến độ bộ từ hiện tại
+  const handleResetSetProgress = () => {
+    const currentWordIds = currentSet.words.map(w => w.id);
+    setRememberedIds(prev => prev.filter(id => !currentWordIds.includes(id)));
+  };
+
+  // Trắc nghiệm generator
   useEffect(() => {
     if (activeTab === 'quiz' && currentWord) {
       const wrongWords = currentSet.words
@@ -277,7 +302,7 @@ export default function VocabApp() {
       setQuizOptions(options);
       setSelectedOption(null);
     }
-  }, [currentIndex, activeTab, selectedSetIndex]);
+  }, [currentIndex, activeTab, selectedSetIndex, currentWord]);
 
   // Kiểm tra gõ từ
   const handleCheckType = (e) => {
@@ -293,7 +318,6 @@ export default function VocabApp() {
       setTypeResult('incorrect');
       if (!typeQueue.slice(typeIndex + 1).some(item => item.id === currentTypeWord.id)) {
         setTypeQueue(prev => [...prev, currentTypeWord]);
-        setReviewCount(prev => prev + 1);
       }
     }
   };
@@ -304,53 +328,75 @@ export default function VocabApp() {
     setTypeIndex(prev => prev + 1);
   };
 
+  // Đếm tổng số từ đã thuộc trong bộ
+  const currentSetRememberedCount = currentSet.words.filter(w => rememberedIds.includes(w.id)).length;
+
   return (
-    <div className="min-h-screen bg-[#F7F4EB] text-[#2C2A29] p-4 md:p-8 font-sans selection:bg-[#E2DBC8]">
+    <div className="min-h-screen bg-[#18181B] text-[#E4E4E7] p-4 md:p-8 font-sans selection:bg-[#27272A]">
       <div className="max-w-3xl mx-auto space-y-6">
         
         {/* Header & Chọn bộ từ */}
-        <header className="space-y-3">
+        <header className="space-y-4">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-sans font-bold text-[#1C1A19]">Sổ tay từ vựng</h1>
-              <p className="text-sm text-gray-600 mt-0.5">
-                Đang học: <strong className="text-black">{currentSet.title}</strong>
+              <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                Sổ tay từ vựng <Sparkles size={22} className="text-emerald-400" />
+              </h1>
+              <p className="text-sm text-zinc-400 mt-1">
+                Đang học: <strong className="text-emerald-400">{currentSet.title}</strong>
               </p>
             </div>
-            <span className="text-sm font-semibold text-gray-500 whitespace-nowrap bg-[#EFEAD8] px-3 py-1 rounded-full">
-              {currentSet.words.length} TỪ
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-3 py-1 rounded-full">
+                Đã nhớ {currentSetRememberedCount} / {currentSet.words.length} TỪ
+              </span>
+              {currentSetRememberedCount > 0 && (
+                <button 
+                  onClick={handleResetSetProgress}
+                  className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors pt-0.5"
+                  title="Học lại từ đầu bộ này"
+                >
+                  <Trash2 size={12} /> Reset tiến độ bộ này
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Chọn Bộ Từ Vựng */}
-          <div className="bg-[#EFEAD8]/60 p-2.5 rounded-2xl border border-[#E0D8C3] space-y-1.5">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-              <FolderOpen size={14} /> Chọn bộ bài học:
+          {/* Selector Chọn Bộ Bài Học */}
+          <div className="bg-[#27272A]/80 p-3 rounded-2xl border border-zinc-800 space-y-2">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <FolderOpen size={14} className="text-emerald-400" /> Chọn bộ bài học:
             </span>
             <div className="flex flex-wrap gap-2">
-              {VOCAB_SETS.map((set, idx) => (
-                <button
-                  key={set.id}
-                  onClick={() => handleSelectSet(idx)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    selectedSetIndex === idx 
-                      ? 'bg-black text-white shadow-sm' 
-                      : 'bg-white/80 text-gray-700 hover:bg-white'
-                  }`}
-                >
-                  {set.title}
-                </button>
-              ))}
+              {VOCAB_SETS.map((set, idx) => {
+                const count = set.words.filter(w => rememberedIds.includes(w.id)).length;
+                const isDone = count === set.words.length;
+
+                return (
+                  <button
+                    key={set.id}
+                    onClick={() => setSelectedSetIndex(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      selectedSetIndex === idx 
+                        ? 'bg-emerald-500 text-zinc-950 shadow-md font-bold' 
+                        : 'bg-zinc-800/90 text-zinc-300 hover:bg-zinc-700'
+                    }`}
+                  >
+                    <span>{set.title}</span>
+                    {isDone && <CheckCircle2 size={14} className="text-emerald-900" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </header>
 
         {/* Tabs Chế độ học */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-gray-300">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800">
           <button 
             onClick={() => { setActiveTab('flashcard'); setIsFlipped(false); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'flashcard' ? 'bg-[#EFEAD8] text-black shadow-sm font-bold' : 'text-gray-600'
+              activeTab === 'flashcard' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <BookOpen size={18} /> Lật thẻ
@@ -359,154 +405,173 @@ export default function VocabApp() {
           <button 
             onClick={() => setActiveTab('quiz')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'quiz' ? 'bg-[#EFEAD8] text-black shadow-sm font-bold' : 'text-gray-600'
+              activeTab === 'quiz' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Brain size={18} /> Trắc nghiệm (4 đáp án)
+            <Brain size={18} /> Trắc nghiệm
           </button>
 
           <button 
-            onClick={() => { setActiveTab('type'); initTypeQueue(); }}
+            onClick={() => setActiveTab('type')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'type' ? 'bg-[#EFEAD8] text-black shadow-sm font-bold' : 'text-gray-600'
+              activeTab === 'type' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <PenTool size={18} /> Gõ từ (Có lặp lại từ sai)
+            <PenTool size={18} /> Gõ từ
           </button>
         </div>
 
         {/* MODE 1: LẬT THẺ */}
-        {activeTab === 'flashcard' && currentWord && (
-          <div className="space-y-4">
-            <div 
-              onClick={() => setIsFlipped(!isFlipped)}
-              className="cursor-pointer bg-[#EFEAD8]/70 rounded-3xl p-8 md:p-10 text-center shadow-sm border border-[#E0D8C3] min-h-[280px] flex flex-col justify-center items-center relative transition-all hover:border-gray-400"
-            >
-              <span className="absolute top-4 right-4 text-xs font-semibold text-gray-400 flex items-center gap-1">
-                <Eye size={14} /> Chạm để {isFlipped ? 'ẩn' : 'lật mặt sau'}
-              </span>
+        {activeTab === 'flashcard' && (
+          <div>
+            {currentWord ? (
+              <div className="space-y-4">
+                <div 
+                  onClick={() => setIsFlipped(!isFlipped)}
+                  className="cursor-pointer bg-[#27272A] rounded-3xl p-8 md:p-10 text-center shadow-lg border border-zinc-700/80 min-h-[280px] flex flex-col justify-center items-center relative transition-all hover:border-zinc-500"
+                >
+                  <span className="absolute top-4 right-4 text-xs font-semibold text-zinc-500 flex items-center gap-1">
+                    <Eye size={14} /> {isFlipped ? 'Chạm để xem từ tiếng Anh' : 'Chạm để xem nghĩa & ví dụ'}
+                  </span>
 
-              {!isFlipped ? (
-                <div className="space-y-3">
-                  <h2 className="text-3xl md:text-4xl font-sans font-bold text-gray-900">
-                    {currentWord.word}
-                  </h2>
-                  {currentWord.pronunciation && (
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm bg-[#E0D8C3] text-gray-800 px-3 py-1 rounded-full font-medium">
-                        /{currentWord.pronunciation}/
-                      </span>
-                      <button 
-                        onClick={(e) => handleSpeak(e, currentWord.word)} 
-                        className="p-1.5 hover:bg-[#E0D8C3] rounded-full transition-colors"
-                      >
-                        <Volume2 size={20} className="text-gray-700" />
-                      </button>
+                  {!isFlipped ? (
+                    <div className="space-y-3">
+                      <h2 className="text-3xl md:text-4xl font-bold text-white tracking-wide">
+                        {currentWord.word}
+                      </h2>
+                      {currentWord.pronunciation && (
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <span className="text-xs bg-zinc-800 text-emerald-400 border border-zinc-700 px-3 py-1 rounded-full font-mono">
+                            /{currentWord.pronunciation}/
+                          </span>
+                          <button 
+                            onClick={(e) => handleSpeak(e, currentWord.word)} 
+                            className="p-1.5 hover:bg-zinc-700 rounded-full transition-colors text-zinc-300"
+                          >
+                            <Volume2 size={20} />
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-xs text-zinc-500 pt-4">(Bấm vào thẻ để lật xem mặt sau)</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 w-full max-w-xl animate-fadeIn">
+                      <h2 className="text-2xl md:text-3xl font-bold text-emerald-400">
+                        {currentWord.meaning}
+                      </h2>
+                      
+                      {currentWord.example && (
+                        <div className="space-y-1.5 pt-2 text-left bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800">
+                          <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Ví dụ minh họa:</span>
+                          <p className="text-sm md:text-base italic text-zinc-200 flex items-center justify-between gap-2">
+                            <span>"{currentWord.example}"</span>
+                            <button 
+                              onClick={(e) => handleSpeak(e, currentWord.example)} 
+                              className="p-1 hover:bg-zinc-800 rounded-full shrink-0 text-zinc-400"
+                            >
+                              <Volume2 size={16} />
+                            </button>
+                          </p>
+                          <p className="text-xs md:text-sm text-zinc-400">→ {currentWord.exampleTranslation}</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <p className="text-xs text-gray-400 pt-4">(Nhấp vào thẻ để xem nghĩa & ví dụ)</p>
                 </div>
-              ) : (
-                <div className="space-y-4 w-full max-w-xl animate-fadeIn">
-                  <h2 className="text-2xl md:text-3xl font-sans font-bold text-green-800">
-                    {currentWord.meaning}
-                  </h2>
-                  
-                  {currentWord.example && (
-                    <div className="space-y-1 pt-2 text-left bg-white/50 p-4 rounded-2xl border border-[#E0D8C3]">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Ví dụ minh họa:</span>
-                      <p className="text-sm md:text-base italic text-gray-800 flex items-center justify-between gap-2">
-                        <span>"{currentWord.example}"</span>
-                        <button 
-                          onClick={(e) => handleSpeak(e, currentWord.example)} 
-                          className="p-1 hover:bg-[#E0D8C3] rounded-full shrink-0"
-                        >
-                          <Volume2 size={16} className="text-gray-600" />
-                        </button>
-                      </p>
-                      <p className="text-xs md:text-sm text-gray-600">→ {currentWord.exampleTranslation}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
-            <div className="flex items-center justify-between px-4">
-              <button onClick={handlePrev} disabled={currentIndex === 0} className="p-2 disabled:opacity-30 hover:bg-[#EFEAD8] rounded-full">
-                <ChevronLeft size={20} />
-              </button>
-              <div className="flex items-center gap-6">
-                <button onClick={handleNext} className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                  <RotateCcw size={16} /> Chưa nhớ
-                </button>
-                <button onClick={() => { setRememberedCount(prev => Math.min(prev + 1, currentSet.words.length)); handleNext(); }} className="flex items-center gap-1.5 text-sm font-medium text-green-700 font-bold">
-                  <Check size={16} /> Đã nhớ
+                {/* Thanh Nút Tương Tác */}
+                <div className="flex items-center justify-between px-2 pt-2">
+                  <button 
+                    onClick={handleMarkUnremembered} 
+                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all"
+                  >
+                    <RotateCcw size={16} /> Chưa nhớ (Lặp lại sau)
+                  </button>
+
+                  <span className="text-xs text-zinc-500 font-semibold">
+                    Còn lại {activeQueue.length} từ chưa nhớ
+                  </span>
+
+                  <button 
+                    onClick={handleMarkRemembered} 
+                    className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-2xl text-sm font-bold shadow-md transition-all"
+                  >
+                    <Check size={18} /> Đã nhớ (Ẩn đi)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#27272A] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
+                <CheckCircle2 size={52} className="text-emerald-400 mx-auto" />
+                <h2 className="text-2xl font-bold text-white">Xuất sắc! Bạn đã thuộc hết từ vựng bộ này!</h2>
+                <p className="text-sm text-zinc-400">Tất cả từ đã được đánh dấu "Đã nhớ". Bạn có thể chuyển sang bộ khác hoặc reset để ôn lại.</p>
+                <button 
+                  onClick={handleResetSetProgress}
+                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
+                >
+                  <RefreshCw size={16} /> Ôn tập lại bộ này từ đầu
                 </button>
               </div>
-              <button onClick={handleNext} disabled={currentIndex === currentSet.words.length - 1} className="p-2 disabled:opacity-30 hover:bg-[#EFEAD8] rounded-full">
-                <ChevronRight size={20} />
-              </button>
-            </div>
+            )}
           </div>
         )}
 
         {/* MODE 2: TRẮC NGHIỆM */}
-        {activeTab === 'quiz' && currentWord && (
-          <div className="space-y-6">
-            <div className="bg-[#EFEAD8]/60 rounded-3xl p-6 text-center border border-[#E0D8C3] space-y-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Từ cần chọn nghĩa:</span>
-              <h2 className="text-3xl font-sans font-bold text-gray-900 flex items-center justify-center gap-2">
-                {currentWord.word}
-                <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-[#E0D8C3] rounded-full">
-                  <Volume2 size={20} />
-                </button>
-              </h2>
-              <p className="text-sm text-gray-600">/{currentWord.pronunciation}/</p>
-            </div>
+        {activeTab === 'quiz' && (
+          <div>
+            {currentWord ? (
+              <div className="space-y-6">
+                <div className="bg-[#27272A] rounded-3xl p-6 text-center border border-zinc-800 space-y-2">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Từ cần chọn nghĩa:</span>
+                  <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-2">
+                    {currentWord.word}
+                    <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-zinc-700 rounded-full text-zinc-400">
+                      <Volume2 size={20} />
+                    </button>
+                  </h2>
+                  <p className="text-xs font-mono text-emerald-400">/{currentWord.pronunciation}/</p>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {quizOptions.map((opt) => {
-                const isSelected = selectedOption === opt.id;
-                const isCorrect = opt.id === currentWord.id;
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {quizOptions.map((opt) => {
+                    const isSelected = selectedOption === opt.id;
+                    const isCorrect = opt.id === currentWord.id;
 
-                let btnStyle = "bg-white border-[#E0D8C3] hover:border-gray-400";
-                if (selectedOption !== null) {
-                  if (isCorrect) btnStyle = "bg-green-100 border-green-500 text-green-900 font-bold";
-                  else if (isSelected) btnStyle = "bg-red-100 border-red-500 text-red-900";
-                }
+                    let btnStyle = "bg-[#27272A] border-zinc-800 text-zinc-200 hover:border-zinc-600";
+                    if (selectedOption !== null) {
+                      if (isCorrect) btnStyle = "bg-emerald-950 border-emerald-500 text-emerald-200 font-bold";
+                      else if (isSelected) btnStyle = "bg-red-950 border-red-500 text-red-200";
+                    }
 
-                return (
-                  <button
-                    key={opt.id}
-                    disabled={selectedOption !== null}
-                    onClick={() => setSelectedOption(opt.id)}
-                    className={`p-4 rounded-2xl border text-left text-sm md:text-base transition-all flex items-center justify-between ${btnStyle}`}
+                    return (
+                      <button
+                        key={opt.id}
+                        disabled={selectedOption !== null}
+                        onClick={() => setSelectedOption(opt.id)}
+                        className={`p-4 rounded-2xl border text-left text-sm md:text-base transition-all flex items-center justify-between ${btnStyle}`}
+                      >
+                        <span>{opt.meaning}</span>
+                        {selectedOption !== null && isCorrect && <CheckCircle2 className="text-emerald-400" size={20} />}
+                        {selectedOption !== null && isSelected && !isCorrect && <XCircle className="text-red-400" size={20} />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button 
+                    onClick={handleMarkRemembered}
+                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
                   >
-                    <span>{opt.meaning}</span>
-                    {selectedOption !== null && isCorrect && <CheckCircle2 className="text-green-600" size={20} />}
-                    {selectedOption !== null && isSelected && !isCorrect && <XCircle className="text-red-500" size={20} />}
+                    Câu tiếp theo <ChevronRight size={16} />
                   </button>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <button 
-                onClick={handlePrev}
-                disabled={currentIndex === 0}
-                className="flex items-center gap-1.5 bg-gray-200 text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-300 disabled:opacity-40"
-              >
-                <ChevronLeft size={16} /> Câu trước
-              </button>
-
-              <button 
-                onClick={handleNext}
-                disabled={currentIndex === currentSet.words.length - 1}
-                className="flex items-center gap-1.5 bg-black text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800 disabled:opacity-40"
-              >
-                Câu tiếp theo <ChevronRight size={16} />
-              </button>
-            </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 text-zinc-400">
+                Bạn đã nhớ hết các từ trong bộ này!
+              </div>
+            )}
           </div>
         )}
 
@@ -515,22 +580,20 @@ export default function VocabApp() {
           <div>
             {typeIndex < typeQueue.length ? (
               <div className="space-y-6">
-                <div className="bg-[#EFEAD8]/60 rounded-3xl p-8 text-center border border-[#E0D8C3] space-y-3">
-                  <div className="flex justify-between items-center text-xs font-semibold text-gray-500">
+                <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-3">
+                  <div className="flex justify-between items-center text-xs font-semibold text-zinc-500">
                     <span>Lượt gõ: {typeIndex + 1} / {typeQueue.length}</span>
-                    {reviewCount > 0 && (
-                      <span className="text-orange-600 bg-orange-100 px-2.5 py-0.5 rounded-full">
-                        Cần ôn lại: {reviewCount} từ
-                      </span>
-                    )}
+                    <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800">
+                      Gõ chính xác để qua bài
+                    </span>
                   </div>
 
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block pt-2">Nghĩa tiếng Việt:</span>
-                  <h2 className="text-2xl md:text-3xl font-sans font-bold text-gray-900">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-2">Nghĩa tiếng Việt:</span>
+                  <h2 className="text-2xl md:text-3xl font-bold text-emerald-400">
                     {currentTypeWord.meaning}
                   </h2>
                   {currentTypeWord.pronunciation && (
-                    <span className="inline-block text-xs bg-[#E0D8C3] text-gray-700 px-3 py-1 rounded-full font-medium">
+                    <span className="inline-block text-xs bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full font-mono">
                       Gợi ý phiên âm: /{currentTypeWord.pronunciation}/
                     </span>
                   )}
@@ -545,16 +608,16 @@ export default function VocabApp() {
                       placeholder="Gõ từ tiếng Anh tương ứng vào đây..."
                       className={`w-full p-4 rounded-2xl border text-lg outline-none transition-all ${
                         typeResult === 'correct' 
-                          ? 'border-green-500 bg-green-50 text-green-900 font-bold' 
+                          ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200 font-bold' 
                           : typeResult === 'incorrect' 
-                          ? 'border-red-500 bg-red-50 text-red-900' 
-                          : 'border-gray-300 focus:border-black bg-white'
+                          ? 'border-red-500 bg-red-950/40 text-red-200' 
+                          : 'border-zinc-700 bg-[#27272A] focus:border-emerald-400 text-white'
                       }`}
                     />
                     {typeResult === null && (
                       <button 
                         type="submit"
-                        className="absolute right-2 top-2 bottom-2 bg-black text-white px-5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
+                        className="absolute right-2 top-2 bottom-2 bg-emerald-500 text-zinc-950 px-5 rounded-xl text-sm font-bold hover:bg-emerald-400 transition-colors"
                       >
                         Kiểm tra
                       </button>
@@ -562,15 +625,15 @@ export default function VocabApp() {
                   </div>
 
                   {typeResult === 'correct' && (
-                    <div className="p-4 rounded-2xl bg-green-100 border border-green-300 text-green-800 text-sm flex items-center justify-between">
+                    <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-700 text-emerald-200 text-sm flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 size={18} className="text-green-600 shrink-0" />
-                        <span>Chính xác 100%! Từ là: <strong>{currentTypeWord.word}</strong></span>
+                        <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                        <span>Chính xác! Từ là: <strong>{currentTypeWord.word}</strong></span>
                       </div>
                       <button 
                         type="button"
                         onClick={handleNextTypeWord}
-                        className="bg-green-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-800"
+                        className="bg-emerald-500 text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-400"
                       >
                         Từ tiếp theo →
                       </button>
@@ -578,46 +641,40 @@ export default function VocabApp() {
                   )}
 
                   {typeResult === 'incorrect' && (
-                    <div className="p-4 rounded-2xl bg-red-100 border border-red-300 text-red-800 text-sm space-y-2">
+                    <div className="p-4 rounded-2xl bg-red-950/60 border border-red-700 text-red-200 text-sm space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <XCircle size={18} className="text-red-600 shrink-0" />
-                          <span>Chưa chính xác! (Từ này sẽ lặp lại ở cuối bài)</span>
+                          <XCircle size={18} className="text-red-400 shrink-0" />
+                          <span>Chưa đúng! Từ này sẽ được cho gõ lại ở cuối bài.</span>
                         </div>
                         <button 
                           type="button"
                           onClick={handleNextTypeWord}
-                          className="bg-red-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-800"
+                          className="bg-red-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600"
                         >
                           Đã hiểu, tiếp tục →
                         </button>
                       </div>
-                      <p className="text-xs text-red-700 pl-6">Đáp án chuẩn: <strong>{currentTypeWord.word}</strong></p>
+                      <p className="text-xs text-red-300 pl-6">Đáp án đúng: <strong>{currentTypeWord.word}</strong></p>
                     </div>
                   )}
                 </form>
               </div>
             ) : (
-              <div className="bg-[#EFEAD8]/80 rounded-3xl p-8 text-center border border-[#E0D8C3] space-y-4">
-                <CheckCircle2 size={48} className="text-green-600 mx-auto" />
-                <h2 className="text-2xl font-bold text-gray-900">Chúc mừng! Bạn đã hoàn thành bộ từ này!</h2>
-                <p className="text-sm text-gray-600">Tất cả từ gõ sai đều đã được ôn tập lại chuẩn xác.</p>
+              <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-4">
+                <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
+                <h2 className="text-2xl font-bold text-white">Hoàn thành bài gõ từ!</h2>
+                <p className="text-sm text-zinc-400">Bạn đã gõ chính xác toàn bộ các từ trong danh sách.</p>
                 <button 
                   onClick={initTypeQueue}
-                  className="inline-flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800"
+                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
                 >
-                  <RefreshCw size={16} /> Luyện tập lại bộ này
+                  <RefreshCw size={16} /> Luyện gõ lại bộ này
                 </button>
               </div>
             )}
           </div>
         )}
-
-        {/* Tiến độ */}
-        <div className="flex justify-between items-center text-xs font-semibold text-gray-500 px-2 pt-2 border-t border-gray-300">
-          <span>Tiến độ bài học: {currentIndex + 1} / {currentSet.words.length} từ</span>
-          <span>Đã nhớ: {rememberedCount} từ</span>
-        </div>
 
       </div>
     </div>
