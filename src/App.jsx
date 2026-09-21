@@ -6,7 +6,6 @@ import {
   RotateCcw, 
   Volume2, 
   ChevronRight, 
-  ChevronLeft, 
   Check, 
   Eye, 
   XCircle, 
@@ -26,7 +25,7 @@ const fixVietnamese = (text) => {
 };
 
 /* =========================================================================
-   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP (TIÊU ĐỀ TIẾNG ANH)
+   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP
    ========================================================================= */
 const RAW_VOCAB_SETS = [
   {
@@ -279,6 +278,7 @@ export default function VocabApp() {
     setRememberedIds(prev => prev.filter(id => !currentWordIds.includes(id)));
   };
 
+  // Trắc nghiệm generator
   useEffect(() => {
     if (activeTab === 'quiz' && currentWord) {
       const wrongWords = currentSet.words
@@ -291,6 +291,36 @@ export default function VocabApp() {
       setSelectedOption(null);
     }
   }, [currentIndex, activeTab, selectedSetIndex, currentWord]);
+
+  // Xử lý khi chọn câu trả lời ở Quiz
+  const handleQuizSelect = (optId) => {
+    if (selectedOption !== null) return;
+    setSelectedOption(optId);
+
+    const isCorrect = optId === currentWord.id;
+    if (isCorrect) {
+      handleSpeak(null, currentWord.word);
+    }
+  };
+
+  // Chuyển câu tiếp theo ở Quiz
+  const handleQuizNext = () => {
+    if (!currentWord) return;
+
+    if (selectedOption === currentWord.id) {
+      // Đúng: Đánh dấu đã nhớ để ẩn đi
+      setRememberedIds(prev => [...prev, currentWord.id]);
+    } else {
+      // Sai (hoặc bỏ qua): Đẩy từ này xuống cuối danh sách chờ
+      if (activeQueue.length > 1) {
+        const updated = [...activeQueue];
+        const item = updated.splice(currentIndex, 1)[0];
+        updated.push(item);
+        setActiveQueue(updated);
+      }
+    }
+    setSelectedOption(null);
+  };
 
   const handleCheckType = (e) => {
     e.preventDefault();
@@ -508,7 +538,11 @@ export default function VocabApp() {
             {currentWord ? (
               <div className="space-y-6">
                 <div className="bg-[#27272A] rounded-3xl p-6 text-center border border-zinc-800 space-y-2">
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Select the correct meaning:</span>
+                  <div className="flex justify-between items-center text-xs font-semibold text-zinc-500 px-2">
+                    <span>Remaining unmastered: {activeQueue.length}</span>
+                    <span>Mastered: {currentSetRememberedCount}</span>
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-1">Select the correct meaning:</span>
                   <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-2">
                     {currentWord.word}
                     <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-zinc-700 rounded-full text-zinc-400">
@@ -533,7 +567,7 @@ export default function VocabApp() {
                       <button
                         key={opt.id}
                         disabled={selectedOption !== null}
-                        onClick={() => setSelectedOption(opt.id)}
+                        onClick={() => handleQuizSelect(opt.id)}
                         className={`p-4 rounded-2xl border text-left text-sm md:text-base transition-all flex items-center justify-between ${btnStyle}`}
                       >
                         <span>{opt.meaning}</span>
@@ -544,18 +578,28 @@ export default function VocabApp() {
                   })}
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <button 
-                    onClick={handleMarkRemembered}
-                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
-                  >
-                    Next Question <ChevronRight size={16} />
-                  </button>
-                </div>
+                {selectedOption !== null && (
+                  <div className="flex justify-end pt-2">
+                    <button 
+                      onClick={handleQuizNext}
+                      className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
+                    >
+                      {selectedOption === currentWord.id ? 'Mastered! Next Word →' : 'Wrong! Review Later →'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 text-zinc-400">
-                You've mastered all words in this deck!
+              <div className="bg-[#27272A] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
+                <CheckCircle2 size={52} className="text-emerald-400 mx-auto" />
+                <h2 className="text-2xl font-bold text-white">Quiz Completed!</h2>
+                <p className="text-sm text-zinc-400">You answered correctly and mastered all words in this deck.</p>
+                <button 
+                  onClick={handleResetSetProgress}
+                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
+                >
+                  <RefreshCw size={16} /> Reset & Play Quiz Again
+                </button>
               </div>
             )}
           </div>
