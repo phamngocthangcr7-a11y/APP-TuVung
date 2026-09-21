@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 /* =========================================================================
-   HÀM TỰ ĐỘNG CHUẨN HÓA UNICODE VIỆT NAM (SỬA TẤT CẢ LỖI HỞ DẤU TỰ ĐỘNG)
+   HÀM TỰ ĐỘNG CHUẨN HÓA UNICODE VIỆT NAM
    ========================================================================= */
 const fixVietnamese = (text) => {
   if (!text) return '';
@@ -26,12 +26,12 @@ const fixVietnamese = (text) => {
 };
 
 /* =========================================================================
-   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP
+   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP (TIÊU ĐỀ TIẾNG ANH)
    ========================================================================= */
 const RAW_VOCAB_SETS = [
   {
     id: 1,
-    title: "1. Từ vựng ảnh của bạn (13 từ)",
+    title: "1. Your Image Words (13 words)",
     words: [
       { id: 101, word: "significantly", meaning: "đáng kể, một cách đáng kể", pronunciation: "sig-NIF-i-cần-li", example: "Sales increased significantly this quarter.", exampleTranslation: "Doanh số đã tăng đáng kể trong quý này." },
       { id: 102, word: "persuasively", meaning: "một cách thuyết phục", pronunciation: "pờ-SUÂY-siv-li", example: "She spoke persuasively during the meeting.", exampleTranslation: "Cô ấy nói chuyện một cách thuyết phục trong cuộc họp." },
@@ -50,7 +50,7 @@ const RAW_VOCAB_SETS = [
   },
   {
     id: 4,
-    title: "4. Từ vựng TOEIC Part 5 (68 từ)",
+    title: "4. TOEIC Part 5 Vocabulary (68 words)",
     words: [
       { id: 401, word: "prospect", meaning: "triển vọng, viễn cảnh", pronunciation: "PROS-pekt", example: "Job prospects are good in IT.", exampleTranslation: "Triển vọng nghề nghiệp trong ngành IT rất tốt." },
       { id: 402, word: "showroom", meaning: "phòng trưng bày", pronunciation: "SHOU-ruum", example: "We visited the car showroom.", exampleTranslation: "Chúng tôi đã đến thăm phòng trưng bày ô tô." },
@@ -136,7 +136,7 @@ const RAW_VOCAB_SETS = [
   },
   {
     id: 2,
-    title: "2. TOEIC Công sở & Doanh nghiệp (20 từ)",
+    title: "2. Business TOEIC (20 words)",
     words: [
       { id: 201, word: "implement", meaning: "thực thi, áp dụng", pronunciation: "IM-plơ-mơnt", example: "We need to implement the new safety rules.", exampleTranslation: "Chúng ta cần áp dụng quy tắc an toàn mới." },
       { id: 202, word: "accommodate", meaning: "đáp ứng, cung cấp chỗ ở", pronunciation: "ơ-KOM-ơ-đêit", example: "The hotel can accommodate 500 guests.", exampleTranslation: "Khách sạn có thể đáp ứng cho 500 khách." },
@@ -162,7 +162,7 @@ const RAW_VOCAB_SETS = [
   },
   {
     id: 3,
-    title: "3. Giao tiếp & Đời sống hàng ngày (17 từ)",
+    title: "3. Daily Communication (17 words)",
     words: [
       { id: 301, word: "appreciate", meaning: "trân trọng, cảm kích", pronunciation: "ơ-PRI-shi-êit", example: "I really appreciate your help.", exampleTranslation: "Tôi thực sự cảm kích sự giúp đỡ của bạn." },
       { id: 302, word: "apparently", meaning: "hình như, dường như", pronunciation: "ơ-PAR-ơnt-li", example: "Apparently, the flight has been delayed.", exampleTranslation: "Hình như chuyến bay đã bị hoãn." },
@@ -199,7 +199,6 @@ export default function VocabApp() {
   const [selectedSetIndex, setSelectedSetIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('flashcard');
 
-  // Lấy dữ liệu đã nhớ từ LocalStorage
   const [rememberedIds, setRememberedIds] = useState(() => {
     const saved = localStorage.getItem('vocab_remembered_ids');
     return saved ? JSON.parse(saved) : [];
@@ -207,27 +206,22 @@ export default function VocabApp() {
 
   const currentSet = VOCAB_SETS[selectedSetIndex];
 
-  // Danh sách từ hiện tại của bộ (được lọc các từ ĐÃ NHỚ)
   const [activeQueue, setActiveQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // State Trắc nghiệm
   const [quizOptions, setQuizOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
 
-  // State Gõ từ
   const [typeQueue, setTypeQueue] = useState([]);
   const [typeIndex, setTypeIndex] = useState(0);
   const [typedInput, setTypedInput] = useState('');
   const [typeResult, setTypeResult] = useState(null);
 
-  // Lưu progress vào localStorage
   useEffect(() => {
     localStorage.setItem('vocab_remembered_ids', JSON.stringify(rememberedIds));
   }, [rememberedIds]);
 
-  // Khởi tạo vòng lặp cho Flashcard mỗi khi chọn bộ từ hoặc danh sách Đã nhớ thay đổi
   useEffect(() => {
     const unrememberedWords = currentSet.words.filter(w => !rememberedIds.includes(w.id));
     setActiveQueue(unrememberedWords);
@@ -235,10 +229,8 @@ export default function VocabApp() {
     setIsFlipped(false);
   }, [selectedSetIndex, rememberedIds]);
 
-  // Khởi tạo hàng chờ cho chế độ Gõ Từ
   const initTypeQueue = () => {
     const unremembered = currentSet.words.filter(w => !rememberedIds.includes(w.id));
-    // Nếu đã nhớ hết thì cho luyện gõ lại toàn bộ
     const queueToUse = unremembered.length > 0 ? unremembered : currentSet.words;
     setTypeQueue(queueToUse);
     setTypeIndex(0);
@@ -264,14 +256,12 @@ export default function VocabApp() {
     }
   };
 
-  // Bấm ĐÃ NHỚ: Lưu id vào danh sách ĐÃ NHỚ -> Từ sẽ tự động ẩn khỏi danh sách lặp!
   const handleMarkRemembered = () => {
     if (!currentWord) return;
     setRememberedIds(prev => [...prev, currentWord.id]);
     setIsFlipped(false);
   };
 
-  // Bấm CHƯA NHỚ: Đưa từ này xuống cuối danh sách chờ lặp lại!
   const handleMarkUnremembered = () => {
     if (!currentWord || activeQueue.length <= 1) {
       setIsFlipped(false);
@@ -284,13 +274,11 @@ export default function VocabApp() {
     setIsFlipped(false);
   };
 
-  // Reset lại toàn bộ tiến độ bộ từ hiện tại
   const handleResetSetProgress = () => {
     const currentWordIds = currentSet.words.map(w => w.id);
     setRememberedIds(prev => prev.filter(id => !currentWordIds.includes(id)));
   };
 
-  // Trắc nghiệm generator
   useEffect(() => {
     if (activeTab === 'quiz' && currentWord) {
       const wrongWords = currentSet.words
@@ -304,7 +292,6 @@ export default function VocabApp() {
     }
   }, [currentIndex, activeTab, selectedSetIndex, currentWord]);
 
-  // Kiểm tra gõ từ
   const handleCheckType = (e) => {
     e.preventDefault();
     if (!typedInput.trim() || !currentTypeWord) return;
@@ -328,44 +315,43 @@ export default function VocabApp() {
     setTypeIndex(prev => prev + 1);
   };
 
-  // Đếm tổng số từ đã thuộc trong bộ
   const currentSetRememberedCount = currentSet.words.filter(w => rememberedIds.includes(w.id)).length;
 
   return (
     <div className="min-h-screen bg-[#18181B] text-[#E4E4E7] p-4 md:p-8 font-sans selection:bg-[#27272A]">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        {/* Header & Chọn bộ từ */}
+        {/* Header & Deck Selector */}
         <header className="space-y-4">
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-                Sổ tay từ vựng <Sparkles size={22} className="text-emerald-400" />
+                Vocabulary Notebook <Sparkles size={22} className="text-emerald-400" />
               </h1>
               <p className="text-sm text-zinc-400 mt-1">
-                Đang học: <strong className="text-emerald-400">{currentSet.title}</strong>
+                Currently Learning: <strong className="text-emerald-400">{currentSet.title}</strong>
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
               <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-3 py-1 rounded-full">
-                Đã nhớ {currentSetRememberedCount} / {currentSet.words.length} TỪ
+                Mastered {currentSetRememberedCount} / {currentSet.words.length} Words
               </span>
               {currentSetRememberedCount > 0 && (
                 <button 
                   onClick={handleResetSetProgress}
                   className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors pt-0.5"
-                  title="Học lại từ đầu bộ này"
+                  title="Reset deck progress"
                 >
-                  <Trash2 size={12} /> Reset tiến độ bộ này
+                  <Trash2 size={12} /> Reset Deck
                 </button>
               )}
             </div>
           </div>
 
-          {/* Selector Chọn Bộ Bài Học */}
+          {/* Deck Selector Box */}
           <div className="bg-[#27272A]/80 p-3 rounded-2xl border border-zinc-800 space-y-2">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FolderOpen size={14} className="text-emerald-400" /> Chọn bộ bài học:
+              <FolderOpen size={14} className="text-emerald-400" /> Select Word Deck:
             </span>
             <div className="flex flex-wrap gap-2">
               {VOCAB_SETS.map((set, idx) => {
@@ -391,7 +377,7 @@ export default function VocabApp() {
           </div>
         </header>
 
-        {/* Tabs Chế độ học */}
+        {/* Learning Mode Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800">
           <button 
             onClick={() => { setActiveTab('flashcard'); setIsFlipped(false); }}
@@ -399,7 +385,7 @@ export default function VocabApp() {
               activeTab === 'flashcard' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <BookOpen size={18} /> Lật thẻ
+            <BookOpen size={18} /> Flashcards
           </button>
           
           <button 
@@ -408,7 +394,7 @@ export default function VocabApp() {
               activeTab === 'quiz' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Brain size={18} /> Trắc nghiệm
+            <Brain size={18} /> Quiz
           </button>
 
           <button 
@@ -417,11 +403,11 @@ export default function VocabApp() {
               activeTab === 'type' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <PenTool size={18} /> Gõ từ
+            <PenTool size={18} /> Typing Practice
           </button>
         </div>
 
-        {/* MODE 1: LẬT THẺ */}
+        {/* MODE 1: FLASHCARDS */}
         {activeTab === 'flashcard' && (
           <div>
             {currentWord ? (
@@ -431,7 +417,7 @@ export default function VocabApp() {
                   className="cursor-pointer bg-[#27272A] rounded-3xl p-8 md:p-10 text-center shadow-lg border border-zinc-700/80 min-h-[280px] flex flex-col justify-center items-center relative transition-all hover:border-zinc-500"
                 >
                   <span className="absolute top-4 right-4 text-xs font-semibold text-zinc-500 flex items-center gap-1">
-                    <Eye size={14} /> {isFlipped ? 'Chạm để xem từ tiếng Anh' : 'Chạm để xem nghĩa & ví dụ'}
+                    <Eye size={14} /> {isFlipped ? 'Tap to show English' : 'Tap to show meaning'}
                   </span>
 
                   {!isFlipped ? (
@@ -452,7 +438,7 @@ export default function VocabApp() {
                           </button>
                         </div>
                       )}
-                      <p className="text-xs text-zinc-500 pt-4">(Bấm vào thẻ để lật xem mặt sau)</p>
+                      <p className="text-xs text-zinc-500 pt-4">(Click card to flip)</p>
                     </div>
                   ) : (
                     <div className="space-y-4 w-full max-w-xl animate-fadeIn">
@@ -462,7 +448,7 @@ export default function VocabApp() {
                       
                       {currentWord.example && (
                         <div className="space-y-1.5 pt-2 text-left bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800">
-                          <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Ví dụ minh họa:</span>
+                          <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Example:</span>
                           <p className="text-sm md:text-base italic text-zinc-200 flex items-center justify-between gap-2">
                             <span>"{currentWord.example}"</span>
                             <button 
@@ -479,50 +465,50 @@ export default function VocabApp() {
                   )}
                 </div>
 
-                {/* Thanh Nút Tương Tác */}
+                {/* Interactive Controls */}
                 <div className="flex items-center justify-between px-2 pt-2">
                   <button 
                     onClick={handleMarkUnremembered} 
                     className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all"
                   >
-                    <RotateCcw size={16} /> Chưa nhớ (Lặp lại sau)
+                    <RotateCcw size={16} /> Still Learning (Review later)
                   </button>
 
                   <span className="text-xs text-zinc-500 font-semibold">
-                    Còn lại {activeQueue.length} từ chưa nhớ
+                    {activeQueue.length} unmastered left
                   </span>
 
                   <button 
                     onClick={handleMarkRemembered} 
                     className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-2xl text-sm font-bold shadow-md transition-all"
                   >
-                    <Check size={18} /> Đã nhớ (Ẩn đi)
+                    <Check size={18} /> Mastered (Hide)
                   </button>
                 </div>
               </div>
             ) : (
               <div className="bg-[#27272A] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
                 <CheckCircle2 size={52} className="text-emerald-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Xuất sắc! Bạn đã thuộc hết từ vựng bộ này!</h2>
-                <p className="text-sm text-zinc-400">Tất cả từ đã được đánh dấu "Đã nhớ". Bạn có thể chuyển sang bộ khác hoặc reset để ôn lại.</p>
+                <h2 className="text-2xl font-bold text-white">Awesome! You've mastered all words in this deck!</h2>
+                <p className="text-sm text-zinc-400">All words are marked as "Mastered". Switch decks or reset to study again.</p>
                 <button 
                   onClick={handleResetSetProgress}
                   className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
                 >
-                  <RefreshCw size={16} /> Ôn tập lại bộ này từ đầu
+                  <RefreshCw size={16} /> Review Deck From Scratch
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* MODE 2: TRẮC NGHIỆM */}
+        {/* MODE 2: QUIZ */}
         {activeTab === 'quiz' && (
           <div>
             {currentWord ? (
               <div className="space-y-6">
                 <div className="bg-[#27272A] rounded-3xl p-6 text-center border border-zinc-800 space-y-2">
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Từ cần chọn nghĩa:</span>
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Select the correct meaning:</span>
                   <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-2">
                     {currentWord.word}
                     <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-zinc-700 rounded-full text-zinc-400">
@@ -563,38 +549,38 @@ export default function VocabApp() {
                     onClick={handleMarkRemembered}
                     className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
                   >
-                    Câu tiếp theo <ChevronRight size={16} />
+                    Next Question <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
             ) : (
               <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 text-zinc-400">
-                Bạn đã nhớ hết các từ trong bộ này!
+                You've mastered all words in this deck!
               </div>
             )}
           </div>
         )}
 
-        {/* MODE 3: GÕ TỪ */}
+        {/* MODE 3: TYPING PRACTICE */}
         {activeTab === 'type' && (
           <div>
             {typeIndex < typeQueue.length ? (
               <div className="space-y-6">
                 <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-3">
                   <div className="flex justify-between items-center text-xs font-semibold text-zinc-500">
-                    <span>Lượt gõ: {typeIndex + 1} / {typeQueue.length}</span>
+                    <span>Progress: {typeIndex + 1} / {typeQueue.length}</span>
                     <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800">
-                      Gõ chính xác để qua bài
+                      Type correctly to proceed
                     </span>
                   </div>
 
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-2">Nghĩa tiếng Việt:</span>
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-2">Vietnamese Meaning:</span>
                   <h2 className="text-2xl md:text-3xl font-bold text-emerald-400">
                     {currentTypeWord.meaning}
                   </h2>
                   {currentTypeWord.pronunciation && (
                     <span className="inline-block text-xs bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full font-mono">
-                      Gợi ý phiên âm: /{currentTypeWord.pronunciation}/
+                      Phonetic hint: /{currentTypeWord.pronunciation}/
                     </span>
                   )}
                 </div>
@@ -605,7 +591,7 @@ export default function VocabApp() {
                       type="text"
                       value={typedInput}
                       onChange={(e) => { setTypedInput(e.target.value); setTypeResult(null); }}
-                      placeholder="Gõ từ tiếng Anh tương ứng vào đây..."
+                      placeholder="Type English word here..."
                       className={`w-full p-4 rounded-2xl border text-lg outline-none transition-all ${
                         typeResult === 'correct' 
                           ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200 font-bold' 
@@ -619,7 +605,7 @@ export default function VocabApp() {
                         type="submit"
                         className="absolute right-2 top-2 bottom-2 bg-emerald-500 text-zinc-950 px-5 rounded-xl text-sm font-bold hover:bg-emerald-400 transition-colors"
                       >
-                        Kiểm tra
+                        Check
                       </button>
                     )}
                   </div>
@@ -628,14 +614,14 @@ export default function VocabApp() {
                     <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-700 text-emerald-200 text-sm flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-                        <span>Chính xác! Từ là: <strong>{currentTypeWord.word}</strong></span>
+                        <span>Correct! The word is: <strong>{currentTypeWord.word}</strong></span>
                       </div>
                       <button 
                         type="button"
                         onClick={handleNextTypeWord}
                         className="bg-emerald-500 text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-400"
                       >
-                        Từ tiếp theo →
+                        Next Word →
                       </button>
                     </div>
                   )}
@@ -645,17 +631,17 @@ export default function VocabApp() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <XCircle size={18} className="text-red-400 shrink-0" />
-                          <span>Chưa đúng! Từ này sẽ được cho gõ lại ở cuối bài.</span>
+                          <span>Incorrect! This word will repeat at the end.</span>
                         </div>
                         <button 
                           type="button"
                           onClick={handleNextTypeWord}
                           className="bg-red-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600"
                         >
-                          Đã hiểu, tiếp tục →
+                          Got it, Continue →
                         </button>
                       </div>
-                      <p className="text-xs text-red-300 pl-6">Đáp án đúng: <strong>{currentTypeWord.word}</strong></p>
+                      <p className="text-xs text-red-300 pl-6">Correct Answer: <strong>{currentTypeWord.word}</strong></p>
                     </div>
                   )}
                 </form>
@@ -663,13 +649,13 @@ export default function VocabApp() {
             ) : (
               <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-4">
                 <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Hoàn thành bài gõ từ!</h2>
-                <p className="text-sm text-zinc-400">Bạn đã gõ chính xác toàn bộ các từ trong danh sách.</p>
+                <h2 className="text-2xl font-bold text-white">Typing Practice Complete!</h2>
+                <p className="text-sm text-zinc-400">You typed all words in this deck correctly.</p>
                 <button 
                   onClick={initTypeQueue}
                   className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
                 >
-                  <RefreshCw size={16} /> Luyện gõ lại bộ này
+                  <RefreshCw size={16} /> Practice Typing Again
                 </button>
               </div>
             )}
