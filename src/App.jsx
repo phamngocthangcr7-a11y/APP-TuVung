@@ -25,9 +25,76 @@ const fixVietnamese = (text) => {
 };
 
 /* =========================================================================
-   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP
+   DANH SÁCH BỘ TỪ VỰNG TỔNG HỢP (FULL 61 CỤM TỪ TỪ 6 TRANG SÁCH ANHLE)
    ========================================================================= */
 const RAW_VOCAB_SETS = [
+  {
+    id: 5,
+    title: "5. TOEIC Phrase Collection (61 phrases)",
+    words: [
+      { id: 501, word: "currently available", meaning: "hiện đang có sẵn", pronunciation: "KUR-ơnt-li ơ-VEI-lơ-bơl", example: "The book is currently available.", exampleTranslation: "Cuốn sách hiện đang có sẵn." },
+      { id: 502, word: "ahead of schedule", meaning: "trước thời hạn", pronunciation: "ơ-HED ov SKED-juul", example: "Complete the construction ahead of schedule.", exampleTranslation: "Hoàn thành việc xây dựng trước thời hạn." },
+      { id: 503, word: "in person", meaning: "trực tiếp (mặt đối mặt)", pronunciation: "in PUR-sơn", example: "Deliver the packet in person.", exampleTranslation: "Giao gói hàng tận nơi trực tiếp." },
+      { id: 504, word: "a variety of", meaning: "nhiều, đa dạng", pronunciation: "ơ vơ-RAI-ơ-ti ov", example: "A wide variety of dishes.", exampleTranslation: "Nhiều món ăn đa dạng." },
+      { id: 505, word: "at least", meaning: "ít nhất", pronunciation: "at liist", example: "At least 100 attendees.", exampleTranslation: "Ít nhất 100 người tham gia." },
+      { id: 506, word: "promising candidate", meaning: "ứng cử viên triển vọng", pronunciation: "PRO-mi-sing KAN-di-deit", example: "Be selected from among promising candidates.", exampleTranslation: "Được lựa chọn trong số các ứng cử viên đầy triển vọng." },
+      { id: 507, word: "later this year", meaning: "vào cuối năm nay", pronunciation: "LEI-tơ đis jiơ", example: "Later this year, additional employees will be hired.", exampleTranslation: "Cuối năm nay, nhân viên bổ sung sẽ được thuê." },
+      { id: 508, word: "conduct a survey", meaning: "tiến hành khảo sát", pronunciation: "kơn-DAKT ơ SUR-vei", example: "Regularly conduct a customer satisfaction survey.", exampleTranslation: "Thường xuyên thực hiện khảo sát về sự hài lòng của khách hàng." },
+      { id: 509, word: "in advance", meaning: "trước", pronunciation: "in ơd-VANS", example: "Book in advance.", exampleTranslation: "Đặt trước." },
+      { id: 510, word: "so far", meaning: "cho tới nay", pronunciation: "sou faar", example: "The project has been successful so far.", exampleTranslation: "Dự án đã thành công cho đến nay." },
+      { id: 511, word: "for further information", meaning: "để biết thêm thông tin", pronunciation: "for FUR-đơ in-fơ-MEI-shơn", example: "Please refer to the handbook for further information.", exampleTranslation: "Vui lòng tham khảo sổ tay nhân viên để biết thêm thông tin." },
+      { id: 512, word: "business expenses", meaning: "chi phí kinh doanh", pronunciation: "BIZ-nis ik-SPEN-siz", example: "Increase profits by lowering business expenses.", exampleTranslation: "Tăng lợi nhuận bằng cách giảm chi phí kinh doanh." },
+      { id: 513, word: "have a good reputation for", meaning: "có danh tiếng tốt về", pronunciation: "hav ơ gud rep-ju-TEI-shơn for", example: "As a CEO, Mr. Na maintains a good reputation for his energy.", exampleTranslation: "Là một CEO, ông Na duy trì danh tiếng tốt về năng lực của mình." },
+      { id: 514, word: "issue a statement", meaning: "đưa ra một tuyên bố", pronunciation: "ISH-uu ơ STEIT-mơnt", example: "Will issue a statement officially.", exampleTranslation: "Sẽ ban hành một tuyên bố chính thức." },
+      { id: 515, word: "day/night shift", meaning: "ca ngày / ca đêm", pronunciation: "dei/nait shift", example: "Day shift on weekdays from 10:00 a.m. to 5:00 p.m.", exampleTranslation: "Ca ngày làm việc trong tuần từ 10:00 sáng đến 5:00 chiều." },
+      { id: 516, word: "out of service", meaning: "hỏng hóc, ngưng hoạt động", pronunciation: "aut ov SUR-vis", example: "The printer is currently out of service.", exampleTranslation: "Máy in hiện đang ngưng hoạt động." },
+      { id: 517, word: "access to the data", meaning: "truy cập vào dữ liệu", pronunciation: "AK-ses tu đơ DEI-tơ", example: "Access to the data is strictly restricted to authorized personnel.", exampleTranslation: "Truy cập dữ liệu chỉ được giới hạn cho nhân viên có thẩm quyền." },
+      { id: 518, word: "in a timely manner", meaning: "đúng lúc, kịp thời", pronunciation: "in ơ TAIM-li MAN-ơ", example: "Any complaints from customers will be dealt with in a timely manner.", exampleTranslation: "Bất kỳ khiếu nại từ khách hàng sẽ được xử lý kịp thời." },
+      { id: 519, word: "keynote speaker", meaning: "diễn giả chính", pronunciation: "KII-nout SPII-kơ", example: "Arrange for the keynote speaker.", exampleTranslation: "Sắp xếp cho diễn giả chính." },
+      { id: 520, word: "make a revision", meaning: "sửa lại, chỉnh sửa", pronunciation: "meik ơ ri-VI-zhơn", example: "Make a revision to the event schedule.", exampleTranslation: "Sửa đổi lịch trình sự kiện." },
+      { id: 521, word: "out of stock", meaning: "hết hàng", pronunciation: "aut ov stok", example: "The item is temporarily out of stock.", exampleTranslation: "Các mặt hàng tạm thời hết hàng." },
+      { id: 522, word: "play a role in", meaning: "đóng vai trò trong", pronunciation: "plei ơ roul in", example: "Play a role in the company's success.", exampleTranslation: "Đóng vai trò trong sự thành công của công ty." },
+      { id: 523, word: "raw materials", meaning: "nguyên liệu thô", pronunciation: "ro mơ-TIƠ-ri-ơlz", example: "Lower import taxes for raw materials.", exampleTranslation: "Giảm thuế nhập khẩu nguyên liệu thô." },
+      { id: 524, word: "recommendation letter", meaning: "thư giới thiệu", pronunciation: "rek-ơ-men-DEI-shơn LET-ơ", example: "Write recommendation letters.", exampleTranslation: "Viết thư giới thiệu." },
+      { id: 525, word: "under pressure", meaning: "chịu áp lực", pronunciation: "AN-đơ PRE-shơ", example: "All the workers are under pressure.", exampleTranslation: "Tất cả công nhân đều chịu áp lực." },
+      { id: 526, word: "job performance", meaning: "hiệu suất công việc", pronunciation: "djob pơ-FOR-mơns", example: "Complain about his job performance.", exampleTranslation: "Phàn nàn về hiệu suất công việc của anh ấy." },
+      { id: 527, word: "without consent", meaning: "không có sự đồng ý", pronunciation: "wiđ-AUT kơn-SENT", example: "Without your prior written consent, we do not release...", exampleTranslation: "Nếu không có sự đồng ý trước bằng văn bản của bạn, chúng tôi sẽ không phát hành..." },
+      { id: 528, word: "seating capacity", meaning: "sức chứa chỗ ngồi", pronunciation: "SII-ting kơ-PAS-ơ-ti", example: "An auditorium with a seating capacity of 500.", exampleTranslation: "Khán phòng có sức chứa 500 người." },
+      { id: 529, word: "increasing demand", meaning: "nhu cầu ngày càng tăng", pronunciation: "in-KRII-sing di-MAND", example: "There is an increasing demand in cars.", exampleTranslation: "Có một sự gia tăng nhu cầu mua xe." },
+      { id: 530, word: "customs official", meaning: "cán bộ hải quan", pronunciation: "KAS-tơmz ơ-FISH-ơl", example: "The customs official checked the package.", exampleTranslation: "Các quan chức hải quan kiểm tra các gói hàng." },
+      { id: 531, word: "under construction", meaning: "đang thi công, xây dựng", pronunciation: "AN-đơ kơn-STRAK-shơn", example: "The museum is under construction.", exampleTranslation: "Bảo tàng đang được xây dựng." },
+      { id: 532, word: "safety procedures", meaning: "quy trình an toàn", pronunciation: "SEIF-ti prơ-SII-djơrz", example: "Review the safety procedures.", exampleTranslation: "Xem lại các quy trình an toàn." },
+      { id: 533, word: "be committed to", meaning: "tận tụy, cam kết", pronunciation: "bii kơm-MIT-id tu", example: "Be committed to satisfying customers.", exampleTranslation: "Cam kết làm hài lòng khách hàng." },
+      { id: 534, word: "be scheduled to", meaning: "được lên lịch vào", pronunciation: "bii SKED-juuld tu", example: "The speech is scheduled to begin at 7 am.", exampleTranslation: "Bài phát biểu được lên lịch để bắt đầu lúc 7 am." },
+      { id: 535, word: "engage in", meaning: "tham gia vào", pronunciation: "en-GEIDJ in", example: "Engage in online sales.", exampleTranslation: "Tham gia bán hàng trực tuyến." },
+      { id: 536, word: "comply with", meaning: "tuân theo, làm theo", pronunciation: "kơm-PLAI wiđ", example: "Comply with the legal requirements.", exampleTranslation: "Tuân thủ các yêu cầu pháp lý." },
+      { id: 537, word: "contribute to", meaning: "đóng góp, góp phần", pronunciation: "kơn-TRI-bjuut tu", example: "Contribute to the project.", exampleTranslation: "Đóng góp cho dự án." },
+      { id: 538, word: "deal with", meaning: "giải quyết", pronunciation: "diil wiđ", example: "Deal with a problem.", exampleTranslation: "Giải quyết 1 vấn đề." },
+      { id: 539, word: "with the exception of", meaning: "ngoại trừ", pronunciation: "wiđ đơ ik-SEP-shơn ov", example: "With the exception of personal matters.", exampleTranslation: "Ngoại trừ các vấn đề cá nhân." },
+      { id: 540, word: "be acquainted with", meaning: "làm quen với", pronunciation: "bii ơ-KWEIN-tid wiđ", example: "Be well acquainted with photo software.", exampleTranslation: "Làm quen với phần mềm ảnh." },
+      { id: 541, word: "be associated with", meaning: "kết hợp với, liên quan đến", pronunciation: "bii ơ-SOU-si-ei-tid wiđ", example: "The problem is associated with financial restraints.", exampleTranslation: "Vấn đề liên quan đến các hạn chế tài chính." },
+      { id: 542, word: "be aware of", meaning: "biết về, nhận thức về", pronunciation: "bii ơ-WEƠ ov", example: "I am fully aware of the fact that...", exampleTranslation: "Tôi hoàn toàn nhận thức được sự thật rằng..." },
+      { id: 543, word: "be accustomed to", meaning: "quen với", pronunciation: "bii ơ-KAS-tơmd tu", example: "New employees are accustomed to working overtime.", exampleTranslation: "Nhân viên mới đã quen với việc làm thêm giờ." },
+      { id: 544, word: "be eager about", meaning: "háo hức về việc gì", pronunciation: "bii II-gơ ơ-BAUT", example: "He is always eager about huge tasks.", exampleTranslation: "Anh ấy luôn háo hức với những nhiệm vụ lớn." },
+      { id: 545, word: "be eligible for", meaning: "đủ điều kiện cho", pronunciation: "bii EL-i-djơ-bơl for", example: "Ms Kim is eligible for the promotion.", exampleTranslation: "Cô Kim đủ điều kiện nhận thăng chức." },
+      { id: 546, word: "be concerned about", meaning: "lo lắng về vấn đề gì", pronunciation: "bii kơn-SURND ơ-BAUT", example: "We are concerned about the financial status.", exampleTranslation: "Chúng tôi lo ngại về tình trạng tài chính." },
+      { id: 547, word: "be entitled to", meaning: "được quyền, đủ điều kiện", pronunciation: "bii in-TAI-tơld tu", example: "All the customers are entitled to a full refund.", exampleTranslation: "Tất cả khách hàng đều được hưởng khoản hoàn tiền đầy đủ." },
+      { id: 548, word: "be equipped with", meaning: "được trang bị với", pronunciation: "bii i-KWIPT wiđ", example: "The conference room is equipped with visual aids.", exampleTranslation: "Phòng hội nghị được trang bị các phương tiện trực quan." },
+      { id: 549, word: "be dedicated to", meaning: "cống hiến cho", pronunciation: "bii DED-i-kei-tid tu", example: "Professor Moon has been dedicated to this university.", exampleTranslation: "Giáo sư Moon đã cống hiến cho trường đại học này." },
+      { id: 550, word: "be prepared for", meaning: "chuẩn bị để làm gì", pronunciation: "bii pri-PEƠD for", example: "Be prepared to speak at the meeting.", exampleTranslation: "Hãy chuẩn bị để phát biểu tại cuộc họp." },
+      { id: 551, word: "be responsible for", meaning: "chịu trách nhiệm cho", pronunciation: "bii ri-SPON-sơ-bơl for", example: "The manager is responsible for supervising assemblers.", exampleTranslation: "Người quản lý có trách nhiệm giám sát các nhà lắp ráp." },
+      { id: 552, word: "be faced with", meaning: "đối mặt với", pronunciation: "bii FEIST wiđ", example: "The company is currently faced with financial difficulties.", exampleTranslation: "Công ty hiện đang phải đối mặt với những khó khăn tài chính." },
+      { id: 553, word: "be satisfied with", meaning: "thỏa mãn với, hài lòng với", pronunciation: "bii SAT-is-faid wiđ", example: "I was satisfied with the results.", exampleTranslation: "Tôi hài lòng với kết quả." },
+      { id: 554, word: "be similar to", meaning: "tương tự như", pronunciation: "bii SIM-i-lơ tu", example: "Be similar to other towns.", exampleTranslation: "Tương tự như các thị trấn khác." },
+      { id: 555, word: "be subject to", meaning: "phải trải qua, tùy thuộc vào", pronunciation: "bii SAB-djikt tu", example: "The schedule is subject to change without prior notice.", exampleTranslation: "Lịch trình có thể thay đổi mà không cần thông báo trước." },
+      { id: 556, word: "be in charge of", meaning: "chịu trách nhiệm, phụ trách", pronunciation: "bii in CHAARDJ ov", example: "Ms Hamilton is currently in charge of the Marketing Division.", exampleTranslation: "Bà Hamilton hiện đang phụ trách Bộ phận Tiếp thị." },
+      { id: 557, word: "be suitable for", meaning: "phù hợp với", pronunciation: "bii SUU-tơ-bơl for", example: "He is suitable for the position.", exampleTranslation: "Anh ta phù hợp với vị trí này." },
+      { id: 558, word: "apart from", meaning: "ngoại trừ", pronunciation: "ơ-PAART frơm", example: "Apart from a few minor errors.", exampleTranslation: "Ngoại trừ một vài lỗi nhỏ." },
+      { id: 559, word: "as a result of", meaning: "vì vậy, vì lý do đó...nên", pronunciation: "az ơ ri-ZALT ov", example: "As a result of the recent merger, we canceled the appointment.", exampleTranslation: "Do đợt sáp nhập gần đây, chúng tôi đã hủy cuộc hẹn." },
+      { id: 560, word: "due to", meaning: "bởi vì", pronunciation: "djuu tu", example: "Due to malfunction.", exampleTranslation: "Bởi vì trục trặc." },
+      { id: 561, word: "in addition to", meaning: "ngoài ra, bên cạnh đó", pronunciation: "in ơ-DISH-ơn tu", example: "In addition to being helped.", exampleTranslation: "Ngoài việc được giúp đỡ." }
+    ]
+  },
   {
     id: 1,
     title: "1. Your Image Words (13 words)",
@@ -278,7 +345,6 @@ export default function VocabApp() {
     setRememberedIds(prev => prev.filter(id => !currentWordIds.includes(id)));
   };
 
-  // Trắc nghiệm generator
   useEffect(() => {
     if (activeTab === 'quiz' && currentWord) {
       const wrongWords = currentSet.words
@@ -292,7 +358,6 @@ export default function VocabApp() {
     }
   }, [currentIndex, activeTab, selectedSetIndex, currentWord]);
 
-  // Xử lý khi chọn câu trả lời ở Quiz
   const handleQuizSelect = (optId) => {
     if (selectedOption !== null) return;
     setSelectedOption(optId);
@@ -303,15 +368,12 @@ export default function VocabApp() {
     }
   };
 
-  // Chuyển câu tiếp theo ở Quiz
   const handleQuizNext = () => {
     if (!currentWord) return;
 
     if (selectedOption === currentWord.id) {
-      // Đúng: Đánh dấu đã nhớ để ẩn đi
       setRememberedIds(prev => [...prev, currentWord.id]);
     } else {
-      // Sai (hoặc bỏ qua): Đẩy từ này xuống cuối danh sách chờ
       if (activeQueue.length > 1) {
         const updated = [...activeQueue];
         const item = updated.splice(currentIndex, 1)[0];
@@ -348,364 +410,375 @@ export default function VocabApp() {
   const currentSetRememberedCount = currentSet.words.filter(w => rememberedIds.includes(w.id)).length;
 
   return (
-    <div className="min-h-screen bg-[#18181B] text-[#E4E4E7] p-4 md:p-8 font-sans selection:bg-[#27272A]">
+    <div className="min-h-screen bg-[#0F1117] text-[#E2E8F0] p-4 md:p-8 font-sans selection:bg-blue-500/20 selection:text-blue-300">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        {/* Header & Deck Selector */}
-        <header className="space-y-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
-                Vocabulary Notebook <Sparkles size={22} className="text-emerald-400" />
-              </h1>
-              <p className="text-sm text-zinc-400 mt-1">
-                Currently Learning: <strong className="text-emerald-400">{currentSet.title}</strong>
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-3 py-1 rounded-full">
-                Mastered {currentSetRememberedCount} / {currentSet.words.length} Words
-              </span>
-              {currentSetRememberedCount > 0 && (
-                <button 
-                  onClick={handleResetSetProgress}
-                  className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors pt-0.5"
-                  title="Reset deck progress"
-                >
-                  <Trash2 size={12} /> Reset Deck
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Deck Selector Box */}
-          <div className="bg-[#27272A]/80 p-3 rounded-2xl border border-zinc-800 space-y-2">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FolderOpen size={14} className="text-emerald-400" /> Select Word Deck:
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {VOCAB_SETS.map((set, idx) => {
-                const count = set.words.filter(w => rememberedIds.includes(w.id)).length;
-                const isDone = count === set.words.length;
-
-                return (
-                  <button
-                    key={set.id}
-                    onClick={() => setSelectedSetIndex(idx)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      selectedSetIndex === idx 
-                        ? 'bg-emerald-500 text-zinc-950 shadow-md font-bold' 
-                        : 'bg-zinc-800/90 text-zinc-300 hover:bg-zinc-700'
-                    }`}
-                  >
-                    <span>{set.title}</span>
-                    {isDone && <CheckCircle2 size={14} className="text-emerald-900" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </header>
-
-        {/* Learning Mode Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800">
-          <button 
-            onClick={() => { setActiveTab('flashcard'); setIsFlipped(false); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'flashcard' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <BookOpen size={18} /> Flashcards
-          </button>
+        {/* Main Frame Container */}
+        <div className="bg-[#161922] border border-zinc-800/80 rounded-3xl p-5 md:p-8 shadow-2xl space-y-6 backdrop-blur-xl">
           
-          <button 
-            onClick={() => setActiveTab('quiz')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'quiz' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Brain size={18} /> Quiz
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('type')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'type' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 font-bold' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <PenTool size={18} /> Typing Practice
-          </button>
-        </div>
-
-        {/* MODE 1: FLASHCARDS */}
-        {activeTab === 'flashcard' && (
-          <div>
-            {currentWord ? (
-              <div className="space-y-4">
-                <div 
-                  onClick={() => setIsFlipped(!isFlipped)}
-                  className="cursor-pointer bg-[#27272A] rounded-3xl p-8 md:p-10 text-center shadow-lg border border-zinc-700/80 min-h-[280px] flex flex-col justify-center items-center relative transition-all hover:border-zinc-500"
-                >
-                  <span className="absolute top-4 right-4 text-xs font-semibold text-zinc-500 flex items-center gap-1">
-                    <Eye size={14} /> {isFlipped ? 'Tap to show English' : 'Tap to show meaning'}
-                  </span>
-
-                  {!isFlipped ? (
-                    <div className="space-y-3">
-                      <h2 className="text-3xl md:text-4xl font-bold text-white tracking-wide">
-                        {currentWord.word}
-                      </h2>
-                      {currentWord.pronunciation && (
-                        <div className="flex items-center justify-center gap-2 pt-1">
-                          <span className="text-xs bg-zinc-800 text-emerald-400 border border-zinc-700 px-3 py-1 rounded-full font-mono">
-                            /{currentWord.pronunciation}/
-                          </span>
-                          <button 
-                            onClick={(e) => handleSpeak(e, currentWord.word)} 
-                            className="p-1.5 hover:bg-zinc-700 rounded-full transition-colors text-zinc-300"
-                          >
-                            <Volume2 size={20} />
-                          </button>
-                        </div>
-                      )}
-                      <p className="text-xs text-zinc-500 pt-4">(Click card to flip)</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 w-full max-w-xl animate-fadeIn">
-                      <h2 className="text-2xl md:text-3xl font-bold text-emerald-400">
-                        {currentWord.meaning}
-                      </h2>
-                      
-                      {currentWord.example && (
-                        <div className="space-y-1.5 pt-2 text-left bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800">
-                          <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">Example:</span>
-                          <p className="text-sm md:text-base italic text-zinc-200 flex items-center justify-between gap-2">
-                            <span>"{currentWord.example}"</span>
-                            <button 
-                              onClick={(e) => handleSpeak(e, currentWord.example)} 
-                              className="p-1 hover:bg-zinc-800 rounded-full shrink-0 text-zinc-400"
-                            >
-                              <Volume2 size={16} />
-                            </button>
-                          </p>
-                          <p className="text-xs md:text-sm text-zinc-400">→ {currentWord.exampleTranslation}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Interactive Controls */}
-                <div className="flex items-center justify-between px-2 pt-2">
-                  <button 
-                    onClick={handleMarkUnremembered} 
-                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all"
-                  >
-                    <RotateCcw size={16} /> Still Learning (Review later)
-                  </button>
-
-                  <span className="text-xs text-zinc-500 font-semibold">
-                    {activeQueue.length} unmastered left
-                  </span>
-
-                  <button 
-                    onClick={handleMarkRemembered} 
-                    className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-2xl text-sm font-bold shadow-md transition-all"
-                  >
-                    <Check size={18} /> Mastered (Hide)
-                  </button>
-                </div>
+          {/* Header & Deck Selector */}
+          <header className="space-y-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                  Vocabulary Notebook <Sparkles size={20} className="text-blue-400 animate-pulse" />
+                </h1>
+                <p className="text-xs md:text-sm text-zinc-400 mt-1">
+                  Currently Learning: <strong className="text-blue-400 font-semibold">{currentSet.title}</strong>
+                </p>
               </div>
-            ) : (
-              <div className="bg-[#27272A] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
-                <CheckCircle2 size={52} className="text-emerald-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Awesome! You've mastered all words in this deck!</h2>
-                <p className="text-sm text-zinc-400">All words are marked as "Mastered". Switch decks or reset to study again.</p>
-                <button 
-                  onClick={handleResetSetProgress}
-                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
-                >
-                  <RefreshCw size={16} /> Review Deck From Scratch
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* MODE 2: QUIZ */}
-        {activeTab === 'quiz' && (
-          <div>
-            {currentWord ? (
-              <div className="space-y-6">
-                <div className="bg-[#27272A] rounded-3xl p-6 text-center border border-zinc-800 space-y-2">
-                  <div className="flex justify-between items-center text-xs font-semibold text-zinc-500 px-2">
-                    <span>Remaining unmastered: {activeQueue.length}</span>
-                    <span>Mastered: {currentSetRememberedCount}</span>
-                  </div>
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-1">Select the correct meaning:</span>
-                  <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-2">
-                    {currentWord.word}
-                    <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-zinc-700 rounded-full text-zinc-400">
-                      <Volume2 size={20} />
-                    </button>
-                  </h2>
-                  <p className="text-xs font-mono text-emerald-400">/{currentWord.pronunciation}/</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {quizOptions.map((opt) => {
-                    const isSelected = selectedOption === opt.id;
-                    const isCorrect = opt.id === currentWord.id;
-
-                    let btnStyle = "bg-[#27272A] border-zinc-800 text-zinc-200 hover:border-zinc-600";
-                    if (selectedOption !== null) {
-                      if (isCorrect) btnStyle = "bg-emerald-950 border-emerald-500 text-emerald-200 font-bold";
-                      else if (isSelected) btnStyle = "bg-red-950 border-red-500 text-red-200";
-                    }
-
-                    return (
-                      <button
-                        key={opt.id}
-                        disabled={selectedOption !== null}
-                        onClick={() => handleQuizSelect(opt.id)}
-                        className={`p-4 rounded-2xl border text-left text-sm md:text-base transition-all flex items-center justify-between ${btnStyle}`}
-                      >
-                        <span>{opt.meaning}</span>
-                        {selectedOption !== null && isCorrect && <CheckCircle2 className="text-emerald-400" size={20} />}
-                        {selectedOption !== null && isSelected && !isCorrect && <XCircle className="text-red-400" size={20} />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {selectedOption !== null && (
-                  <div className="flex justify-end pt-2">
-                    <button 
-                      onClick={handleQuizNext}
-                      className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
-                    >
-                      {selectedOption === currentWord.id ? 'Mastered! Next Word →' : 'Wrong! Review Later →'}
-                    </button>
-                  </div>
+              
+              <div className="flex flex-col items-end gap-1.5">
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-3 py-1 rounded-full shadow-sm">
+                  Mastered {currentSetRememberedCount} / {currentSet.words.length} Words
+                </span>
+                {currentSetRememberedCount > 0 && (
+                  <button 
+                    onClick={handleResetSetProgress}
+                    className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors pt-0.5"
+                    title="Reset deck progress"
+                  >
+                    <Trash2 size={12} /> Reset Deck
+                  </button>
                 )}
               </div>
-            ) : (
-              <div className="bg-[#27272A] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
-                <CheckCircle2 size={52} className="text-emerald-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Quiz Completed!</h2>
-                <p className="text-sm text-zinc-400">You answered correctly and mastered all words in this deck.</p>
-                <button 
-                  onClick={handleResetSetProgress}
-                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all"
-                >
-                  <RefreshCw size={16} /> Reset & Play Quiz Again
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+            </div>
 
-        {/* MODE 3: TYPING PRACTICE */}
-        {activeTab === 'type' && (
-          <div>
-            {typeIndex < typeQueue.length ? (
-              <div className="space-y-6">
-                <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-3">
-                  <div className="flex justify-between items-center text-xs font-semibold text-zinc-500">
-                    <span>Progress: {typeIndex + 1} / {typeQueue.length}</span>
-                    <span className="text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800">
-                      Type correctly to proceed
-                    </span>
-                  </div>
+            {/* Deck Selector Box */}
+            <div className="bg-[#1E222D] p-3.5 rounded-2xl border border-zinc-800 space-y-2.5">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FolderOpen size={14} className="text-blue-400" /> Select Word Deck:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {VOCAB_SETS.map((set, idx) => {
+                  const count = set.words.filter(w => rememberedIds.includes(w.id)).length;
+                  const isDone = count === set.words.length;
 
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block pt-2">Vietnamese Meaning:</span>
-                  <h2 className="text-2xl md:text-3xl font-bold text-emerald-400">
-                    {currentTypeWord.meaning}
-                  </h2>
-                  {currentTypeWord.pronunciation && (
-                    <span className="inline-block text-xs bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full font-mono">
-                      Phonetic hint: /{currentTypeWord.pronunciation}/
-                    </span>
-                  )}
-                </div>
-
-                <form onSubmit={handleCheckType} className="space-y-4">
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      value={typedInput}
-                      onChange={(e) => { setTypedInput(e.target.value); setTypeResult(null); }}
-                      placeholder="Type English word here..."
-                      className={`w-full p-4 rounded-2xl border text-lg outline-none transition-all ${
-                        typeResult === 'correct' 
-                          ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200 font-bold' 
-                          : typeResult === 'incorrect' 
-                          ? 'border-red-500 bg-red-950/40 text-red-200' 
-                          : 'border-zinc-700 bg-[#27272A] focus:border-emerald-400 text-white'
+                  return (
+                    <button
+                      key={set.id}
+                      onClick={() => setSelectedSetIndex(idx)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
+                        selectedSetIndex === idx 
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold border border-blue-400/30' 
+                          : 'bg-[#272D3D] text-zinc-300 hover:bg-[#32394E] border border-transparent'
                       }`}
-                    />
-                    {typeResult === null && (
-                      <button 
-                        type="submit"
-                        className="absolute right-2 top-2 bottom-2 bg-emerald-500 text-zinc-950 px-5 rounded-xl text-sm font-bold hover:bg-emerald-400 transition-colors"
-                      >
-                        Check
-                      </button>
+                    >
+                      <span>{set.title}</span>
+                      {isDone && <CheckCircle2 size={14} className="text-emerald-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </header>
+
+          {/* Learning Mode Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-zinc-800">
+            <button 
+              onClick={() => { setActiveTab('flashcard'); setIsFlipped(false); }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'flashcard' 
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 border border-blue-400/40' 
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+              }`}
+            >
+              <BookOpen size={16} /> Flashcards
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('quiz')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'quiz' 
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 border border-blue-400/40' 
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+              }`}
+            >
+              <Brain size={16} /> Quiz
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('type')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'type' 
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 border border-blue-400/40' 
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+              }`}
+            >
+              <PenTool size={16} /> Typing Practice
+            </button>
+          </div>
+
+          {/* MODE 1: FLASHCARDS */}
+          {activeTab === 'flashcard' && (
+            <div>
+              {currentWord ? (
+                <div className="space-y-4">
+                  <div 
+                    onClick={() => setIsFlipped(!isFlipped)}
+                    className="cursor-pointer bg-gradient-to-b from-[#1C212E] to-[#141722] rounded-3xl p-8 md:p-10 text-center shadow-xl border border-zinc-700/60 min-h-[290px] flex flex-col justify-center items-center relative transition-all hover:border-blue-500/50 group"
+                  >
+                    <span className="absolute top-4 right-4 text-xs font-medium text-zinc-400 flex items-center gap-1 bg-zinc-800/60 px-3 py-1 rounded-full border border-zinc-700/50">
+                      <Eye size={13} /> {isFlipped ? 'Tap to show English' : 'Tap to show meaning'}
+                    </span>
+
+                    {!isFlipped ? (
+                      <div className="space-y-3">
+                        <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-wide group-hover:scale-105 transition-transform">
+                          {currentWord.word}
+                        </h2>
+                        {currentWord.pronunciation && (
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <span className="text-xs bg-zinc-800/90 text-blue-400 border border-zinc-700/80 px-3 py-1 rounded-full font-mono">
+                              /{currentWord.pronunciation}/
+                            </span>
+                            <button 
+                              onClick={(e) => handleSpeak(e, currentWord.word)} 
+                              className="p-1.5 hover:bg-zinc-700 rounded-full transition-colors text-zinc-300"
+                            >
+                              <Volume2 size={18} />
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-zinc-500 pt-4">(Click card to flip)</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 w-full max-w-xl animate-fadeIn">
+                        <h2 className="text-2xl md:text-3xl font-bold text-blue-400">
+                          {currentWord.meaning}
+                        </h2>
+                        
+                        {currentWord.example && (
+                          <div className="space-y-1.5 pt-2 text-left bg-[#0F1117]/80 p-4 rounded-2xl border border-zinc-800">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Example:</span>
+                            <p className="text-xs md:text-sm italic text-zinc-200 flex items-center justify-between gap-2">
+                              <span>"{currentWord.example}"</span>
+                              <button 
+                                onClick={(e) => handleSpeak(e, currentWord.example)} 
+                                className="p-1 hover:bg-zinc-800 rounded-full shrink-0 text-zinc-400"
+                              >
+                                <Volume2 size={16} />
+                              </button>
+                            </p>
+                            <p className="text-xs text-zinc-400">→ {currentWord.exampleTranslation}</p>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {typeResult === 'correct' && (
-                    <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-700 text-emerald-200 text-sm flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-                        <span>Correct! The word is: <strong>{currentTypeWord.word}</strong></span>
-                      </div>
+                  {/* Interactive Controls */}
+                  <div className="flex items-center justify-between px-1 pt-1">
+                    <button 
+                      onClick={handleMarkUnremembered} 
+                      className="flex items-center gap-2 bg-[#272D3D] hover:bg-[#32394E] text-zinc-200 px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all border border-zinc-700/50"
+                    >
+                      <RotateCcw size={15} /> Still Learning (Review later)
+                    </button>
+
+                    <span className="text-xs text-zinc-500 font-semibold hidden md:inline">
+                      {activeQueue.length} unmastered left
+                    </span>
+
+                    <button 
+                      onClick={handleMarkRemembered} 
+                      className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all"
+                    >
+                      <Check size={16} /> Mastered (Hide)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-[#1C212E] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
+                  <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
+                  <h2 className="text-xl font-bold text-white">Awesome! You've mastered all words in this deck!</h2>
+                  <p className="text-xs text-zinc-400">All words are marked as "Mastered". Switch decks or reset to study again.</p>
+                  <button 
+                    onClick={handleResetSetProgress}
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-lg shadow-blue-600/30"
+                  >
+                    <RefreshCw size={15} /> Review Deck From Scratch
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 2: QUIZ */}
+          {activeTab === 'quiz' && (
+            <div>
+              {currentWord ? (
+                <div className="space-y-5">
+                  <div className="bg-gradient-to-b from-[#1C212E] to-[#141722] rounded-3xl p-6 text-center border border-zinc-700/60 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-semibold text-zinc-500 px-2">
+                      <span>Remaining: {activeQueue.length}</span>
+                      <span>Mastered: {currentSetRememberedCount}</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block pt-1">Select the correct meaning:</span>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-white flex items-center justify-center gap-2">
+                      {currentWord.word}
+                      <button onClick={(e) => handleSpeak(e, currentWord.word)} className="p-1 hover:bg-zinc-700 rounded-full text-zinc-400">
+                        <Volume2 size={18} />
+                      </button>
+                    </h2>
+                    <p className="text-xs font-mono text-blue-400">/{currentWord.pronunciation}/</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {quizOptions.map((opt) => {
+                      const isSelected = selectedOption === opt.id;
+                      const isCorrect = opt.id === currentWord.id;
+
+                      let btnStyle = "bg-[#1E222D] border-zinc-800 text-zinc-200 hover:border-blue-500/50 hover:bg-[#252B3A]";
+                      if (selectedOption !== null) {
+                        if (isCorrect) btnStyle = "bg-emerald-950/80 border-emerald-500 text-emerald-200 font-bold shadow-lg shadow-emerald-950/50";
+                        else if (isSelected) btnStyle = "bg-red-950/80 border-red-500 text-red-200 shadow-lg shadow-red-950/50";
+                      }
+
+                      return (
+                        <button
+                          key={opt.id}
+                          disabled={selectedOption !== null}
+                          onClick={() => handleQuizSelect(opt.id)}
+                          className={`p-4 rounded-2xl border text-left text-xs md:text-sm transition-all flex items-center justify-between ${btnStyle}`}
+                        >
+                          <span>{opt.meaning}</span>
+                          {selectedOption !== null && isCorrect && <CheckCircle2 className="text-emerald-400 shrink-0" size={18} />}
+                          {selectedOption !== null && isSelected && !isCorrect && <XCircle className="text-red-400 shrink-0" size={18} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedOption !== null && (
+                    <div className="flex justify-end pt-2">
                       <button 
-                        type="button"
-                        onClick={handleNextTypeWord}
-                        className="bg-emerald-500 text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-400"
+                        onClick={handleQuizNext}
+                        className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-blue-600/30 transition-all"
                       >
-                        Next Word →
+                        {selectedOption === currentWord.id ? 'Mastered! Next Word →' : 'Wrong! Review Later →'}
                       </button>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="bg-[#1C212E] rounded-3xl p-10 text-center border border-zinc-800 space-y-4">
+                  <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
+                  <h2 className="text-xl font-bold text-white">Quiz Completed!</h2>
+                  <p className="text-xs text-zinc-400">You answered correctly and mastered all words in this deck.</p>
+                  <button 
+                    onClick={handleResetSetProgress}
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-lg shadow-blue-600/30"
+                  >
+                    <RefreshCw size={15} /> Reset & Play Quiz Again
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-                  {typeResult === 'incorrect' && (
-                    <div className="p-4 rounded-2xl bg-red-950/60 border border-red-700 text-red-200 text-sm space-y-2">
-                      <div className="flex items-center justify-between">
+          {/* MODE 3: TYPING PRACTICE */}
+          {activeTab === 'type' && (
+            <div>
+              {typeIndex < typeQueue.length ? (
+                <div className="space-y-5">
+                  <div className="bg-gradient-to-b from-[#1C212E] to-[#141722] rounded-3xl p-6 text-center border border-zinc-700/60 space-y-3">
+                    <div className="flex justify-between items-center text-xs font-semibold text-zinc-500">
+                      <span>Progress: {typeIndex + 1} / {typeQueue.length}</span>
+                      <span className="text-blue-400 bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-800/80">
+                        Type correctly to proceed
+                      </span>
+                    </div>
+
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block pt-1">Vietnamese Meaning:</span>
+                    <h2 className="text-xl md:text-2xl font-bold text-blue-400">
+                      {currentTypeWord.meaning}
+                    </h2>
+                    {currentTypeWord.pronunciation && (
+                      <span className="inline-block text-xs bg-zinc-800/80 text-zinc-300 px-3 py-1 rounded-full font-mono border border-zinc-700/50">
+                        Phonetic hint: /{currentTypeWord.pronunciation}/
+                      </span>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleCheckType} className="space-y-4">
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        value={typedInput}
+                        onChange={(e) => { setTypedInput(e.target.value); setTypeResult(null); }}
+                        placeholder="Type English word here..."
+                        className={`w-full p-4 rounded-2xl border text-base md:text-lg outline-none transition-all ${
+                          typeResult === 'correct' 
+                            ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200 font-bold' 
+                            : typeResult === 'incorrect' 
+                            ? 'border-red-500 bg-red-950/40 text-red-200' 
+                            : 'border-zinc-700/80 bg-[#191D28] focus:border-blue-500 text-white'
+                        }`}
+                      />
+                      {typeResult === null && (
+                        <button 
+                          type="submit"
+                          className="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-5 rounded-xl text-xs font-bold hover:bg-blue-500 transition-colors shadow-md shadow-blue-600/30"
+                        >
+                          Check
+                        </button>
+                      )}
+                    </div>
+
+                    {typeResult === 'correct' && (
+                      <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-700 text-emerald-200 text-xs md:text-sm flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <XCircle size={18} className="text-red-400 shrink-0" />
-                          <span>Incorrect! This word will repeat at the end.</span>
+                          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                          <span>Correct! The word is: <strong>{currentTypeWord.word}</strong></span>
                         </div>
                         <button 
                           type="button"
                           onClick={handleNextTypeWord}
-                          className="bg-red-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600"
+                          className="bg-emerald-500 text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-400"
                         >
-                          Got it, Continue →
+                          Next Word →
                         </button>
                       </div>
-                      <p className="text-xs text-red-300 pl-6">Correct Answer: <strong>{currentTypeWord.word}</strong></p>
-                    </div>
-                  )}
-                </form>
-              </div>
-            ) : (
-              <div className="bg-[#27272A] rounded-3xl p-8 text-center border border-zinc-800 space-y-4">
-                <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Typing Practice Complete!</h2>
-                <p className="text-sm text-zinc-400">You typed all words in this deck correctly.</p>
-                <button 
-                  onClick={initTypeQueue}
-                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-6 py-2.5 rounded-xl text-sm font-bold"
-                >
-                  <RefreshCw size={16} /> Practice Typing Again
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                    )}
 
+                    {typeResult === 'incorrect' && (
+                      <div className="p-4 rounded-2xl bg-red-950/60 border border-red-700 text-red-200 text-xs md:text-sm space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <XCircle size={18} className="text-red-400 shrink-0" />
+                            <span>Incorrect! This word will repeat at the end.</span>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={handleNextTypeWord}
+                            className="bg-red-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600"
+                          >
+                            Got it, Continue →
+                          </button>
+                        </div>
+                        <p className="text-xs text-red-300 pl-6">Correct Answer: <strong>{currentTypeWord.word}</strong></p>
+                      </div>
+                    )}
+                  </form>
+                </div>
+              ) : (
+                <div className="bg-[#1C212E] rounded-3xl p-8 text-center border border-zinc-800 space-y-4">
+                  <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
+                  <h2 className="text-xl font-bold text-white">Typing Practice Complete!</h2>
+                  <p className="text-xs text-zinc-400">You typed all words in this deck correctly.</p>
+                  <button 
+                    onClick={initTypeQueue}
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-lg shadow-blue-600/30"
+                  >
+                    <RefreshCw size={15} /> Practice Typing Again
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
