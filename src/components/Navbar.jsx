@@ -6,7 +6,6 @@ import {
   BookOpen, 
   Layers, 
   Gamepad2, 
-  FileSpreadsheet,
   Brain
 } from 'lucide-react';
 
@@ -15,101 +14,95 @@ export default function Navbar({
   setActiveTab, 
   streakInfo, 
   onOpenAddModal, 
-  onOpenBatchModal, 
   onOpenSettings,
   dueTodayCount = 0
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b border-[#EAE5DC] shadow-2xs transition-all">
+    <header className="sticky top-0 z-40 bg-[#0B132B] text-white shadow-md border-b border-slate-800">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-15">
+        <div className="flex items-center justify-between h-16">
           
-          {/* Logo & Brand */}
+          {/* Logo & Brand (The MVP TOEIC style) */}
           <div 
             onClick={() => setActiveTab('smartcards')}
-            className="flex items-center gap-2.5 cursor-pointer group"
+            className="flex items-center gap-2 cursor-pointer group"
           >
-            <div className="w-9 h-9 rounded-xl bg-[#2B4C7E] flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base sm:text-lg tracking-tight text-[#1E293B]">
-                  Sổ tay Từ Vựng
-                </span>
-                <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200 uppercase">
-                  TOEIC
-                </span>
-              </div>
+            <div className="font-black text-xl tracking-tight text-white flex items-center gap-1.5">
+              <span className="text-white">MVP</span>
+              <span className="text-blue-400">TOEIC</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 uppercase ml-1">
+                SMART-CARDS
+              </span>
             </div>
           </div>
 
-          {/* Clean 3 Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-[#F5F2EA] p-1 rounded-xl border border-[#E5E0D4]">
+          {/* Navigation Links (The MVP TOEIC style) */}
+          <nav className="hidden md:flex items-center gap-2">
             
             <button
               onClick={() => setActiveTab('smartcards')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all relative ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all relative ${
                 activeTab === 'smartcards'
-                  ? 'bg-white text-[#2B4C7E] shadow-2xs'
-                  : 'text-[#64748B] hover:text-[#1E293B]'
+                  ? 'bg-[#1E3A8A] text-white shadow-inner ring-1 ring-blue-400/30'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
               <Layers className="w-4 h-4" />
-              <span>Học SmartCards</span>
+              <span>Smart Cards</span>
             </button>
 
             <button
               onClick={() => setActiveTab('journal')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'journal'
-                  ? 'bg-white text-[#2B4C7E] shadow-2xs'
-                  : 'text-[#64748B] hover:text-[#1E293B]'
+                  ? 'bg-[#1E3A8A] text-white shadow-inner ring-1 ring-blue-400/30'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              <span>Sổ từ vựng</span>
+              <span>Sổ Từ Vựng</span>
             </button>
 
             <button
               onClick={() => setActiveTab('practice')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'practice'
-                  ? 'bg-white text-[#2B4C7E] shadow-2xs'
-                  : 'text-[#64748B] hover:text-[#1E293B]'
+                  ? 'bg-[#1E3A8A] text-white shadow-inner ring-1 ring-blue-400/30'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Gamepad2 className="w-4 h-4" />
-              <span>Luyện tập</span>
+              <span>Tự Luyện (Quiz)</span>
             </button>
           </nav>
 
           {/* Right Action Bar */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             
             {/* Streak */}
             <div 
               title={`Chuỗi học: ${streakInfo.currentStreak || 1} ngày liên tục!`}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 font-bold text-xs"
             >
-              <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
               <span>{streakInfo.currentStreak || 1} ngày</span>
             </div>
 
-            {/* Quick Add Word Button with AI Check */}
+            {/* Bright Yellow Action Button (Like 'Nâng cấp tài khoản' in Image 2 & 3) */}
             <button
               onClick={onOpenAddModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#2B4C7E] hover:bg-[#1E365B] shadow-xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-black text-[#0B132B] bg-[#FFCC00] hover:bg-[#FFD633] shadow-md shadow-amber-500/20 transition-all active:scale-95"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Thêm từ mới</span>
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Thêm từ mới</span>
             </button>
 
             {/* Settings */}
             <button
               onClick={onOpenSettings}
               title="Cài đặt & Sao lưu"
-              className="p-2 rounded-xl text-[#64748B] hover:text-[#1E293B] hover:bg-[#F2EFE8] transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             >
               <Settings className="w-4 h-4" />
             </button>

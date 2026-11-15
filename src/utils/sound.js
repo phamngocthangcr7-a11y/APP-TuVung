@@ -1,38 +1,81 @@
 // =========================================================================
-// TIỆN ÍCH ÂM THANH & PHÁT ÂM (AUDIO & TEXT-TO-SPEECH)
+// TIỆN ÍCH PHÁT ÂM TIẾNG ANH CHUẨN BẢN XỨ & HIỆU ỨNG ÂM THANH
+// Sử dụng Audio Stream chất lượng cao thay vì giọng đọc máy mặc định
 // =========================================================================
 
+let currentAudio = null;
+
 /**
- * Phát âm từ vựng hoặc câu tiếng Anh bằng Web Speech API
+ * Phát âm tiếng Anh tự nhiên (Studio Native English)
  */
-export const speakEnglish = (text, rate = 0.9, lang = 'en-US') => {
-  if (!('speechSynthesis' in window)) {
-    console.warn('Trình duyệt không hỗ trợ Web Speech API');
-    return;
+export const speakEnglish = (rawText, rate = 1.0) => {
+  if (!rawText) return;
+  const text = String(rawText).trim();
+  if (!text || text === '-') return;
+
+  // Dừng âm thanh đang phát trước đó nếu có
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (e) {}
   }
 
-  // Hủy âm thanh đang phát trước đó
-  window.speechSynthesis.cancel();
+  // 1. Thử phát qua Google TTS Studio Audio Stream (giọng đọc chuẩn Mỹ tự nhiên, rõ ràng)
+  try {
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-US&client=tw-ob`;
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = rate;
+    currentAudio = audio;
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = rate;
-  utterance.lang = lang;
-
-  // Cố gắng chọn giọng đọc tiếng Anh tự nhiên (Google US English hoặc Microsoft Zira)
-  const voices = window.speechSynthesis.getVoices();
-  const preferredVoice = voices.find(v => 
-    (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Jenny')))
-  ) || voices.find(v => v.lang.startsWith('en'));
-
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        // Fallback sang Web Speech API nếu trình duyệt chặn stream
+        speakWithWebSpeech(text, rate);
+      });
+    }
+  } catch (err) {
+    speakWithWebSpeech(text, rate);
   }
-
-  window.speechSynthesis.speak(utterance);
 };
 
 /**
- * Tạo hiệu ứng âm thanh nhẹ bằng Web Audio API (không phụ thuộc file mp3 ngoài)
+ * Fallback Web Speech API chọn giọng đọc tự nhiên nhất
+ */
+const speakWithWebSpeech = (text, rate = 1.0) => {
+  if (!('speechSynthesis' in window)) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = rate;
+    utterance.lang = 'en-US';
+
+    const voices = window.speechSynthesis.getVoices() || [];
+    // Ưu tiên các giọng đọc cao cấp tự nhiên
+    const naturalVoice = voices.find(v => 
+      v.lang.startsWith('en') && (
+        v.name.includes('Natural') || 
+        v.name.includes('Google') || 
+        v.name.includes('Samantha') || 
+        v.name.includes('Jenny') ||
+        v.name.includes('Guy')
+      )
+    ) || voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('Web speech failed:', e);
+  }
+};
+
+/**
+ * Hiệu ứng âm thanh bằng Web Audio API
  */
 class SoundEffects {
   constructor() {
@@ -53,7 +96,7 @@ class SoundEffects {
       this.init();
       if (!this.ctx) return;
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        this.ctx.resume().catch(() => {});
       }
 
       const osc = this.ctx.createOscillator();
@@ -70,30 +113,24 @@ class SoundEffects {
 
       osc.start(this.ctx.currentTime + delay);
       osc.stop(this.ctx.currentTime + delay + duration);
-    } catch (e) {
-      // Audio context error ignore
-    }
+    } catch (e) {}
   }
 
-  // Âm thanh khi trả lời đúng
   playCorrect() {
     this.playTone(523.25, 'sine', 0.1, 0);     // C5
     this.playTone(659.25, 'sine', 0.15, 0.08); // E5
     this.playTone(783.99, 'sine', 0.25, 0.16); // G5
   }
 
-  // Âm thanh khi trả lời sai
   playIncorrect() {
     this.playTone(330, 'triangle', 0.15, 0);
     this.playTone(280, 'triangle', 0.25, 0.12);
   }
 
-  // Âm thanh lật thẻ
   playFlip() {
     this.playTone(400, 'sine', 0.05, 0);
   }
 
-  // Âm thanh hoàn thành phiên học
   playVictory() {
     this.playTone(523.25, 'sine', 0.1, 0);
     this.playTone(659.25, 'sine', 0.1, 0.1);

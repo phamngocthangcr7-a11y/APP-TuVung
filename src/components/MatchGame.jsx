@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RotateCcw, Clock, Award, Sparkles, Gamepad2, ArrowRight } from 'lucide-react';
+import { RotateCcw, Clock, Award, Gamepad2 } from 'lucide-react';
 import { speakEnglish, sound } from '../utils/sound';
 
 export default function MatchGame({
@@ -18,26 +18,29 @@ export default function MatchGame({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  // Initialize Game
+  const sanitize = (list) => {
+    if (!Array.isArray(list)) return [];
+    return list.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
+  };
+
   const startNewGame = useCallback((source) => {
     let list = [];
     if (source === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      list = customWords.filter(w => w.addedDate === today);
+      list = (customWords || []).filter(w => w && w.addedDate === today);
       if (list.length < 6) list = allWords.slice(0, 10);
     } else if (source === 'custom') {
-      list = customWords.length >= 6 ? customWords : allWords.slice(0, 10);
-    } else if (source.startsWith('set_')) {
-      const set = builtInSets.find(s => s.id === source);
-      list = set ? set.words : allWords.slice(0, 10);
+      list = (customWords || []).length >= 6 ? customWords : allWords.slice(0, 10);
+    } else if (typeof source === 'string' && source.startsWith('set_')) {
+      const set = (builtInSets || []).find(s => s.id === source);
+      list = set && set.words ? set.words : allWords.slice(0, 10);
     } else {
       list = allWords;
     }
 
-    // Pick 6 random words
-    const picked = [...list].sort(() => 0.5 - Math.random()).slice(0, 6);
+    const clean = sanitize(list);
+    const picked = clean.sort(() => 0.5 - Math.random()).slice(0, 6);
 
-    // Create 12 cards
     const cardItems = [];
     picked.forEach(w => {
       cardItems.push({
@@ -60,7 +63,7 @@ export default function MatchGame({
     setSelectedFirst(null);
     setSelectedSecond(null);
     setTimer(0);
-    setIsTimerRunning(true);
+    setIsTimerRunning(cardItems.length > 0);
     setIsCompleted(false);
   }, [allWords, customWords, builtInSets]);
 
@@ -68,7 +71,6 @@ export default function MatchGame({
     startNewGame(selectedSource);
   }, [selectedSource, startNewGame]);
 
-  // Timer interval
   useEffect(() => {
     let interval = null;
     if (isTimerRunning) {
@@ -79,11 +81,10 @@ export default function MatchGame({
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  // Handle card click
   const handleCardClick = (card) => {
-    if (matchedIds.includes(card.wordId)) return;
+    if (!card || matchedIds.includes(card.wordId)) return;
     if (selectedFirst && selectedFirst.id === card.id) return;
-    if (selectedFirst && selectedSecond) return; // Busy checking
+    if (selectedFirst && selectedSecond) return;
 
     if (card.lang === 'en') {
       speakEnglish(card.text, 1.0);
@@ -94,7 +95,6 @@ export default function MatchGame({
     } else {
       setSelectedSecond(card);
 
-      // Check match
       if (selectedFirst.wordId === card.wordId && selectedFirst.lang !== card.lang) {
         sound.playCorrect();
         setTimeout(() => {
@@ -104,7 +104,7 @@ export default function MatchGame({
               sound.playVictory();
               setIsTimerRunning(false);
               setIsCompleted(true);
-              onRecordStudySession(6);
+              if (onRecordStudySession) onRecordStudySession(6);
             }
             return updated;
           });
@@ -116,7 +116,7 @@ export default function MatchGame({
         setTimeout(() => {
           setSelectedFirst(null);
           setSelectedSecond(null);
-        }, 800);
+        }, 700);
       }
     }
   };
@@ -129,33 +129,33 @@ export default function MatchGame({
 
   if (isCompleted) {
     return (
-      <div className="max-w-xl mx-auto py-12 px-4 text-center">
-        <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-lg space-y-6">
-          <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-inner animate-bounce">
-            <Award className="w-10 h-10" />
+      <div className="max-w-lg mx-auto py-10 px-4 text-center">
+        <div className="bg-[#FFFDF9] rounded-3xl p-8 border border-[#EAE5DC] shadow-md space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-inner animate-bounce">
+            <Award className="w-8 h-8" />
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
-              Hoàn thành xuất sắc!
+            <h2 className="text-2xl font-black text-[#1E293B]">
+              Ghép từ hoàn thành!
             </h2>
-            <p className="text-sm text-slate-500">
-              Bạn đã ghép thành công 6 cặp từ trong thời gian: <strong className="text-blue-600 text-base">{formatTime(timer)}</strong>
+            <p className="text-xs sm:text-sm text-[#64748B]">
+              Thời gian: <strong className="text-[#2B4C7E] text-base">{formatTime(timer)}</strong>
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
             <button
               onClick={() => startNewGame(selectedSource)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 transition-all"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs bg-[#2B4C7E] hover:bg-[#1E365B] text-white shadow-xs transition-all"
             >
               Chơi ván mới
             </button>
             <button
               onClick={onBackToDashboard}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-xs bg-[#EFECE4] text-[#1E293B] hover:bg-[#E3DFD5] transition-colors"
             >
-              Về Trang chủ
+              Về SmartCards
             </button>
           </div>
         </div>
@@ -163,39 +163,50 @@ export default function MatchGame({
     );
   }
 
+  if (cards.length === 0) {
+    return (
+      <div className="max-w-md mx-auto my-8 p-6 bg-[#FFFDF9] rounded-3xl border border-[#EAE5DC] text-center space-y-3">
+        <Gamepad2 className="w-8 h-8 text-[#64748B] mx-auto" />
+        <h3 className="font-bold text-sm text-[#1E293B]">Đang tải trò chơi ghép từ...</h3>
+        <button
+          onClick={() => startNewGame('all')}
+          className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-[#2B4C7E]"
+        >
+          Bắt đầu chơi
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-20 md:pb-8">
+    <div className="max-w-2xl mx-auto space-y-4 pb-16">
       
       {/* Top Toolbar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Gamepad2 className="w-5 h-5 text-amber-500" />
-          <select
-            value={selectedSource}
-            onChange={(e) => setSelectedSource(e.target.value)}
-            className="text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none"
-          >
-            <option value="all">📚 Tất cả từ vựng</option>
-            <option value="today">📅 Từ nạp hôm nay</option>
-            <option value="custom">📝 Toàn bộ từ tự thêm</option>
-            <optgroup label="Bộ từ TOEIC có sẵn">
-              {builtInSets.map(s => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
+      <div className="bg-[#FFFDF9] rounded-2xl p-3 sm:p-4 border border-[#EAE5DC] shadow-xs flex items-center justify-between">
+        <select
+          value={selectedSource}
+          onChange={(e) => setSelectedSource(e.target.value)}
+          className="text-xs font-bold text-[#1E293B] bg-[#F7F4EB] border border-[#E0D9CC] rounded-xl px-2.5 py-1.5 focus:outline-none"
+        >
+          <option value="all">📚 Tất cả từ vựng</option>
+          <option value="today">📅 Từ nạp hôm nay</option>
+          <option value="custom">📝 Toàn bộ từ tự thêm</option>
+          <optgroup label="Bộ từ TOEIC có sẵn">
+            {(builtInSets || []).map(s => (
+              <option key={s.id} value={s.id}>{s.title}</option>
+            ))}
+          </optgroup>
+        </select>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl">
-            <Clock className="w-4 h-4 text-slate-500" />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs font-bold text-[#1E293B] bg-[#F7F4EB] px-2.5 py-1 rounded-xl border border-[#E0D9CC]">
+            <Clock className="w-3.5 h-3.5 text-[#64748B]" />
             <span>{formatTime(timer)}</span>
           </div>
 
           <button
             onClick={() => startNewGame(selectedSource)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Làm mới game"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1E293B] hover:bg-[#F2EFE8] transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -203,7 +214,7 @@ export default function MatchGame({
       </div>
 
       {/* Grid of 12 Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         {cards.map(card => {
           const isMatched = matchedIds.includes(card.wordId);
           const isSelected = (selectedFirst && selectedFirst.id === card.id) || (selectedSecond && selectedSecond.id === card.id);
@@ -213,25 +224,25 @@ export default function MatchGame({
             return (
               <div 
                 key={card.id} 
-                className="h-24 sm:h-28 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 opacity-40 flex items-center justify-center pointer-events-none"
+                className="h-20 sm:h-24 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAF8F5]/60 opacity-30 flex items-center justify-center pointer-events-none"
               >
-                <span className="text-xs text-slate-400 font-semibold">✓ Đã ghép</span>
+                <span className="text-xs text-[#8C867A] font-bold">✓ Đã ghép</span>
               </div>
             );
           }
 
-          let style = 'bg-white text-slate-800 border-slate-200/90 hover:border-blue-300 hover:shadow-md';
+          let style = 'bg-[#FFFDF9] text-[#1E293B] border-[#E8E2D6] hover:border-[#2B4C7E]/40';
           if (isSelected) {
             style = isWrong 
-              ? 'bg-rose-50 border-rose-400 text-rose-800 shadow-md animate-shake' 
-              : 'bg-blue-600 text-white border-blue-600 shadow-lg scale-102';
+              ? 'bg-rose-50 border-rose-400 text-rose-900 shadow-md animate-shake' 
+              : 'bg-[#2B4C7E] text-white border-[#2B4C7E] shadow-md scale-102';
           }
 
           return (
             <button
               key={card.id}
               onClick={() => handleCardClick(card)}
-              className={`h-24 sm:h-28 rounded-2xl p-3 border font-bold text-xs sm:text-sm flex items-center justify-center text-center transition-all transform active:scale-95 shadow-xs select-none ${style}`}
+              className={`h-20 sm:h-24 rounded-2xl p-2.5 border font-bold text-xs sm:text-sm flex items-center justify-center text-center transition-all transform active:scale-95 shadow-2xs select-none ${style}`}
             >
               <span className="leading-snug line-clamp-3">{card.text}</span>
             </button>
