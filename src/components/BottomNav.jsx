@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  Sparkles, 
   BookOpen, 
   Layers, 
   Gamepad2, 
@@ -10,65 +9,48 @@ import {
 export default function BottomNav({ 
   activeTab, 
   setActiveTab, 
-  onOpenAddModal, 
-  dueTodayCount = 0 
+  onOpenAddModal 
 }) {
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1 shadow-lg">
-      <div className="flex items-center justify-around max-w-md mx-auto">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-t border-[#EAE5DC] px-2 py-1 shadow-md">
+      <div className="flex items-center justify-around max-w-sm mx-auto">
         
-        {/* Dashboard */}
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
-            activeTab === 'dashboard'
-              ? 'text-blue-600 font-bold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Sparkles className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">Tổng quan</span>
-        </button>
-
-        {/* Journal */}
-        <button
-          onClick={() => setActiveTab('journal')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
-            activeTab === 'journal'
-              ? 'text-blue-600 font-bold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <BookOpen className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px]">Sổ từ</span>
-        </button>
-
-        {/* Center Add Floating Button */}
-        <button
-          onClick={onOpenAddModal}
-          className="flex flex-col items-center -mt-5"
-          title="Thêm từ vựng mới"
-        >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/35 transform active:scale-95 transition-transform">
-            <Plus className="w-6 h-6 stroke-[2.5]" />
-          </div>
-          <span className="text-[10px] font-bold text-blue-600 mt-0.5">Thêm từ</span>
-        </button>
-
-        {/* Smart Cards (SRS) */}
+        {/* SmartCards Tab */}
         <button
           onClick={() => setActiveTab('smartcards')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl relative transition-all ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
             activeTab === 'smartcards'
-              ? 'text-blue-600 font-bold'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'text-[#2B4C7E] font-bold'
+              : 'text-[#64748B] hover:text-[#1E293B]'
           }`}
         >
           <Layers className="w-5 h-5 mb-0.5" />
           <span className="text-[10px]">Smart Cards</span>
-          {dueTodayCount > 0 && (
-            <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white"></span>
-          )}
+        </button>
+
+        {/* Center Add Button */}
+        <button
+          onClick={onOpenAddModal}
+          className="flex flex-col items-center -mt-4"
+          title="Thêm từ mới"
+        >
+          <div className="w-11 h-11 rounded-full bg-[#2B4C7E] text-white flex items-center justify-center shadow-md shadow-[#2B4C7E]/25 transform active:scale-95 transition-transform">
+            <Plus className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <span className="text-[10px] font-bold text-[#2B4C7E] mt-0.5">+ Từ mới</span>
+        </button>
+
+        {/* Journal Tab */}
+        <button
+          onClick={() => setActiveTab('journal')}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            activeTab === 'journal'
+              ? 'text-[#2B4C7E] font-bold'
+              : 'text-[#64748B] hover:text-[#1E293B]'
+          }`}
+        >
+          <BookOpen className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px]">Sổ từ</span>
         </button>
 
         {/* Practice Mode */}
@@ -76,8 +58,8 @@ export default function BottomNav({
           onClick={() => setActiveTab('practice')}
           className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
             activeTab === 'practice'
-              ? 'text-blue-600 font-bold'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'text-[#2B4C7E] font-bold'
+              : 'text-[#64748B] hover:text-[#1E293B]'
           }`}
         >
           <Gamepad2 className="w-5 h-5 mb-0.5" />

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Volume2, Plus, Check, Sparkles } from 'lucide-react';
+import { X, Volume2, Sparkles, Check, AlertCircle, Search, Loader2, ArrowRight } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
+import { lookupEnglishWord, checkUserMeaningAccuracy } from '../utils/dictionary';
 
 export default function WordModal({
   isOpen,
@@ -19,6 +20,11 @@ export default function WordModal({
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState(['TOEIC']);
   const [addedDate, setAddedDate] = useState(getTodayDateString());
+
+  // Dictionary check state
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState(null);
+  const [dictData, setDictData] = useState(null);
 
   useEffect(() => {
     if (editingWord) {
@@ -42,9 +48,92 @@ export default function WordModal({
       setTags(['Hôm nay', 'TOEIC']);
       setAddedDate(getTodayDateString());
     }
+    setCheckResult(null);
+    setDictData(null);
   }, [editingWord, isOpen]);
 
   if (!isOpen) return null;
+
+  // Tra cứu & Kiểm tra nghĩa tự động
+  const handleCheckMeaning = async () => {
+    const cleanWord = word.trim();
+    if (!cleanWord || cleanWord === '-') {
+      alert('Vui lòng nhập từ vựng tiếng Anh trước khi kiểm tra!');
+      return;
+    }
+
+    setIsChecking(true);
+    setCheckResult(null);
+
+    try {
+      const data = await lookupEnglishWord(cleanWord);
+      setDictData(data);
+
+      if (data.found) {
+        // Tự động điền phiên âm nếu chưa có
+        if (!pronunciation && data.phonetic) {
+          setPronunciation(data.phonetic);
+        }
+
+        // Tự động điền loại từ nếu chưa chọn chuẩn
+        if (data.partOfSpeech) {
+          setPartOfSpeech(data.partOfSpeech);
+        }
+
+        // Tự động gợi ý câu ví dụ nếu chưa có
+        if (!example && data.example) {
+          setExample(data.example);
+          if (data.exampleTranslation) {
+            setExampleTranslation(data.exampleTranslation);
+          }
+        }
+
+        // Kiểm tra đối chiếu nghĩa người dùng đã nhập
+        if (meaning.trim()) {
+          const accuracy = checkUserMeaningAccuracy(meaning, data);
+          setCheckResult(accuracy);
+        } else {
+          // Người dùng chưa nhập nghĩa -> tự động gợi ý nghĩa
+          setMeaning(data.meaning);
+          setCheckResult({
+            status: 'good',
+            message: `Đã tự động lấy nghĩa từ điển chuẩn: "${data.meaning}". Bạn có thể chỉnh sửa lại theo ý mình.`,
+            isAccurate: true,
+            suggestedMeaning: data.meaning
+          });
+        }
+      } else {
+        setCheckResult({
+          status: 'warning',
+          message: 'Không tìm thấy trong từ điển trực tuyến, bạn có thể tự nhập nghĩa theo ngữ cảnh đề bài.',
+          isAccurate: false
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setCheckResult({
+        status: 'warning',
+        message: 'Lỗi kết nối khi tra nghĩa, bạn có thể tự nhập nghĩa bình thường.',
+        isAccurate: false
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleApplyDictSuggestion = () => {
+    if (!dictData) return;
+    if (dictData.meaning) setMeaning(dictData.meaning);
+    if (dictData.phonetic) setPronunciation(dictData.phonetic);
+    if (dictData.partOfSpeech) setPartOfSpeech(dictData.partOfSpeech);
+    if (dictData.example) setExample(dictData.example);
+    if (dictData.exampleTranslation) setExampleTranslation(dictData.exampleTranslation);
+    setCheckResult({
+      status: 'good',
+      message: 'Đã áp dụng toàn bộ gợi ý chuẩn từ từ điển!',
+      isAccurate: true
+    });
+  };
 
   const handleAddTag = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
@@ -63,17 +152,23 @@ export default function WordModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!word.trim() || !meaning.trim()) return;
+    const cleanWord = word.trim();
+    const cleanMeaning = meaning.trim();
+
+    if (!cleanWord || cleanWord === '-' || !cleanMeaning) {
+      alert('Vui lòng nhập đầy đủ Từ tiếng Anh và Nghĩa tiếng Việt hợp lệ!');
+      return;
+    }
 
     onSave({
-      word: word.trim(),
+      word: cleanWord,
       pronunciation: pronunciation.trim(),
       partOfSpeech,
-      meaning: meaning.trim(),
+      meaning: cleanMeaning,
       example: example.trim(),
       exampleTranslation: exampleTranslation.trim(),
       note: note.trim(),
-      tags,
+      tags: tags.length > 0 ? tags : ['TOEIC'],
       addedDate
     });
 
@@ -82,113 +177,125 @@ export default function WordModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5">
+      <div className="bg-[#FFFDF9] rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-[#EBE5DA] space-y-4">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DC]">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg text-slate-800">
-                {editingWord ? 'Chỉnh sửa từ vựng' : 'Thêm từ vựng mới'}
+              <h3 className="font-extrabold text-base sm:text-lg text-[#2C2A29]">
+                {editingWord ? 'Chỉnh sửa từ vựng' : 'Thêm từ vựng & Check nghĩa'}
               </h3>
-              <p className="text-xs text-slate-500">
-                {editingWord ? 'Cập nhật nội dung thẻ' : 'Ghi chép từ vựng gặp trong đề thi hoặc đời sống'}
+              <p className="text-xs text-[#736E65]">
+                Tự động kiểm tra nghĩa tiếng Việt chuẩn xác trước khi đưa vào bộ học
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1 rounded-xl text-[#8C867A] hover:text-[#2C2A29] hover:bg-[#F2EFE8] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           
-          {/* Word & Pronunciation */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Từ vựng / Cụm từ tiếng Anh <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
+          {/* Word Input & Auto Check Button */}
+          <div>
+            <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+              Từ vựng / Cụm từ tiếng Anh <span className="text-rose-500">*</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
                 <input
                   type="text"
                   required
                   value={word}
-                  onChange={(e) => setWord(e.target.value)}
-                  placeholder="e.g. accommodate"
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
+                  onChange={(e) => {
+                    setWord(e.target.value);
+                    setCheckResult(null);
+                  }}
+                  placeholder="e.g. accommodate, significantly..."
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white border border-[#DCD6C9] focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20 focus:border-[#2B4C7E] font-bold text-[#1E293B]"
                 />
                 {word && (
                   <button
                     type="button"
                     onClick={() => speakEnglish(word)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 p-1"
-                    title="Nghe thử"
+                    title="Nghe phát âm"
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Phiên âm (IPA)
-              </label>
-              <input
-                type="text"
-                value={pronunciation}
-                onChange={(e) => setPronunciation(e.target.value)}
-                placeholder="e.g. ơ-KOM-ơ-đêit hoặc /əˈkɑːmədeɪt/"
-                className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Part of Speech & Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Loại từ
-              </label>
-              <select
-                value={partOfSpeech}
-                onChange={(e) => setPartOfSpeech(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+              {/* CHECK NGHĨA BUTTON */}
+              <button
+                type="button"
+                disabled={isChecking || !word.trim()}
+                onClick={handleCheckMeaning}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#2B4C7E] hover:bg-[#1E365B] disabled:opacity-50 shadow-xs transition-all shrink-0"
               >
-                <option value="noun">Danh từ (noun)</option>
-                <option value="verb">Động từ (verb)</option>
-                <option value="adj">Tính từ (adjective)</option>
-                <option value="adv">Trạng từ (adverb)</option>
-                <option value="phr">Cụm từ / Collocation (phrase)</option>
-                <option value="idiom">Thành ngữ (idiom)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ngày gặp từ
-              </label>
-              <input
-                type="date"
-                value={addedDate}
-                onChange={(e) => setAddedDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
-              />
+                {isChecking ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang tra...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Check nghĩa</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Vietnamese Meaning */}
+          {/* CHECK RESULT BANNER */}
+          {checkResult && (
+            <div className={`p-3 rounded-2xl border text-xs space-y-1.5 animate-fadeIn ${
+              checkResult.status === 'good'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-amber-50 border-amber-300 text-amber-900'
+            }`}>
+              <div className="flex items-start gap-2 font-bold">
+                {checkResult.status === 'good' ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <span>{checkResult.message}</span>
+                </div>
+              </div>
+
+              {dictData && dictData.meaning && dictData.meaning !== meaning && (
+                <div className="pt-1 flex items-center justify-between border-t border-amber-200/60 mt-1">
+                  <span className="text-[11px] text-[#736E65]">
+                    Gợi ý từ điển: <strong>{dictData.meaning}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleApplyDictSuggestion}
+                    className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1"
+                  >
+                    Dùng gợi ý này <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meaning Input */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-[#2C2A29] mb-1">
               Nghĩa tiếng Việt <span className="text-rose-500">*</span>
             </label>
             <input
@@ -196,100 +303,123 @@ export default function WordModal({
               required
               value={meaning}
               onChange={(e) => setMeaning(e.target.value)}
-              placeholder="e.g. đáp ứng, cung cấp chỗ ở"
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold text-slate-800"
+              placeholder="e.g. đáp ứng, cung cấp chỗ ở..."
+              className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white border border-[#DCD6C9] focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20 focus:border-[#2B4C7E] font-semibold text-[#1E293B]"
             />
+          </div>
+
+          {/* Pronunciation & Part of Speech */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Phiên âm (IPA)
+              </label>
+              <input
+                type="text"
+                value={pronunciation}
+                onChange={(e) => setPronunciation(e.target.value)}
+                placeholder="/əˈkɑːmədeɪt/"
+                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-white border border-[#DCD6C9] font-mono focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Loại từ
+              </label>
+              <select
+                value={partOfSpeech}
+                onChange={(e) => setPartOfSpeech(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-white border border-[#DCD6C9] font-semibold focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20"
+              >
+                <option value="noun">Danh từ (noun)</option>
+                <option value="verb">Động từ (verb)</option>
+                <option value="adj">Tính từ (adjective)</option>
+                <option value="adv">Trạng từ (adverb)</option>
+                <option value="phr">Cụm từ (phrase)</option>
+              </select>
+            </div>
           </div>
 
           {/* Example Sentence & Translation */}
           <div className="space-y-2">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Câu ví dụ thực tế (TOEIC Context)
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Câu ví dụ TOEIC
               </label>
               <textarea
                 rows="2"
                 value={example}
                 onChange={(e) => setExample(e.target.value)}
-                placeholder="e.g. The hotel can accommodate up to 500 guests."
-                className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                placeholder="The hotel can accommodate up to 500 guests."
+                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-white border border-[#DCD6C9] focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20"
               ></textarea>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Dịch câu ví dụ sang tiếng Việt
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Dịch câu ví dụ
               </label>
               <input
                 type="text"
                 value={exampleTranslation}
                 onChange={(e) => setExampleTranslation(e.target.value)}
-                placeholder="e.g. Khách sạn có thể đáp ứng cho tối đa 500 khách."
-                className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                placeholder="Khách sạn có thể đáp ứng cho tối đa 500 khách."
+                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-white border border-[#DCD6C9] focus:outline-none focus:ring-2 focus:ring-[#2B4C7E]/20"
               />
             </div>
           </div>
 
-          {/* Notes / Collocation */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Ghi chú thêm (Collocation / Bẫy Part 5)
-            </label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. accommodate a request / accommodate needs"
-              className="w-full px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Thẻ / Phân loại (Nhấn Enter để thêm)
-            </label>
-            <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-200">
-              {tags.map((tag, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700"
-                >
-                  #{tag}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(tag)}
-                    className="text-slate-400 hover:text-rose-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+          {/* Date & Tags */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Ngày gặp từ
+              </label>
               <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                placeholder="Thêm thẻ (Part 5, Test 1...)"
-                className="flex-1 min-w-[120px] text-xs bg-transparent focus:outline-none text-slate-700"
+                type="date"
+                value={addedDate}
+                onChange={(e) => setAddedDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-white border border-[#DCD6C9] focus:outline-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
+                Gắn thẻ phân loại
+              </label>
+              <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-white border border-[#DCD6C9]">
+                {tags.map((t, idx) => (
+                  <span key={idx} className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#F7F4EB] text-[#2C2A29] border border-[#EAE5DC]">
+                    #{t}
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleAddTag}
+                  placeholder="+ Thẻ..."
+                  className="flex-1 min-w-[70px] text-xs bg-transparent focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+          {/* Submit Buttons */}
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#EAE5DC]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#736E65] hover:bg-[#F2EFE8] transition-colors"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/25 transition-all"
+              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#2B4C7E] hover:bg-[#1E365B] shadow-sm transition-all"
             >
-              {editingWord ? 'Lưu thay đổi' : 'Thêm vào sổ từ'}
+              {editingWord ? 'Lưu thay đổi' : 'Lưu vào bộ từ để học'}
             </button>
           </div>
 
