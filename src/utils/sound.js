@@ -48,6 +48,16 @@ if (typeof window !== 'undefined') {
   ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
     window.addEventListener(evt, unlockMobileAudio, { once: true, passive: true });
   });
+
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.onvoiceschanged = () => {
+        try { window.speechSynthesis.getVoices(); } catch (e) {}
+      };
+      // Pre-warm voices
+      window.speechSynthesis.getVoices();
+    } catch (e) {}
+  }
 }
 
 /**

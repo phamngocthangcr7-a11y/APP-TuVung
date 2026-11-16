@@ -178,6 +178,14 @@ export default function App() {
   };
 
   // Quick Navigation Triggers
+  const handleTabChange = (newTab) => {
+    if (newTab === 'smartcards') {
+      setStudyWordsList(null);
+      setStudyMode('decks');
+    }
+    setActiveTab(newTab);
+  };
+
   const handleStartSmartCards = (target) => {
     if (Array.isArray(target)) {
       setStudyWordsList(target);
@@ -205,7 +213,7 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         streakInfo={streakInfo}
         dueTodayCount={dueWords.length}
         onOpenAddModal={() => {
@@ -240,6 +248,7 @@ export default function App() {
                 setEditingWord(null);
                 setIsAddModalOpen(true);
               }}
+              onOpenBatchModal={() => setIsBatchModalOpen(true)}
             />
           )}
 
@@ -350,7 +359,7 @@ export default function App() {
       {/* Mobile Bottom Navigation */}
       <BottomNav
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         onOpenAddModal={() => {
           setEditingWord(null);
           setIsAddModalOpen(true);

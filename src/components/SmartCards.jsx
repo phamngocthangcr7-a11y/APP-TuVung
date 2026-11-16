@@ -35,6 +35,7 @@ export default function SmartCards({
   initialMode = 'decks',
   onBackToDashboard,
   onOpenAddModal,
+  onOpenBatchModal,
   favoriteIds = [],
   onToggleFavorite,
   streakInfo = {},
@@ -77,6 +78,23 @@ export default function SmartCards({
   const [touchStartY, setTouchStartY] = useState(null);
 
   const todayStr = getTodayDateString();
+
+  // Handle dynamically passed words (e.g. from Batch Import or Daily Journal)
+  useEffect(() => {
+    if (initialWords && Array.isArray(initialWords) && initialWords.length > 0) {
+      const clean = sanitize(initialWords);
+      if (clean.length > 0) {
+        setSessionTargetWords(clean);
+        setActiveQueue(clean);
+        setCurrentIndex(0);
+        setIsFlipped(false);
+        setRememberedCount(0);
+        setForgottenCount(0);
+        setViewMode('study');
+        setActiveDeck({ id: 'custom_session', title: 'Phiên Học Đã Chọn', code: 'CUS' });
+      }
+    }
+  }, [initialWords, sanitize]);
 
   // Sanitize and filter valid words
   const sanitize = useCallback((list) => {
@@ -221,7 +239,14 @@ export default function SmartCards({
     }
 
     if (words.length === 0) {
-      words = sanitize(allWords).slice(0, targetCount);
+      if (deck === 'saved') {
+        showToast('⭐ Bạn chưa lưu từ vựng nào vào mục Yêu thích.');
+      } else if (deck === 'hard') {
+        showToast('🎯 Hiện tại không có thẻ khó nào cần ôn.');
+      } else {
+        showToast('⚠️ Bộ từ vựng này hiện chưa có từ nào để học.');
+      }
+      return;
     }
 
     // 1. Thẻ mới chưa từng học: repetitions === 0 || state === 'new'
@@ -437,15 +462,58 @@ export default function SmartCards({
     }
   }, [currentWord]);
 
-  // Cloze hint for front card
+  // Smart Cloze hint for front card (Word is NEVER revealed before flipping)
   const clozeHintExample = useMemo(() => {
     if (!currentWord || !currentWord.example || !currentWord.word) return '';
-    try {
-      const reg = new RegExp(String(currentWord.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      return currentWord.example.replace(reg, '[ ______ ]');
-    } catch (e) {
-      return currentWord.example;
+    const rawWord = String(currentWord.word || '').trim();
+    const example = String(currentWord.example || '').trim();
+
+    const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // 1. If starts with "be " (e.g. be accustomed to vs are accustomed to)
+    if (/^be\s+/i.test(rawWord)) {
+      const core = rawWord.replace(/^be\s+/i, '').trim();
+      const beRegex = new RegExp(`\\b(be|am|is|are|was|were|been|being)\\s+${escapeReg(core)}\\b`, 'gi');
+      if (beRegex.test(example)) {
+        return example.replace(beRegex, (m, verb) => `${verb} [ ______ ]`);
+      }
+      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
+      if (coreRegex.test(example)) {
+        return example.replace(coreRegex, '[ ______ ]');
+      }
     }
+
+    // 2. If starts with "to "
+    if (/^to\s+/i.test(rawWord)) {
+      const core = rawWord.replace(/^to\s+/i, '').trim();
+      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
+      if (coreRegex.test(example)) {
+        return example.replace(coreRegex, '[ ______ ]');
+      }
+    }
+
+    // 3. Exact match with word boundary
+    const exactRegex = new RegExp(`\\b${escapeReg(rawWord)}\\b`, 'gi');
+    if (exactRegex.test(example)) {
+      return example.replace(exactRegex, '[ ______ ]');
+    }
+
+    // 4. Loose match
+    const looseRegex = new RegExp(escapeReg(rawWord), 'gi');
+    if (looseRegex.test(example)) {
+      return example.replace(looseRegex, '[ ______ ]');
+    }
+
+    // 5. Stem/token match
+    const tokens = rawWord.split(/\s+/).filter(t => t.length >= 4);
+    for (const token of tokens) {
+      const tokenRegex = new RegExp(`\\b${escapeReg(token)}[a-z]*\\b`, 'gi');
+      if (tokenRegex.test(example)) {
+        return example.replace(tokenRegex, '[ ______ ]');
+      }
+    }
+
+    return example;
   }, [currentWord]);
 
   // =========================================================================
@@ -459,14 +527,29 @@ export default function SmartCards({
     const cleanUser = userInput.toLowerCase().trim().replace(/['"`]/g, '');
     const cleanTarget = targetWord.toLowerCase().trim().replace(/['"`]/g, '');
 
+    // 1. Khớp chính xác
     if (cleanUser === cleanTarget) return true;
 
-    // Cho phép bỏ qua tiền tố "to " hoặc "be "
+    // 2. Cho phép bỏ qua tiền tố "to " hoặc "be "
     const noPrefixTarget = cleanTarget.replace(/^(to|be)\s+/i, '');
     if (cleanUser === noPrefixTarget) return true;
+    if (cleanUser.replace(/^(to|be)\s+/i, '') === noPrefixTarget) return true;
 
-    // Cho phép bỏ qua dấu câu
+    // 3. Cho phép bỏ qua dấu câu / khoảng trắng
     if (cleanUser.replace(/[^a-z0-9]/gi, '') === cleanTarget.replace(/[^a-z0-9]/gi, '')) return true;
+
+    // 4. Bỏ qua ghi chú trong ngoặc đơn như "(n)", "(v)", "(someone)"
+    const noParenTarget = cleanTarget.replace(/\([^)]*\)/g, '').trim();
+    if (cleanUser === noParenTarget || cleanUser === noParenTarget.replace(/^(to|be)\s+/i, '')) return true;
+
+    // 5. Nếu từ có nhiều nghĩa/cụm phân cách bằng '/', ',', ';'
+    const alternatives = cleanTarget.split(/[/;,]/).map(s => s.trim().replace(/\([^)]*\)/g, '').trim()).filter(Boolean);
+    if (alternatives.length > 1) {
+      for (const alt of alternatives) {
+        if (cleanUser === alt || cleanUser === alt.replace(/^(to|be)\s+/i, '')) return true;
+        if (cleanUser.replace(/[^a-z0-9]/gi, '') === alt.replace(/[^a-z0-9]/gi, '')) return true;
+      }
+    }
 
     return false;
   };
@@ -626,8 +709,8 @@ export default function SmartCards({
                       {stats.newCount} thẻ mới
                     </span>
                   ) : (
-                    <span className="text-xs font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                      PRO
+                    <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      Đã thuộc
                     </span>
                   )}
                 </div>
@@ -703,7 +786,58 @@ export default function SmartCards({
                 </p>
               </div>
 
-              {/* CHỌN CHẾ ĐỘ HỌC */}
+              {deckStats[selectedDeckForSession.id]?.total === 0 ? (
+                <div className="py-4 text-center space-y-4 animate-fadeIn">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
+                    <Bookmark className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-extrabold text-base text-[#0B132B]">
+                      Bộ "{selectedDeckForSession.title}" chưa có từ vựng
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                      Bạn chưa nạp từ vựng nào vào bộ này. Hãy dùng chức năng Dán nhiều từ hàng loạt hoặc thêm từ mới để bắt đầu học nhé!
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 pt-2">
+                    {onOpenBatchModal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSizeModalOpen(false);
+                          onOpenBatchModal();
+                        }}
+                        className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#059669] hover:bg-[#047857] shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Dán nhiều từ hàng loạt (Batch Import)</span>
+                      </button>
+                    )}
+                    {onOpenAddModal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSizeModalOpen(false);
+                          onOpenAddModal();
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>+ Thêm từng từ mới</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsSizeModalOpen(false)}
+                      className="py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                {/* CHỌN CHẾ ĐỘ HỌC */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-700 block">
                   Chọn chế độ phiên học:
@@ -814,6 +948,8 @@ export default function SmartCards({
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+              </>
+            )}
 
             </div>
           </div>
