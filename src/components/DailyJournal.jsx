@@ -99,7 +99,7 @@ export default function DailyJournal({
   const sortedDates = Object.keys(groupedByDate).sort((a, b) => (b > a ? 1 : -1));
 
   return (
-    <div className="space-y-4 pb-16">
+    <div className="space-y-4 pb-28 sm:pb-16">
       
       {/* Header Bar */}
       <div className="bg-[#FFFDF9] rounded-2xl p-4 sm:p-5 border border-[#EAE5DC] shadow-xs space-y-3">

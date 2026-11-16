@@ -181,7 +181,7 @@ export default function DictationMode({
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-16">
+    <div className="max-w-2xl mx-auto space-y-4 pb-28 sm:pb-16">
       
       {/* Top Toolbar */}
       <div className="bg-[#FFFDF9] rounded-2xl p-3 sm:p-4 border border-[#EAE5DC] shadow-xs flex items-center justify-between">

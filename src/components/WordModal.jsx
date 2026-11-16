@@ -176,8 +176,8 @@ export default function WordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#FFFDF9] rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-[#EBE5DA] space-y-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-[#FFFDF9] rounded-3xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-7 shadow-2xl border border-[#EBE5DA] space-y-4 m-auto overscroll-contain">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DC]">

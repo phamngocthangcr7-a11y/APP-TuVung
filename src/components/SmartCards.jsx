@@ -36,6 +36,10 @@ export default function SmartCards({
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
+  // Mobile Touch Swipe Handling
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+
   // Sanitize and filter valid words
   const sanitize = (list) => {
     if (!Array.isArray(list)) return [];
@@ -154,6 +158,33 @@ export default function SmartCards({
     setIsFlipped(prev => !prev);
   };
 
+  // Mobile Touch Swipe detection
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      setTouchStartX(e.touches[0].clientX);
+      setTouchStartY(e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const diffX = e.changedTouches[0].clientX - touchStartX;
+    const diffY = e.changedTouches[0].clientY - touchStartY;
+
+    // Detect horizontal swipe if movement in X is greater than Y and > 50px
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 55) {
+      if (diffX < 0) {
+        // Swiped Left -> Chưa nhớ (🔴)
+        handleUnremembered();
+      } else {
+        // Swiped Right -> Đã nhớ (🟢)
+        handleRemembered();
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
   // Phím tắt theo chuẩn The MVP TOEIC (Image 2 & 3)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -206,18 +237,18 @@ export default function SmartCards({
 
   // Dynamic responsive font size for word so it never overflows
   const wordFontSize = useMemo(() => {
-    if (!currentWord || !currentWord.word) return 'text-3xl';
+    if (!currentWord || !currentWord.word) return 'text-2xl sm:text-4xl';
     const len = currentWord.word.length;
-    if (len > 24) return 'text-xl sm:text-2xl';
-    if (len > 15) return 'text-2xl sm:text-3xl';
-    return 'text-3xl sm:text-4xl lg:text-5xl';
+    if (len > 24) return 'text-lg sm:text-2xl';
+    if (len > 15) return 'text-xl sm:text-3xl';
+    return 'text-2xl sm:text-4xl lg:text-5xl';
   }, [currentWord]);
 
   // Màn hình hoàn thành
   if (sessionCompleted || !currentWord) {
     return (
-      <div className="max-w-md mx-auto py-10 px-4 text-center">
-        <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-xl space-y-5">
+      <div className="max-w-md mx-auto py-8 px-4 text-center pb-28 sm:pb-8">
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xl space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-inner animate-bounce">
             <Award className="w-7 h-7" />
           </div>
@@ -231,7 +262,7 @@ export default function SmartCards({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+          <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
             <div>
               <div className="text-xl font-black text-emerald-600">{rememberedCount}</div>
               <div className="text-[11px] text-slate-500 font-semibold">Đã nhớ</div>
@@ -242,16 +273,16 @@ export default function SmartCards({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
             <button
               onClick={() => loadQueue(selectedSource)}
-              className="w-full sm:w-auto px-5 py-2 rounded-xl font-bold text-xs bg-[#0B132B] hover:bg-[#1E293B] text-white shadow-xs transition-all"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs bg-[#0B132B] hover:bg-[#1E293B] text-white shadow-xs transition-all"
             >
               Ôn lại bộ này
             </button>
             <button
               onClick={onBackToDashboard}
-              className="w-full sm:w-auto px-5 py-2 rounded-xl font-semibold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
             >
               Về Sổ từ vựng
             </button>
@@ -262,17 +293,17 @@ export default function SmartCards({
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-3 pb-8">
+    <div className="max-w-4xl mx-auto space-y-3 pb-28 sm:pb-12">
       
       {/* Sub-Header Bar (The MVP TOEIC style in Image 2 & 3) */}
-      <div className="bg-white rounded-2xl px-4 py-2.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+      <div className="bg-white rounded-2xl px-3 sm:px-4 py-2 border border-slate-200/80 shadow-xs flex items-center justify-between">
         
         {/* Source select */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
           <select
             value={selectedSource}
             onChange={(e) => setSelectedSource(e.target.value)}
-            className="text-xs sm:text-sm font-bold text-[#0B132B] bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none"
+            className="text-xs sm:text-sm font-bold text-[#0B132B] bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none truncate w-full sm:w-auto"
           >
             <option value="all">📚 Cơ Bản • Review Mode ({allWords.length} thẻ)</option>
             <option value="today">📅 Từ nạp hôm nay</option>
@@ -287,7 +318,7 @@ export default function SmartCards({
         </div>
 
         {/* Center Progress */}
-        <div className="text-center hidden sm:block">
+        <div className="text-center hidden sm:block shrink-0 px-2">
           <div className="text-xs font-extrabold text-[#0B132B]">
             Cơ Bản • Review Mode
           </div>
@@ -297,11 +328,14 @@ export default function SmartCards({
         </div>
 
         {/* Right Action */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="sm:hidden text-xs font-bold text-slate-500 mr-1">
+            {currentIndex + 1}/{activeQueue.length}
+          </span>
           <button
             onClick={() => loadQueue(selectedSource)}
             title="Xáo trộn lại"
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -354,18 +388,20 @@ export default function SmartCards({
           </div>
         </div>
 
-        {/* CENTER COLUMN: FLASHCARD CONTAINER */}
+        {/* CENTER COLUMN: FLASHCARD CONTAINER (Touch & Swipe Enabled) */}
         <div className="lg:col-span-8 space-y-3">
           
           <div 
             onClick={handleFlipToggle}
-            className={`bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-lg select-none cursor-pointer hover:shadow-xl transition-all duration-200 relative flex flex-col justify-between min-h-[300px] sm:min-h-[340px] ${
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className={`bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-lg select-none cursor-pointer hover:shadow-xl transition-all duration-200 relative flex flex-col justify-between min-h-[290px] sm:min-h-[340px] touch-pan-y ${
               isFlipped ? 'ring-2 ring-emerald-500/20' : ''
             }`}
           >
             
-            {/* Top Star/Save button & Status */}
-            <div className="flex items-center justify-between">
+            {/* Top Card Controls (Speaker + Star + Flip Status) */}
+            <div className="flex items-center justify-between gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -382,17 +418,31 @@ export default function SmartCards({
                 <span>{isSaved ? 'Đã lưu' : '☆ Lưu'}</span>
               </button>
 
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                isFlipped 
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-              }`}>
-                {isFlipped ? '✓ Đã lật xem nghĩa' : '👁️ Bấm Space để lật xem nghĩa'}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Speaker button on Card (Accessible on ALL devices including mobile) */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakEnglish(currentWord.word, 0.9);
+                  }}
+                  className="p-1.5 rounded-full bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 border border-slate-200 shadow-xs transition-colors"
+                  title="Phát âm tiếng Anh"
+                >
+                  <Volume2 className="w-4 h-4" />
+                </button>
+
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  isFlipped 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  {isFlipped ? '✓ Đã lật' : '👁️ Lật thẻ'}
+                </span>
+              </div>
             </div>
 
             {/* Card Content Area */}
-            <div className="my-auto py-3 text-center space-y-3">
+            <div className="my-auto py-2 text-center space-y-2.5">
               
               {/* Part of Speech & IPA */}
               <div className="space-y-0.5">
@@ -408,43 +458,43 @@ export default function SmartCards({
 
               {/* WORD: CRIMSON FONT (#C52243) WITH SMART RESPONSIVE SIZING */}
               <div>
-                <h2 className={`${wordFontSize} font-black font-mvp-word text-[#C52243] tracking-tight leading-tight py-0.5`}>
+                <h2 className={`${wordFontSize} font-black font-mvp-word text-[#C52243] tracking-tight leading-tight py-0.5 px-2`}>
                   {currentWord.word}
                 </h2>
               </div>
 
               {/* MẶT TRƯỚC: CHƯA LẬT THẺ -> CHỈ HIỆN CÂU VÍ DỤ CHE TỪ ĐỂ ĐOÁN NGHĨA */}
               {!isFlipped ? (
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2.5 pt-1">
                   {currentWord.example && (
-                    <div className="max-w-lg mx-auto p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-700 italic">
+                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-700 italic">
                       "{clozeHintExample}"
                     </div>
                   )}
 
-                  <div className="pt-2 text-xs font-bold text-blue-600 animate-pulse">
-                    👉 Hãy nhớ lại nghĩa tiếng Việt, sau đó bấm vào thẻ để kiểm tra!
+                  <div className="pt-1 text-xs font-bold text-blue-600 animate-pulse">
+                    👉 Hãy nhớ lại nghĩa tiếng Việt, sau đó chạm vào thẻ để kiểm tra!
                   </div>
                 </div>
               ) : (
                 /* MẶT SAU: ĐÃ LẬT THẺ -> HIỆN ĐẦY ĐỦ NGHĨA TIẾNG VIỆT & VÍ DỤ */
-                <div className="space-y-3 pt-1 animate-fadeIn">
+                <div className="space-y-2.5 pt-1 animate-fadeIn">
                   
                   {/* VIETNAMESE MEANING: BOLD EMERALD GREEN (#059669) */}
                   <div>
-                    <h3 className="text-2xl sm:text-3xl font-extrabold text-[#059669] tracking-tight">
+                    <h3 className="text-xl sm:text-3xl font-extrabold text-[#059669] tracking-tight">
                       {currentWord.meaning}
                     </h3>
                   </div>
 
                   {/* CONTEXT EXAMPLE PILL BOX */}
                   {currentWord.example && (
-                    <div className="max-w-lg mx-auto p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-1 text-center">
+                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-0.5 text-center">
                       <p className="font-semibold text-slate-800 leading-relaxed">
                         {formattedExample}
                       </p>
                       {currentWord.exampleTranslation && (
-                        <p className="text-slate-500 italic text-xs">
+                        <p className="text-slate-500 italic text-[11px] sm:text-xs">
                           {currentWord.exampleTranslation}
                         </p>
                       )}
@@ -465,19 +515,19 @@ export default function SmartCards({
             {/* Bottom Prompt */}
             <div className="text-center text-[11px] text-slate-400 font-medium">
               {!isFlipped 
-                ? 'Nhấn phím Space hoặc chạm vào thẻ để lật' 
+                ? 'Chạm vào thẻ hoặc bấm phím Space để lật' 
                 : 'Bấm 1 (Chưa nhớ) để lặp lại • Bấm 2 (Đã nhớ) để qua từ tiếp'}
             </div>
 
           </div>
 
-          {/* 2 ACTION BUTTONS (EXACT DESIGN MATCH) */}
-          <div className="grid grid-cols-2 gap-3 pt-0.5">
+          {/* 2 ACTION BUTTONS */}
+          <div className="grid grid-cols-2 gap-2.5 pt-0.5">
             
             {/* 1. NÚT CHƯA NHỚ (Vivid Red #E5252A) */}
             <button
               onClick={handleUnremembered}
-              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#E5252A] hover:bg-[#D01F24] text-white shadow-md shadow-rose-600/20 transition-all active:scale-98 group cursor-pointer"
+              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#E5252A] hover:bg-[#D01F24] text-white shadow-md shadow-rose-600/20 transition-all active:scale-98 group cursor-pointer min-h-[52px]"
             >
               <span className="font-black text-sm sm:text-base tracking-wide">
                 Chưa nhớ (1)
@@ -490,7 +540,7 @@ export default function SmartCards({
             {/* 2. NÚT ĐÃ NHỚ (Vivid Emerald Green #059669) */}
             <button
               onClick={handleRemembered}
-              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#059669] hover:bg-[#047857] text-white shadow-md shadow-emerald-600/20 transition-all active:scale-98 group cursor-pointer"
+              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#059669] hover:bg-[#047857] text-white shadow-md shadow-emerald-600/20 transition-all active:scale-98 group cursor-pointer min-h-[52px]"
             >
               <span className="font-black text-sm sm:text-base tracking-wide">
                 Đã nhớ (2)
@@ -500,6 +550,11 @@ export default function SmartCards({
               </span>
             </button>
 
+          </div>
+
+          {/* Mobile Swipe Hint */}
+          <div className="sm:hidden text-center text-[10px] text-slate-400 pt-1">
+            💡 Mẹo điện thoại: Vuốt Trái (Chưa nhớ) • Vuốt Phải (Đã nhớ)
           </div>
 
         </div>
