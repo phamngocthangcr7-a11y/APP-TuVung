@@ -6,7 +6,8 @@ import {
   BookOpen, 
   Layers, 
   Gamepad2, 
-  Brain
+  Brain,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -14,6 +15,7 @@ export default function Navbar({
   setActiveTab, 
   streakInfo, 
   onOpenAddModal, 
+  onOpenBatchModal,
   onOpenSettings,
   dueTodayCount = 0
 }) {
@@ -89,10 +91,20 @@ export default function Navbar({
               <span>{streakInfo.currentStreak || 1} ngày</span>
             </div>
 
+            {/* Dán nhiều từ button */}
+            <button
+              onClick={onOpenBatchModal}
+              title="Dán nhiều từ từ Excel hoặc văn bản"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs sm:text-sm font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Dán nhiều từ</span>
+            </button>
+
             {/* Bright Yellow Action Button (Like 'Nâng cấp tài khoản' in Image 2 & 3) */}
             <button
               onClick={onOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-black text-[#0B132B] bg-[#FFCC00] hover:bg-[#FFD633] shadow-md shadow-amber-500/20 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-black text-[#0B132B] bg-[#FFCC00] hover:bg-[#FFD633] shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>+ Thêm từ mới</span>

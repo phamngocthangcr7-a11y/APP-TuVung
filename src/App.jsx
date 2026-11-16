@@ -114,11 +114,15 @@ export default function App() {
     setCustomWords(prev => [newWord, ...prev]);
   };
 
-  const handleBatchSave = (batchList) => {
+  const handleBatchSave = (batchList, action = null) => {
     const valid = (batchList || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
     if (valid.length === 0) return;
     const created = addBatchCustomWords(valid);
     setCustomWords(prev => [...created, ...prev]);
+
+    if (action === 'study') {
+      handleStartSmartCards(created);
+    }
   };
 
   const handleEditWord = (wordData) => {
