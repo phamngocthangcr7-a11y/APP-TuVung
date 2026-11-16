@@ -142,6 +142,90 @@ export default function QuizMode({
     initQuiz(selectedSource, mistakes);
   };
 
+  // Helper function to safely blank out word in sentence for cloze test
+  const getClozeData = (wordObj) => {
+    if (!wordObj) return { sentence: '', translation: '' };
+    const rawWord = String(wordObj.word || '').trim();
+    const example = String(wordObj.example || '').trim();
+    const translation = wordObj.exampleTranslation || wordObj.meaning || '';
+
+    if (!example) {
+      return {
+        sentence: `Chọn từ tiếng Anh phù hợp: " [ ______ ] "`,
+        translation
+      };
+    }
+
+    const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // 1. Check if word starts with "be " (e.g. "be accustomed to", "be aware of")
+    if (/^be\s+/i.test(rawWord)) {
+      const core = rawWord.replace(/^be\s+/i, '').trim();
+      const beRegex = new RegExp(`\\b(be|am|is|are|was|were|been|being)\\s+${escapeReg(core)}\\b`, 'gi');
+      if (beRegex.test(example)) {
+        return {
+          sentence: example.replace(beRegex, (m, verb) => `${verb} [ ______ ]`),
+          translation
+        };
+      }
+      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
+      if (coreRegex.test(example)) {
+        return {
+          sentence: example.replace(coreRegex, '[ ______ ]'),
+          translation
+        };
+      }
+    }
+
+    // 2. Check if word starts with "to "
+    if (/^to\s+/i.test(rawWord)) {
+      const core = rawWord.replace(/^to\s+/i, '').trim();
+      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
+      if (coreRegex.test(example)) {
+        return {
+          sentence: example.replace(coreRegex, '[ ______ ]'),
+          translation
+        };
+      }
+    }
+
+    // 3. Direct match with word boundaries
+    const exactRegex = new RegExp(`\\b${escapeReg(rawWord)}\\b`, 'gi');
+    if (exactRegex.test(example)) {
+      return {
+        sentence: example.replace(exactRegex, '[ ______ ]'),
+        translation
+      };
+    }
+
+    // 4. Loose match
+    const looseRegex = new RegExp(escapeReg(rawWord), 'gi');
+    if (looseRegex.test(example)) {
+      return {
+        sentence: example.replace(looseRegex, '[ ______ ]'),
+        translation
+      };
+    }
+
+    // 5. Match tokens/stems for compound phrases or inflections
+    const tokens = rawWord.split(/\s+/).filter(t => t.length >= 4);
+    for (const token of tokens) {
+      const tokenRegex = new RegExp(`\\b${escapeReg(token)}[a-z]*\\b`, 'gi');
+      if (tokenRegex.test(example)) {
+        return {
+          sentence: example.replace(tokenRegex, '[ ______ ]'),
+          translation
+        };
+      }
+    }
+
+    // Fallback: Never display the sentence with target word visible
+    return {
+      sentence: `Điền từ còn thiếu: " [ ______ ] "`,
+      translation
+    };
+  };
+
   // Render question
   const renderQuestion = () => {
     if (!currentWord) return null;
@@ -180,21 +264,18 @@ export default function QuizMode({
       );
     }
 
-    if (quizType === 'cloze' && currentWord.example) {
-      const clozeText = currentWord.example.replace(
-        new RegExp(String(currentWord.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-        '[ ______ ]'
-      );
+    if (quizType === 'cloze') {
+      const cloze = getClozeData(currentWord);
       return (
         <div className="text-center py-4 space-y-2">
           <span className="text-xs font-bold text-[#2B4C7E] bg-blue-50 px-3 py-1 rounded-full">
             Điền từ còn thiếu vào câu TOEIC:
           </span>
           <p className="text-base sm:text-lg font-bold text-[#1E293B] leading-relaxed max-w-lg mx-auto">
-            "{clozeText}"
+            "{cloze.sentence}"
           </p>
           <p className="text-xs text-[#64748B] italic">
-            Nghĩa câu: {currentWord.exampleTranslation || currentWord.meaning}
+            Nghĩa câu: {cloze.translation}
           </p>
         </div>
       );
@@ -378,7 +459,8 @@ export default function QuizMode({
             }
 
             const label = ['A', 'B', 'C', 'D'][index];
-            const textToDisplay = quizType === 'meaning_to_word' ? opt.word : opt.meaning;
+            const isEnglishOption = quizType === 'meaning_to_word' || quizType === 'cloze';
+            const textToDisplay = isEnglishOption ? opt.word : opt.meaning;
 
             return (
               <button
@@ -418,7 +500,7 @@ export default function QuizMode({
               ) : (
                 <>
                   <XCircle className="w-4 h-4 text-rose-600" />
-                  <span>Chưa đúng! Đáp án đúng là: <strong>{quizType === 'meaning_to_word' ? currentWord.word : currentWord.meaning}</strong></span>
+                  <span>Chưa đúng! Đáp án đúng là: <strong>{(quizType === 'meaning_to_word' || quizType === 'cloze') ? currentWord.word : currentWord.meaning}</strong></span>
                 </>
               )}
             </div>

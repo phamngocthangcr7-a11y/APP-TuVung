@@ -343,7 +343,292 @@ const RAW_VOCAB_SETS = [
       { id: 315, word: "consider", meaning: "cân nhắc, suy xét", pronunciation: "kơn-SI-đơ", example: "I am considering buying a new car.", exampleTranslation: "Tôi đang cân nhắc mua một chiếc xe mới." },
       { id: 316, word: "take advantage of", meaning: "tận dụng, khai thác", pronunciation: "têik ơd-VAN-tij ov", example: "Take advantage of this special discount.", exampleTranslation: "Hãy tận dụng đợt giảm giá đặc biệt này." },
       { id: 317, word: "figure out", meaning: "tìm ra, hiểu ra giải pháp", pronunciation: "FIG-jơ aut", example: "I can't figure out how to solve this.", exampleTranslation: "Tôi không thể tìm ra cách giải quyết việc này." }
-    ]
+    ]  },
+  {
+    id: 7,
+    title: "7. TOEIC Advanced C1 - Nâng Cao & Collocation Khó (35 words)",
+    words: [
+      {
+            "id": 701,
+            "word": "contingency plan",
+            "meaning": "kế hoạch dự phòng",
+            "pronunciation": "kơn-TIN-jơn-si plan",
+            "example": "We developed a contingency plan in case of supply delays.",
+            "exampleTranslation": "Chúng tôi đã phát triển một kế hoạch dự phòng phòng trường hợp chậm nguồn cung."
+      },
+      {
+            "id": 702,
+            "word": "substantiate",
+            "meaning": "chứng minh, xác thực",
+            "pronunciation": "sơb-STAN-shi-êit",
+            "example": "The audit could not substantiate the financial claims.",
+            "exampleTranslation": "Cuộc kiểm toán không thể xác thực các khiếu nại tài chính."
+      },
+      {
+            "id": 703,
+            "word": "prerequisite",
+            "meaning": "điều kiện tiên quyết",
+            "pronunciation": "pri-REK-wơ-zit",
+            "example": "A college degree is a prerequisite for this executive position.",
+            "exampleTranslation": "Bằng đại học là điều kiện tiên quyết cho vị trí điều hành này."
+      },
+      {
+            "id": 704,
+            "word": "feasibility study",
+            "meaning": "nghiên cứu tính khả thi",
+            "pronunciation": "fii-zơ-BIL-ơ-ti STA-di",
+            "example": "The committee completed a feasibility study for the new branch.",
+            "exampleTranslation": "Ủy ban đã hoàn thành nghiên cứu tính khả thi cho chi nhánh mới."
+      },
+      {
+            "id": 705,
+            "word": "tentative schedule",
+            "meaning": "lịch trình dự kiến",
+            "pronunciation": "TEN-tơ-tiv SKED-ju-ơl",
+            "example": "Here is the tentative schedule for the international summit.",
+            "exampleTranslation": "Đây là lịch trình dự kiến cho hội nghị thượng đỉnh quốc tế."
+      },
+      {
+            "id": 706,
+            "word": "lucrative contract",
+            "meaning": "hợp đồng sinh lợi lớn",
+            "pronunciation": "LUU-krơ-tiv KON-trakt",
+            "example": "The company signed a lucrative contract with a multinational client.",
+            "exampleTranslation": "Công ty đã ký một hợp đồng sinh lợi lớn với đối tác đa quốc gia."
+      },
+      {
+            "id": 707,
+            "word": "discrepancy",
+            "meaning": "sự sai lệch, bất đồng",
+            "pronunciation": "di-SKREP-ơn-si",
+            "example": "There is a slight discrepancy between the two balance sheets.",
+            "exampleTranslation": "Có một sự sai lệch nhỏ giữa hai bảng cân đối kế toán."
+      },
+      {
+            "id": 708,
+            "word": "comply with",
+            "meaning": "tuân thủ theo quy định",
+            "pronunciation": "kơm-PLAI wiđ",
+            "example": "All employees must comply with corporate safety protocols.",
+            "exampleTranslation": "Mọi nhân viên phải tuân thủ các quy định an toàn của công ty."
+      },
+      {
+            "id": 709,
+            "word": "expedite the process",
+            "meaning": "đẩy nhanh tiến trình",
+            "pronunciation": "EK-spơ-dait đơ PRO-ses",
+            "example": "We hired extra staff to expedite the process.",
+            "exampleTranslation": "Chúng tôi đã thuê thêm nhân viên để đẩy nhanh tiến độ."
+      },
+      {
+            "id": 710,
+            "word": "unprecedented growth",
+            "meaning": "sự tăng trưởng chưa từng thấy",
+            "pronunciation": "an-PRES-i-den-tid grouth",
+            "example": "The tech sector experienced unprecedented growth last year.",
+            "exampleTranslation": "Ngành công nghệ đã đạt mức tăng trưởng chưa từng thấy trong năm ngoái."
+      },
+      {
+            "id": 711,
+            "word": "relinquish",
+            "meaning": "từ bỏ quyền lợi, nhượng lại",
+            "pronunciation": "ri-LING-kwish",
+            "example": "The CEO decided to relinquish his role after twenty years.",
+            "exampleTranslation": "Tổng giám đốc đã quyết định chuyển giao vị trí của mình sau 20 năm."
+      },
+      {
+            "id": 712,
+            "word": "mandatory training",
+            "meaning": "khóa đào tạo bắt buộc",
+            "pronunciation": "MAN-dơ-to-ri TREI-ning",
+            "example": "Cybersecurity awareness is a mandatory training for all staff.",
+            "exampleTranslation": "Nhận thức an toàn mạng là khóa đào tạo bắt buộc cho mọi nhân viên."
+      },
+      {
+            "id": 713,
+            "word": "indispensable",
+            "meaning": "không thể thiếu, thiết yếu",
+            "pronunciation": "in-di-SPEN-sơ-bơl",
+            "example": "Reliable internet is indispensable for remote operations.",
+            "exampleTranslation": "Internet ổn định là yếu tố không thể thiếu cho các hoạt động làm việc từ xa."
+      },
+      {
+            "id": 714,
+            "word": "consecutive days",
+            "meaning": "các ngày liên tiếp",
+            "pronunciation": "kơn-SEK-ju-tiv deiz",
+            "example": "Production ran for five consecutive days without interruption.",
+            "exampleTranslation": "Quy trình sản xuất vận hành suốt 5 ngày liên tiếp không ngắt quãng."
+      },
+      {
+            "id": 715,
+            "word": "rigorous testing",
+            "meaning": "kiểm tra nghiêm ngặt",
+            "pronunciation": "RIG-ơ-rơs TE-sting",
+            "example": "The drug underwent rigorous testing before clinical approval.",
+            "exampleTranslation": "Loại thuốc đã trải qua kiểm nghiệm nghiêm ngặt trước khi phê duyệt."
+      },
+      {
+            "id": 716,
+            "word": "adversely affect",
+            "meaning": "ảnh hưởng bất lợi",
+            "pronunciation": "ad-VERS-li ơ-FEKT",
+            "example": "Higher tariff rates may adversely affect import revenues.",
+            "exampleTranslation": "Mức thuế quan cao hơn có thể ảnh hưởng tiêu cực đến doanh thu nhập khẩu."
+      },
+      {
+            "id": 717,
+            "word": "under close scrutiny",
+            "meaning": "dưới sự giám sát chặt chẽ",
+            "pronunciation": "an-đơ klous SKRUU-tơ-ni",
+            "example": "Government spending came under close scrutiny.",
+            "exampleTranslation": "Chi tiêu công đã bị đặt dưới sự giám sát rất chặt chẽ."
+      },
+      {
+            "id": 718,
+            "word": "curb expenses",
+            "meaning": "kiềm chế chi tiêu",
+            "pronunciation": "kơrb ik-SPEN-siz",
+            "example": "We must curb expenses to preserve operating cash.",
+            "exampleTranslation": "Chúng ta cần kiềm chế chi tiêu để bảo toàn dòng tiền hoạt động."
+      },
+      {
+            "id": 719,
+            "word": "deteriorate",
+            "meaning": "xấu đi, suy giảm chất lượng",
+            "pronunciation": "di-TIR-i-ơ-rêit",
+            "example": "Customer satisfaction began to deteriorate after the policy change.",
+            "exampleTranslation": "Mức độ hài lòng của khách hàng bắt đầu suy giảm sau khi thay đổi chính sách."
+      },
+      {
+            "id": 720,
+            "word": "fluctuate widely",
+            "meaning": "biến động mạnh",
+            "pronunciation": "FLAK-chu-êit WAID-li",
+            "example": "Exchange rates may fluctuate widely throughout the week.",
+            "exampleTranslation": "Tỷ giá hối đoái có thể biến động rất mạnh trong tuần."
+      },
+      {
+            "id": 721,
+            "word": "imperative",
+            "meaning": "cấp bách, bắt buộc",
+            "pronunciation": "im-PER-ơ-tiv",
+            "example": "It is imperative that we submit the bid before Friday.",
+            "exampleTranslation": "Điều tối quan trọng là chúng ta phải nộp hồ sơ thầu trước thứ Sáu."
+      },
+      {
+            "id": 722,
+            "word": "subordinate",
+            "meaning": "cấp dưới, người dưới quyền",
+            "pronunciation": "sơ-BOR-di-nơt",
+            "example": "Effective leaders empower and mentor each subordinate.",
+            "exampleTranslation": "Nhà lãnh đạo hiệu quả luôn trao quyền và chỉ dẫn từng nhân viên cấp dưới."
+      },
+      {
+            "id": 723,
+            "word": "exemplary performance",
+            "meaning": "hiệu suất gương mẫu, xuất sắc",
+            "pronunciation": "ig-ZEM-plơ-ri pơ-FOR-mơns",
+            "example": "She received a year-end bonus for her exemplary performance.",
+            "exampleTranslation": "Cô ấy nhận được thưởng cuối năm vì hiệu suất công việc xuất sắc."
+      },
+      {
+            "id": 724,
+            "word": "reconcile",
+            "meaning": "đối chiếu, hòa giải",
+            "pronunciation": "REK-ơn-sail",
+            "example": "The accountant reconciled the bank statements with internal ledgers.",
+            "exampleTranslation": "Kế toán đã đối chiếu sao kê ngân hàng với sổ cái nội bộ."
+      },
+      {
+            "id": 725,
+            "word": "unanimous decision",
+            "meaning": "quyết định đồng thuận 100%",
+            "pronunciation": "ju-NAN-ơ-mơs di-SI-zhơn",
+            "example": "The board reached a unanimous decision on the merger.",
+            "exampleTranslation": "Hội đồng quản trị đã đạt được quyết định đồng thuận về vụ sáp nhập."
+      },
+      {
+            "id": 726,
+            "word": "viable solution",
+            "meaning": "giải pháp khả thi",
+            "pronunciation": "VAI-ơ-bơl sơ-LUU-shơn",
+            "example": "Solar energy offers a viable solution to rising utility bills.",
+            "exampleTranslation": "Năng lượng mặt trời mang lại một giải pháp khả thi cho hóa đơn điện tăng cao."
+      },
+      {
+            "id": 727,
+            "word": "versatile candidate",
+            "meaning": "ứng viên đa năng",
+            "pronunciation": "VER-sơ-tơl KAN-di-deit",
+            "example": "His broad background makes him a versatile candidate.",
+            "exampleTranslation": "Kinh nghiệm phong phú giúp anh ấy trở thành ứng viên rất đa năng."
+      },
+      {
+            "id": 728,
+            "word": "commensurate with",
+            "meaning": "tương xứng với",
+            "pronunciation": "kơ-MEN-shơ-rơt wiđ",
+            "example": "Salary will be commensurate with qualifications and experience.",
+            "exampleTranslation": "Mức lương sẽ tương xứng với trình độ chuyên môn và kinh nghiệm."
+      },
+      {
+            "id": 729,
+            "word": "stipulate in the contract",
+            "meaning": "quy định rõ trong hợp đồng",
+            "pronunciation": "STIP-ju-lêit",
+            "example": "The warranty stipulations are clearly defined.",
+            "exampleTranslation": "Các điều khoản bảo hành được quy định rất rõ ràng."
+      },
+      {
+            "id": 730,
+            "word": "prevalent practice",
+            "meaning": "thông lệ phổ biến",
+            "pronunciation": "PREV-ơ-lơnt PRAK-tis",
+            "example": "Hybrid remote work has become a prevalent practice.",
+            "exampleTranslation": "Làm việc từ xa kết hợp đã trở thành một thông lệ phổ biến."
+      },
+      {
+            "id": 731,
+            "word": "stringent regulations",
+            "meaning": "quy định nghiêm ngặt",
+            "pronunciation": "STRIN-jơnt reg-ju-LEI-shơnz",
+            "example": "Pharmaceutical factories operate under stringent regulations.",
+            "exampleTranslation": "Các nhà máy dược phẩm vận hành dưới các quy định vô cùng nghiêm ngặt."
+      },
+      {
+            "id": 732,
+            "word": "budget deficit",
+            "meaning": "thâm hụt ngân sách",
+            "pronunciation": "BA-jit DEF-i-sit",
+            "example": "The municipality is taking steps to resolve the budget deficit.",
+            "exampleTranslation": "Chính quyền thành phố đang thực hiện các bước để giải quyết thâm hụt ngân sách."
+      },
+      {
+            "id": 733,
+            "word": "curtail operations",
+            "meaning": "cắt giảm hoạt động",
+            "pronunciation": "kơr-TEIL op-ơ-REI-shơnz",
+            "example": "The airline decided to curtail operations on unprofitable routes.",
+            "exampleTranslation": "Hãng hàng không quyết định cắt giảm hoạt động trên các đường bay thua lỗ."
+      },
+      {
+            "id": 734,
+            "word": "remuneration package",
+            "meaning": "chế độ đãi ngộ, gói thù lao",
+            "pronunciation": "ri-mjuu-nơ-REI-shơn PAK-ij",
+            "example": "The firm offers a highly competitive remuneration package.",
+            "exampleTranslation": "Công ty mang lại một gói thù lao đãi ngộ vô cùng cạnh tranh."
+      },
+      {
+            "id": 735,
+            "word": "provisional approval",
+            "meaning": "sự phê duyệt tạm thời",
+            "pronunciation": "prơ-VI-zhơ-nơl ơ-PRUU-vơl",
+            "example": "The design received provisional approval pending environmental review.",
+            "exampleTranslation": "Bản thiết kế đã nhận được sự phê duyệt tạm thời chờ đánh giá môi trường."
+      }
+]
   }
 ];
 
@@ -373,3 +658,43 @@ export const BUILTIN_SETS = RAW_VOCAB_SETS.map(set => ({
     }
   }))
 }));
+
+
+export const TOEIC_CORE_DECKS = [
+  {
+    id: 'deck_basic',
+    code: 'A1',
+    badgeColor: 'bg-blue-600 text-white',
+    title: 'Cơ Bản',
+    subtitle: 'Nền tảng cho người mới bắt đầu.',
+    setIds: ['set_1', 'set_2', 'set_3'],
+    recommendedWords: 30
+  },
+  {
+    id: 'deck_intermediate',
+    code: 'B1',
+    badgeColor: 'bg-amber-500 text-white',
+    title: 'Trung Cấp',
+    subtitle: 'Từ vựng phổ biến trong đề TOEIC.',
+    setIds: ['set_4'],
+    recommendedWords: 30
+  },
+  {
+    id: 'deck_advanced',
+    code: 'C1',
+    badgeColor: 'bg-purple-600 text-white',
+    title: 'Nâng Cao',
+    subtitle: 'Từ nâng điểm và collocation khó.',
+    setIds: ['set_7'],
+    recommendedWords: 30
+  },
+  {
+    id: 'deck_phrases',
+    code: 'PH',
+    badgeColor: 'bg-emerald-600 text-white',
+    title: 'Cụm Từ',
+    subtitle: 'Phrase và expression thường gặp.',
+    setIds: ['set_5', 'set_6'],
+    recommendedWords: 30
+  }
+];

@@ -1,17 +1,71 @@
 // =========================================================================
 // TIỆN ÍCH PHÁT ÂM TIẾNG ANH CHUẨN BẢN XỨ & HIỆU ỨNG ÂM THANH
-// Sử dụng Audio Stream chất lượng cao thay vì giọng đọc máy mặc định
+// Hỗ trợ tối ưu 100% trên Điện thoại (iOS Safari, Android Chrome) và Máy tính
 // =========================================================================
 
 let currentAudio = null;
+let isAudioUnlocked = false;
+
+/**
+ * Mở khóa hệ thống âm thanh trên Mobile Browser (iOS Safari / Android Chrome)
+ * iOS Safari và Android yêu cầu kích hoạt Audio Context & Speech trong tương tác đầu tiên của người dùng
+ */
+export const unlockMobileAudio = () => {
+  if (isAudioUnlocked) return;
+  try {
+    // 1. Mở khóa Web Audio Context
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      if (!sound.ctx) sound.init();
+      if (sound.ctx && sound.ctx.state === 'suspended') {
+        sound.ctx.resume().catch(() => {});
+      }
+    }
+
+    // 2. Mở khóa Web Speech API (iOS Safari cần speak một âm câm trước)
+    if ('speechSynthesis' in window) {
+      const dummy = new SpeechSynthesisUtterance(' ');
+      dummy.volume = 0.01;
+      dummy.rate = 1.0;
+      window.speechSynthesis.speak(dummy);
+    }
+
+    // 3. Mở khóa HTML5 Audio element
+    try {
+      const dummyAudio = new Audio();
+      dummyAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      dummyAudio.play().catch(() => {});
+    } catch (e) {}
+
+    isAudioUnlocked = true;
+  } catch (e) {
+    console.warn('Audio unlock notice:', e);
+  }
+};
+
+// Đăng ký mở khóa ngay khi người dùng chạm vào màn hình hoặc bấm phím
+if (typeof window !== 'undefined') {
+  ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, unlockMobileAudio, { once: true, passive: true });
+  });
+}
+
+/**
+ * Nhận diện thiết bị di động
+ */
+const isMobileDevice = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 /**
  * Phát âm tiếng Anh tự nhiên (Studio Native English)
+ * Đồng bộ, không bị trễ trên điện thoại
  */
-export const speakEnglish = (rawText, rate = 1.0) => {
+export const speakEnglish = (rawText, rate = 0.95) => {
   if (!rawText) return;
   const text = String(rawText).trim();
-  if (!text || text === '-') return;
+  if (!text || text === '-' || text === '[ ______ ]') return;
 
   // Dừng âm thanh đang phát trước đó nếu có
   if (currentAudio) {
@@ -21,7 +75,13 @@ export const speakEnglish = (rawText, rate = 1.0) => {
     } catch (e) {}
   }
 
-  // 1. Thử phát qua Google TTS Studio Audio Stream (giọng đọc chuẩn Mỹ tự nhiên, rõ ràng)
+  // Trên Mobile, Web Speech API là giải pháp nhanh nhất, không bị lỗi CORS/403 trên mạng 4G/Wifi
+  if (isMobileDevice() && 'speechSynthesis' in window) {
+    speakWithWebSpeech(text, rate);
+    return;
+  }
+
+  // Thử phát qua Google TTS Studio Audio Stream (giọng đọc chuẩn Mỹ tự nhiên)
   try {
     const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en-US&client=tw-ob`;
     const audio = new Audio(audioUrl);
@@ -31,7 +91,7 @@ export const speakEnglish = (rawText, rate = 1.0) => {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
-        // Fallback sang Web Speech API nếu trình duyệt chặn stream
+        // Fallback tức thì sang Web Speech API nếu trình duyệt chặn stream
         speakWithWebSpeech(text, rate);
       });
     }
@@ -41,13 +101,18 @@ export const speakEnglish = (rawText, rate = 1.0) => {
 };
 
 /**
- * Fallback Web Speech API chọn giọng đọc tự nhiên nhất
+ * Phát âm qua Web Speech API (chọn giọng đọc bản xứ chuẩn nhất của hệ điều hành)
  */
-const speakWithWebSpeech = (text, rate = 1.0) => {
+export const speakWithWebSpeech = (text, rate = 0.95) => {
   if (!('speechSynthesis' in window)) return;
 
   try {
+    // Nếu speechSynthesis đang bị treo (lỗi phổ biến trên Chrome/Android), resume trước
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = rate;
     utterance.lang = 'en-US';
@@ -59,8 +124,10 @@ const speakWithWebSpeech = (text, rate = 1.0) => {
         v.name.includes('Natural') || 
         v.name.includes('Google') || 
         v.name.includes('Samantha') || 
+        v.name.includes('Siri') ||
         v.name.includes('Jenny') ||
-        v.name.includes('Guy')
+        v.name.includes('Guy') ||
+        v.name.includes('Ava')
       )
     ) || voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
 

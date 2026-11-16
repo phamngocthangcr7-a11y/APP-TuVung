@@ -224,6 +224,10 @@ export default function App() {
               onRecordStudySession={handleRecordSession}
               initialWords={studyWordsList}
               initialMode={studyMode}
+              favoriteIds={favoriteIds}
+              onToggleFavorite={handleToggleFavorite}
+              streakInfo={streakInfo}
+              onStartQuiz={handleStartQuiz}
               onBackToDashboard={() => setActiveTab('journal')}
               onOpenAddModal={() => {
                 setEditingWord(null);
