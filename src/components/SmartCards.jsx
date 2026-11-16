@@ -18,7 +18,8 @@ import {
   Gamepad2,
   Check,
   Zap,
-  Bookmark
+  Bookmark,
+  Plus
 } from 'lucide-react';
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
@@ -48,6 +49,7 @@ export default function SmartCards({
 
   const [activeDeck, setActiveDeck] = useState(null);
   const [sessionSize, setSessionSize] = useState(30); // Khuyên dùng 30 từ như yêu cầu người dùng
+  const [studyModeType, setStudyModeType] = useState('new_first'); // 'new_first' (Học từ mới tiếp theo), 'due_first' (Ôn từ đến hạn), 'mixed' (Kết hợp)
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
   const [selectedDeckForSession, setSelectedDeckForSession] = useState(null);
 
@@ -68,7 +70,6 @@ export default function SmartCards({
   const [revealedHint, setRevealedHint] = useState(false);
   const recallInputRef = useRef(null);
 
-  // Filter mode for Saved / Hard cards
   const [toastMessage, setToastMessage] = useState('');
 
   // Mobile Touch Swipe Handling
@@ -104,17 +105,35 @@ export default function SmartCards({
       return cleanAll.filter(w => String(w.id).startsWith('builtin_5') || String(w.id).startsWith('builtin_6'));
     }
     if (deckId === 'deck_custom') {
-      return sanitize(customWords);
+      return cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
     }
     return cleanAll;
-  }, [allWords, customWords, sanitize]);
+  }, [allWords, sanitize]);
+
+  // Unified List of All Decks (Including "Bộ Của Tôi" prominently as Card #1)
+  const displayDecks = useMemo(() => {
+    const cleanAll = sanitize(allWords);
+    const customList = cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
+
+    const myDeck = {
+      id: 'deck_custom',
+      code: 'ME',
+      badgeColor: 'bg-indigo-600 text-white',
+      title: 'Bộ Của Tôi',
+      subtitle: customList.length > 0 
+        ? `${customList.length} từ vựng bạn tự nạp & học hàng ngày.` 
+        : 'Sổ tay từ vựng do bạn tự thêm và lưu lại.',
+      isCustom: true
+    };
+
+    return [myDeck, ...TOEIC_CORE_DECKS];
+  }, [allWords, sanitize]);
 
   // Real Deck Stats Calculation
   const deckStats = useMemo(() => {
     const stats = {};
-    const decksList = [...TOEIC_CORE_DECKS, { id: 'deck_custom', title: 'Sổ Tay Của Tôi', subtitle: 'Từ vựng bạn tự nạp hàng ngày.', code: 'USR' }];
 
-    decksList.forEach(deck => {
+    displayDecks.forEach(deck => {
       const words = getWordsForDeck(deck.id);
       let newCount = 0;
       let learningCount = 0;
@@ -135,7 +154,8 @@ export default function SmartCards({
           learningCount++;
         }
 
-        if (isDueForReview(w, todayStr)) {
+        // Đếm thẻ đã học và đến hạn ôn tập hôm nay
+        if (reps > 0 && isDueForReview(w, todayStr)) {
           dueCount++;
         }
       });
@@ -149,12 +169,13 @@ export default function SmartCards({
         learningCount,
         masteredCount,
         dueCount: dueCount > 0 ? dueCount : newCount,
+        hasDueReview: dueCount > 0,
         progressPercent
       };
     });
 
     return stats;
-  }, [getWordsForDeck, todayStr]);
+  }, [displayDecks, getWordsForDeck, todayStr]);
 
   // Overall Global Stats for Top Bar (Image 2)
   const overallStats = useMemo(() => {
@@ -182,8 +203,8 @@ export default function SmartCards({
     };
   }, [allWords, sanitize, streakInfo, favoriteIds]);
 
-  // Start study session for a deck
-  const startSession = (deck, targetCount = 30) => {
+  // START STUDY SESSION: Hỗ trợ chia phiên 30 từ hôm nay, mai học 30 từ tiếp theo, không bị lặp!
+  const startSession = (deck, targetCount = 30, mode = studyModeType) => {
     unlockMobileAudio();
     let words = [];
 
@@ -203,13 +224,61 @@ export default function SmartCards({
       words = sanitize(allWords).slice(0, targetCount);
     }
 
-    // Prioritize cards due for review, then new cards
-    const dueList = words.filter(w => isDueForReview(w, todayStr));
-    const notDueList = words.filter(w => !isDueForReview(w, todayStr));
-    const sorted = [...dueList, ...notDueList];
+    // 1. Thẻ mới chưa từng học: repetitions === 0 || state === 'new'
+    const newWords = words.filter(w => {
+      const reps = w.srs?.repetitions || 0;
+      const state = w.srs?.state || 'new';
+      return reps === 0 || state === 'new';
+    });
 
-    // Pick targetCount words and shuffle
-    const selected = sorted.slice(0, targetCount).sort(() => 0.5 - Math.random());
+    // 2. Thẻ đã học và ĐẾN HẠN ÔN TẬP HÔM NAY (Spaced Repetition): repetitions > 0 && isDueForReview
+    const dueWords = words.filter(w => {
+      const reps = w.srs?.repetitions || 0;
+      return reps > 0 && isDueForReview(w, todayStr);
+    });
+
+    // 3. Thẻ đã học nhưng CHƯA ĐẾN HẠN ÔN (lịch nhắc vào các ngày tới): repetitions > 0 && !isDueForReview
+    const notDueWords = words.filter(w => {
+      const reps = w.srs?.repetitions || 0;
+      return reps > 0 && !isDueForReview(w, todayStr);
+    });
+
+    let selected = [];
+
+    if (mode === 'new_first') {
+      // ƯU TIÊN HỌC TỪ MỚI TIẾP THEO (Hôm nay học 1-30, ngày mai tự động lấy 31-60)
+      if (newWords.length > 0) {
+        selected = newWords.slice(0, targetCount);
+      } else if (dueWords.length > 0) {
+        selected = dueWords.slice(0, targetCount);
+      } else {
+        selected = words.slice(0, targetCount);
+      }
+    } else if (mode === 'due_first') {
+      // ƯU TIÊN ÔN TẬP CÁC TỪ ĐẾN HẠN HÔM NAY
+      if (dueWords.length > 0) {
+        selected = dueWords.slice(0, targetCount);
+      } else if (newWords.length > 0) {
+        selected = newWords.slice(0, targetCount);
+      } else {
+        selected = words.slice(0, targetCount);
+      }
+    } else {
+      // KẾT HỢP THÔNG MINH (Chuẩn Anki): Ôn từ đến hạn trước, sau đó nạp thêm từ mới cho đủ targetCount
+      selected = [...dueWords.slice(0, targetCount)];
+      if (selected.length < targetCount) {
+        const remaining = targetCount - selected.length;
+        selected = [...selected, ...newWords.slice(0, remaining)];
+      }
+      if (selected.length < targetCount) {
+        const remaining = targetCount - selected.length;
+        const others = notDueWords.filter(w => !selected.some(s => s.id === w.id));
+        selected = [...selected, ...others.slice(0, remaining)];
+      }
+    }
+
+    // Đảo ngẫu nhiên thứ tự các thẻ trong phiên để phản xạ nhanh
+    selected = selected.sort(() => 0.5 - Math.random());
 
     setSessionTargetWords(selected);
     setActiveQueue([...selected]);
@@ -461,7 +530,7 @@ export default function SmartCards({
   // =========================================================================
   if (viewMode === 'decks') {
     return (
-      <div className="max-w-5xl mx-auto space-y-5 pb-24 sm:pb-16 px-3 sm:px-4">
+      <div className="max-w-6xl mx-auto space-y-5 pb-24 sm:pb-16 px-3 sm:px-4">
         
         {/* TOP STATS BAR (Image 2) */}
         <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
@@ -489,7 +558,7 @@ export default function SmartCards({
           {/* Right Action Filters */}
           <div className="flex items-center gap-2 ml-auto">
             <button
-              onClick={() => startSession('saved', 30)}
+              onClick={() => startSession('saved', 30, 'mixed')}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:border-amber-400 bg-white hover:bg-amber-50 text-xs font-bold text-slate-700 transition-all shadow-2xs cursor-pointer"
             >
               <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -497,7 +566,7 @@ export default function SmartCards({
             </button>
 
             <button
-              onClick={() => startSession('hard', 30)}
+              onClick={() => startSession('hard', 30, 'mixed')}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:border-rose-400 bg-white hover:bg-rose-50 text-xs font-bold text-slate-700 transition-all shadow-2xs cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
@@ -517,18 +586,30 @@ export default function SmartCards({
               Chọn một bộ thẻ để bắt đầu phiên học SmartCards & kiểm tra gõ từ củng cố
             </p>
           </div>
+
+          <button
+            onClick={onOpenAddModal}
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Thêm từ vào Bộ của tôi</span>
+          </button>
         </div>
 
-        {/* 4 CORE TOEIC DECKS GRID (Image 2) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* ALL DECKS GRID (Including "Bộ Của Tôi" as Card #1) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           
-          {TOEIC_CORE_DECKS.map((deck) => {
-            const stats = deckStats[deck.id] || { total: 0, newCount: 0, learningCount: 0, masteredCount: 0, dueCount: 0, progressPercent: 0 };
+          {displayDecks.map((deck) => {
+            const stats = deckStats[deck.id] || { total: 0, newCount: 0, learningCount: 0, masteredCount: 0, dueCount: 0, hasDueReview: false, progressPercent: 0 };
 
             return (
               <div 
                 key={deck.id}
-                className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between space-y-4 group"
+                className={`bg-white rounded-3xl p-5 border shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative ${
+                  deck.isCustom 
+                    ? 'border-indigo-200 hover:border-indigo-400 bg-gradient-to-b from-indigo-50/30 to-white' 
+                    : 'border-slate-200/90 hover:border-blue-300'
+                }`}
               >
                 {/* Card Header: Badge & Status */}
                 <div className="flex items-center justify-between">
@@ -536,9 +617,13 @@ export default function SmartCards({
                     {deck.code}
                   </span>
 
-                  {stats.dueCount > 0 ? (
-                    <span className="text-xs font-extrabold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                  {stats.hasDueReview ? (
+                    <span className="text-xs font-extrabold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
                       {stats.dueCount} cần ôn
+                    </span>
+                  ) : stats.newCount > 0 ? (
+                    <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      {stats.newCount} thẻ mới
                     </span>
                   ) : (
                     <span className="text-xs font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
@@ -577,7 +662,7 @@ export default function SmartCards({
                   {/* Progress Bar */}
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mt-2">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                      className={`h-2 rounded-full transition-all duration-500 ${deck.isCustom ? 'bg-indigo-600' : 'bg-blue-600'}`}
                       style={{ width: `${Math.max(stats.progressPercent, 4)}%` }}
                     />
                   </div>
@@ -586,7 +671,11 @@ export default function SmartCards({
                 {/* Big Action Button "Học ngay" */}
                 <button
                   onClick={() => handleOpenDeck(deck)}
-                  className="w-full py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md shadow-blue-600/20 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white shadow-md active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    deck.isCustom 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' 
+                      : 'bg-[#2563EB] hover:bg-[#1D4ED8] shadow-blue-600/20'
+                  }`}
                 >
                   <span>Học ngay</span>
                   <ArrowRight className="w-4 h-4" />
@@ -597,42 +686,11 @@ export default function SmartCards({
 
         </div>
 
-        {/* 5th CARD: SỔ TAY TỪ VỰNG CÁ NHÂN (Nếu có từ tự thêm) */}
-        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-3xl p-5 border border-indigo-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white font-black text-xs">
-                USR
-              </span>
-              <h3 className="font-black text-base sm:text-lg text-[#0B132B]">
-                Sổ Tay Từ Vựng Hàng Ngày ({customWords.length} từ)
-              </h3>
-            </div>
-            <p className="text-xs text-slate-600 max-w-xl">
-              Tất cả các từ mới bạn tự thêm mỗi ngày hoặc nhập từ file Excel. Học ngay bằng thuật toán ngắt quãng SRS!
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => handleOpenDeck({ id: 'deck_custom', title: 'Sổ Tay Từ Vựng Của Tôi', code: 'USR' })}
-              className="flex-1 sm:flex-none py-2.5 px-5 rounded-2xl font-bold text-xs sm:text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all text-center cursor-pointer"
-            >
-              Ôn luyện ({customWords.length} từ)
-            </button>
-            <button
-              onClick={onOpenAddModal}
-              className="py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer"
-            >
-              + Thêm từ mới
-            </button>
-          </div>
-        </div>
-
-        {/* MODAL CHỌN SỐ LƯỢNG TỪ CHO PHIÊN HỌC */}
+        {/* MODAL CHỌN SỐ LƯỢNG TỪ & CHẾ ĐỘ HỌC (Đáp ứng chia phiên 30 từ, mai học tiếp 30 từ) */}
         {isSizeModalOpen && selectedDeckForSession && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-200">
+              
               <div className="text-center space-y-1">
                 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
                   Mục tiêu phiên học
@@ -641,50 +699,122 @@ export default function SmartCards({
                   {selectedDeckForSession.title}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Chọn số lượng từ bạn muốn học và viết lại hôm nay:
+                  Tổng {deckStats[selectedDeckForSession.id]?.total || 0} từ • Chia nhỏ học hàng ngày theo Spaced Repetition
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 pt-1">
-                {[10, 20, 30].map(size => (
+              {/* CHỌN CHẾ ĐỘ HỌC */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Chọn chế độ phiên học:
+                </label>
+                
+                <div className="grid grid-cols-1 gap-1.5 text-xs">
+                  
+                  {/* Mode 1: Học từ mới tiếp theo */}
                   <button
-                    key={size}
-                    onClick={() => {
-                      setSessionSize(size);
-                      startSession(selectedDeckForSession, size);
-                    }}
-                    className={`py-3 px-4 rounded-2xl border text-left font-bold text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer ${
-                      sessionSize === size 
-                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs' 
+                    type="button"
+                    onClick={() => setStudyModeType('new_first')}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      studyModeType === 'new_first'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                     }`}
                   >
-                    <div>
-                      <div>Học {size} từ {size === 30 && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full ml-1 font-bold">Khuyên dùng TOEIC</span>}</div>
-                      <div className="text-[11px] font-normal text-slate-500">~{size / 2} phút • Gồm 2 vòng (Lật thẻ & Gõ lại)</div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-700">🌟 Học {sessionSize} từ mới tiếp theo</span>
+                      {studyModeType === 'new_first' && <Check className="w-4 h-4 text-blue-600" />}
                     </div>
-                    <ArrowRight className="w-4 h-4 text-blue-600" />
+                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+                      Lấy các từ chưa học (Ví dụ: nay học 1-30, mai tự động lấy 31-60).
+                    </p>
                   </button>
-                ))}
+
+                  {/* Mode 2: Ôn tập từ đến hạn */}
+                  <button
+                    type="button"
+                    onClick={() => setStudyModeType('due_first')}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      studyModeType === 'due_first'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-amber-700">🔁 Ôn tập các từ đến hạn (SRS)</span>
+                      {studyModeType === 'due_first' && <Check className="w-4 h-4 text-blue-600" />}
+                    </div>
+                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+                      Chỉ ôn lại các từ đã học trước đây mà hôm nay đến lịch nhắc lại.
+                    </p>
+                  </button>
+
+                  {/* Mode 3: Kết hợp thông minh */}
+                  <button
+                    type="button"
+                    onClick={() => setStudyModeType('mixed')}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      studyModeType === 'mixed'
+                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-700">🎯 Kết hợp thông minh (Chuẩn Anki)</span>
+                      {studyModeType === 'mixed' && <Check className="w-4 h-4 text-blue-600" />}
+                    </div>
+                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+                      Ưu tiên ôn từ đến hạn trước, sau đó nạp thêm từ mới cho đủ {sessionSize} từ.
+                    </p>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* CHỌN SỐ LƯỢNG TỪ */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Số lượng từ cho phiên hôm nay:
+                </label>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  {[10, 20, 30].map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setSessionSize(size)}
+                      className={`py-2 px-3 rounded-xl border font-bold text-xs transition-all cursor-pointer text-center ${
+                        sessionSize === size 
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-xs' 
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {size} từ {size === 30 && '⭐'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSizeModalOpen(false)}
+                  className="w-1/3 py-2.5 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
 
                 <button
-                  onClick={() => {
-                    setSessionSize(50);
-                    startSession(selectedDeckForSession, 50);
-                  }}
-                  className="py-2.5 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between cursor-pointer"
+                  type="button"
+                  onClick={() => startSession(selectedDeckForSession, sessionSize, studyModeType)}
+                  className="flex-1 py-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <span>Tất cả thẻ cần ôn trong bộ này</span>
-                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                  <span>Bắt đầu học {sessionSize} từ</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
-              <button
-                onClick={() => setIsSizeModalOpen(false)}
-                className="w-full py-2.5 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
             </div>
           </div>
         )}
@@ -978,7 +1108,7 @@ export default function SmartCards({
         {/* Nút Khôi Phục */}
         <button
           onClick={() => {
-            if (activeDeck) startSession(activeDeck, sessionSize);
+            if (activeDeck) startSession(activeDeck, sessionSize, studyModeType);
           }}
           className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
           title="Tải lại lượt học"

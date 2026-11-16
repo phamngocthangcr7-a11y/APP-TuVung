@@ -144,6 +144,9 @@ export default function App() {
   const handleUpdateWordSrs = useCallback((wordId, newSrs) => {
     saveWordSrsProgress(wordId, newSrs);
     setSrsProgress(prev => ({ ...prev, [wordId]: newSrs }));
+    if (String(wordId).startsWith('usr_')) {
+      setCustomWords(prev => prev.map(w => w.id === wordId ? { ...w, srs: newSrs } : w));
+    }
   }, []);
 
   const handleToggleFavorite = useCallback((wordId) => {
