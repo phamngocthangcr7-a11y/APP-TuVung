@@ -36,6 +36,11 @@ export default class ErrorBoundary extends React.Component {
             <p className="text-xs text-slate-500 mt-1">
               Dữ liệu từ vựng của bạn vẫn an toàn. Hãy bấm nút bên dưới để khôi phục lại nhé!
             </p>
+            {this.state.error && (
+              <div className="mt-2 text-[11px] text-rose-600 bg-rose-50 p-2 rounded-xl border border-rose-200 text-left overflow-x-auto max-w-sm mx-auto font-mono">
+                {String(this.state.error?.message || this.state.error)}
+              </div>
+            )}
           </div>
           <button
             onClick={this.handleReset}

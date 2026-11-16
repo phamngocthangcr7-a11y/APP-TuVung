@@ -25,6 +25,12 @@ import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
 
+// Sanitize and filter valid words helper (pure function at module scope)
+const sanitizeWords = (list) => {
+  if (!Array.isArray(list)) return [];
+  return list.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
+};
+
 export default function SmartCards({
   allWords = [],
   customWords = [],
@@ -82,7 +88,7 @@ export default function SmartCards({
   // Handle dynamically passed words (e.g. from Batch Import or Daily Journal)
   useEffect(() => {
     if (initialWords && Array.isArray(initialWords) && initialWords.length > 0) {
-      const clean = sanitize(initialWords);
+      const clean = sanitizeWords(initialWords);
       if (clean.length > 0) {
         setSessionTargetWords(clean);
         setActiveQueue(clean);
@@ -94,13 +100,9 @@ export default function SmartCards({
         setActiveDeck({ id: 'custom_session', title: 'Phiên Học Đã Chọn', code: 'CUS' });
       }
     }
-  }, [initialWords, sanitize]);
+  }, [initialWords]);
 
-  // Sanitize and filter valid words
-  const sanitize = useCallback((list) => {
-    if (!Array.isArray(list)) return [];
-    return list.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
-  }, []);
+  // Using sanitizeWords from module scope
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -109,7 +111,7 @@ export default function SmartCards({
 
   // Helper: Filter words by deck
   const getWordsForDeck = useCallback((deckId) => {
-    const cleanAll = sanitize(allWords);
+    const cleanAll = sanitizeWords(allWords);
     if (deckId === 'deck_basic') {
       return cleanAll.filter(w => ['builtin_101', 'builtin_102', 'builtin_103', 'builtin_104', 'builtin_105', 'builtin_106', 'builtin_107', 'builtin_108', 'builtin_109', 'builtin_110', 'builtin_111', 'builtin_112', 'builtin_113', 'builtin_201', 'builtin_202', 'builtin_203', 'builtin_204', 'builtin_205', 'builtin_206', 'builtin_207', 'builtin_208', 'builtin_209', 'builtin_210', 'builtin_211', 'builtin_212', 'builtin_213', 'builtin_214', 'builtin_215', 'builtin_216', 'builtin_217', 'builtin_218', 'builtin_219', 'builtin_220', 'builtin_301', 'builtin_302', 'builtin_303', 'builtin_304', 'builtin_305', 'builtin_306', 'builtin_307', 'builtin_308', 'builtin_309', 'builtin_310', 'builtin_311', 'builtin_312', 'builtin_313', 'builtin_314', 'builtin_315', 'builtin_316', 'builtin_317'].includes(w.id));
     }
@@ -126,11 +128,11 @@ export default function SmartCards({
       return cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
     }
     return cleanAll;
-  }, [allWords, sanitize]);
+  }, [allWords]);
 
   // Unified List of All Decks (Including "Bộ Của Tôi" prominently as Card #1)
   const displayDecks = useMemo(() => {
-    const cleanAll = sanitize(allWords);
+    const cleanAll = sanitizeWords(allWords);
     const customList = cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
 
     const myDeck = {
@@ -145,7 +147,7 @@ export default function SmartCards({
     };
 
     return [myDeck, ...TOEIC_CORE_DECKS];
-  }, [allWords, sanitize]);
+  }, [allWords]);
 
   // Real Deck Stats Calculation
   const deckStats = useMemo(() => {
@@ -186,7 +188,7 @@ export default function SmartCards({
         newCount,
         learningCount,
         masteredCount,
-        dueCount: dueCount > 0 ? dueCount : newCount,
+        dueCount: dueCount,
         hasDueReview: dueCount > 0,
         progressPercent
       };
@@ -197,7 +199,7 @@ export default function SmartCards({
 
   // Overall Global Stats for Top Bar (Image 2)
   const overallStats = useMemo(() => {
-    const cleanAll = sanitize(allWords);
+    const cleanAll = sanitizeWords(allWords);
     let totalMastered = 0;
     let hardCards = [];
 
@@ -219,7 +221,7 @@ export default function SmartCards({
       hardCount: hardCards.length,
       hardCards
     };
-  }, [allWords, sanitize, streakInfo, favoriteIds]);
+  }, [allWords, streakInfo, favoriteIds]);
 
   // START STUDY SESSION: Hỗ trợ chia phiên 30 từ hôm nay, mai học 30 từ tiếp theo, không bị lặp!
   const startSession = (deck, targetCount = 30, mode = studyModeType) => {
@@ -227,11 +229,11 @@ export default function SmartCards({
     let words = [];
 
     if (deck === 'saved') {
-      words = sanitize(allWords).filter(w => (favoriteIds || []).includes(w.id));
+      words = sanitizeWords(allWords).filter(w => (favoriteIds || []).includes(w.id));
       setActiveDeck({ id: 'saved', title: 'Từ Vựng Đã Lưu (⭐)', code: 'SAVED' });
     } else if (deck === 'hard') {
       words = overallStats.hardCards;
-      if (words.length === 0) words = sanitize(allWords).slice(0, targetCount);
+      if (words.length === 0) words = sanitizeWords(allWords).slice(0, targetCount);
       setActiveDeck({ id: 'hard', title: 'Top Thẻ Khó & Cần Ôn', code: 'HARD' });
     } else {
       words = getWordsForDeck(deck.id);
