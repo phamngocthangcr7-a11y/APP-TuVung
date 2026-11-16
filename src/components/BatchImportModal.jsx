@@ -13,7 +13,7 @@ import {
   Layers
 } from 'lucide-react';
 import { getTodayDateString } from '../utils/srs';
-import { lookupEnglishWord } from '../utils/dictionary';
+import { lookupEnglishWord, getToeicExampleFallback } from '../utils/dictionary';
 
 export default function BatchImportModal({
   isOpen,
@@ -155,6 +155,7 @@ export default function BatchImportModal({
             item.partOfSpeech = dictRes.partOfSpeech || item.partOfSpeech;
             if (dictRes.phonetic) item.pronunciation = dictRes.phonetic;
             if (dictRes.example && !item.example) item.example = dictRes.example;
+            if (dictRes.exampleTranslation && !item.exampleTranslation) item.exampleTranslation = dictRes.exampleTranslation;
           } else {
             item.meaning = '(Chưa có nghĩa)';
           }
@@ -187,12 +188,17 @@ export default function BatchImportModal({
   const handleSave = (andStudy = false) => {
     if (activeWords.length === 0) return;
 
-    const validWords = activeWords.map(w => ({
-      ...w,
-      meaning: w.meaning && w.meaning.trim() !== '' ? w.meaning.trim() : '(Từ mới chưa dịch)',
-      tags: [defaultTag || 'Nạp hàng ngày'],
-      addedDate: targetDate || getTodayDateString()
-    }));
+    const validWords = activeWords.map(w => {
+      const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+      return {
+        ...w,
+        meaning: w.meaning && w.meaning.trim() !== '' ? w.meaning.trim() : '(Từ mới chưa dịch)',
+        example: (w.example && w.example.trim()) ? w.example.trim() : fallback.example,
+        exampleTranslation: (w.exampleTranslation && w.exampleTranslation.trim()) ? w.exampleTranslation.trim() : fallback.translation,
+        tags: [defaultTag || 'Nạp hàng ngày'],
+        addedDate: targetDate || getTodayDateString()
+      };
+    });
 
     onBatchSave(validWords, andStudy ? 'study' : null);
     setSavedSuccessMessage(`🎉 Đã lưu thành công ${validWords.length} từ vựng vào Sổ tay của bạn!`);

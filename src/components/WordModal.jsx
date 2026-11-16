@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Volume2, Sparkles, Check, AlertCircle, Search, Loader2, ArrowRight } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
-import { lookupEnglishWord, checkUserMeaningAccuracy } from '../utils/dictionary';
+import { lookupEnglishWord, checkUserMeaningAccuracy, getToeicExampleFallback } from '../utils/dictionary';
 
 export default function WordModal({
   isOpen,
@@ -150,6 +150,17 @@ export default function WordModal({
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
+  const handleGenerateExample = () => {
+    const cleanWord = word.trim();
+    if (!cleanWord) {
+      alert('Vui lòng nhập từ vựng tiếng Anh trước!');
+      return;
+    }
+    const fallback = getToeicExampleFallback(cleanWord, partOfSpeech, meaning);
+    setExample(fallback.example);
+    setExampleTranslation(fallback.translation);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const cleanWord = word.trim();
@@ -160,13 +171,17 @@ export default function WordModal({
       return;
     }
 
+    const fallback = getToeicExampleFallback(cleanWord, partOfSpeech, cleanMeaning);
+    const finalExample = example.trim() || fallback.example;
+    const finalExampleTranslation = exampleTranslation.trim() || fallback.translation;
+
     onSave({
       word: cleanWord,
       pronunciation: pronunciation.trim(),
       partOfSpeech,
       meaning: cleanMeaning,
-      example: example.trim(),
-      exampleTranslation: exampleTranslation.trim(),
+      example: finalExample,
+      exampleTranslation: finalExampleTranslation,
       note: note.trim(),
       tags: tags.length > 0 ? tags : ['TOEIC'],
       addedDate
@@ -344,9 +359,19 @@ export default function WordModal({
           {/* Example Sentence & Translation */}
           <div className="space-y-2">
             <div>
-              <label className="block text-xs font-bold text-[#2C2A29] mb-1">
-                Câu ví dụ TOEIC
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-[#2C2A29]">
+                  Câu ví dụ TOEIC
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateExample}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Tự tạo câu TOEIC</span>
+                </button>
+              </div>
               <textarea
                 rows="2"
                 value={example}

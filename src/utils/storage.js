@@ -4,6 +4,7 @@
 // =========================================================================
 
 import { getTodayDateString } from './srs';
+import { getToeicExampleFallback } from './dictionary';
 
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
@@ -35,7 +36,25 @@ export const getWeekNumber = (d = new Date()) => {
 export const getCustomWords = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
-    return raw ? JSON.parse(raw) : [];
+    const list = raw ? JSON.parse(raw) : [];
+    let modified = false;
+    const enriched = list.map(w => {
+      if (!w || !w.word) return w;
+      if (!w.example || String(w.example).trim() === '') {
+        const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+        modified = true;
+        return {
+          ...w,
+          example: fallback.example,
+          exampleTranslation: w.exampleTranslation || fallback.translation
+        };
+      }
+      return w;
+    });
+    if (modified) {
+      saveCustomWords(enriched);
+    }
+    return enriched;
   } catch (err) {
     console.error('Error reading custom words:', err);
     return [];
@@ -60,6 +79,7 @@ export const addCustomWord = (wordData) => {
   const words = getCustomWords();
   const today = getTodayDateString();
   const weekNum = getWeekNumber(new Date());
+  const fallback = getToeicExampleFallback(wordData.word, wordData.partOfSpeech, wordData.meaning);
 
   const newWord = {
     id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
@@ -67,8 +87,8 @@ export const addCustomWord = (wordData) => {
     pronunciation: (wordData.pronunciation || '').trim(),
     meaning: (wordData.meaning || '').trim(),
     partOfSpeech: wordData.partOfSpeech || 'noun',
-    example: (wordData.example || '').trim(),
-    exampleTranslation: (wordData.exampleTranslation || '').trim(),
+    example: (wordData.example || '').trim() || fallback.example,
+    exampleTranslation: (wordData.exampleTranslation || '').trim() || fallback.translation,
     note: (wordData.note || '').trim(),
     tags: Array.isArray(wordData.tags) ? wordData.tags : (wordData.tags ? [wordData.tags] : []),
     folderId: wordData.folderId || 'daily',
@@ -99,30 +119,33 @@ export const addBatchCustomWords = (wordsList) => {
   const today = getTodayDateString();
   const weekNum = getWeekNumber(new Date());
 
-  const formattedWords = wordsList.map((w, index) => ({
-    id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
-    word: (w.word || '').trim(),
-    pronunciation: (w.pronunciation || '').trim(),
-    meaning: (w.meaning || '').trim(),
-    partOfSpeech: w.partOfSpeech || 'noun',
-    example: (w.example || '').trim(),
-    exampleTranslation: (w.exampleTranslation || '').trim(),
-    note: (w.note || '').trim(),
-    tags: Array.isArray(w.tags) ? w.tags : (w.tags ? [w.tags] : ['Nhập hàng loạt']),
-    folderId: w.folderId || 'daily',
-    addedDate: w.addedDate || today,
-    weekNumber: weekNum,
-    year: new Date().getFullYear(),
-    isFavorite: false,
-    mistakeCount: 0,
-    srs: {
-      repetitions: 0,
-      interval: 0,
-      easeFactor: 2.5,
-      nextReviewDate: today,
-      state: 'new'
-    }
-  }));
+  const formattedWords = wordsList.map((w, index) => {
+    const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+    return {
+      id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
+      word: (w.word || '').trim(),
+      pronunciation: (w.pronunciation || '').trim(),
+      meaning: (w.meaning || '').trim(),
+      partOfSpeech: w.partOfSpeech || 'noun',
+      example: (w.example || '').trim() || fallback.example,
+      exampleTranslation: (w.exampleTranslation || '').trim() || fallback.translation,
+      note: (w.note || '').trim(),
+      tags: Array.isArray(w.tags) ? w.tags : (w.tags ? [w.tags] : ['Nhập hàng loạt']),
+      folderId: w.folderId || 'daily',
+      addedDate: w.addedDate || today,
+      weekNumber: weekNum,
+      year: new Date().getFullYear(),
+      isFavorite: false,
+      mistakeCount: 0,
+      srs: {
+        repetitions: 0,
+        interval: 0,
+        easeFactor: 2.5,
+        nextReviewDate: today,
+        state: 'new'
+      }
+    };
+  });
 
   const updated = [...formattedWords, ...currentWords];
   saveCustomWords(updated);

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
+import { getToeicExampleFallback } from '../utils/dictionary';
 
 export default function DailyJournal({
   allWords = [],
@@ -362,18 +363,23 @@ export default function DailyJournal({
                           </div>
 
                           {/* Example */}
-                          {word.example && (
-                            <div className="text-xs text-[#4A453E] bg-[#FAF8F5] p-2 rounded-xl border border-[#EAE5DC] space-y-0.5">
-                              <p className="font-medium text-[#1E293B] leading-relaxed">
-                                {word.example}
-                              </p>
-                              {word.exampleTranslation && (
-                                <p className="text-[#64748B] italic">
-                                  {word.exampleTranslation}
+                          {(() => {
+                            const ex = word.example || getToeicExampleFallback(word.word, word.partOfSpeech, word.meaning).example;
+                            const trans = word.exampleTranslation || getToeicExampleFallback(word.word, word.partOfSpeech, word.meaning).translation;
+                            if (!ex) return null;
+                            return (
+                              <div className="text-xs text-[#4A453E] bg-[#FAF8F5] p-2 rounded-xl border border-[#EAE5DC] space-y-0.5">
+                                <p className="font-medium text-[#1E293B] leading-relaxed">
+                                  {ex}
                                 </p>
-                              )}
-                            </div>
-                          )}
+                                {trans && (
+                                  <p className="text-[#64748B] italic">
+                                    {trans}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                         </div>
 

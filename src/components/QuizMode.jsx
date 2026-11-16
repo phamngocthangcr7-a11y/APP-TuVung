@@ -11,6 +11,7 @@ import {
   Gamepad2
 } from 'lucide-react';
 import { speakEnglish, sound } from '../utils/sound';
+import { getToeicExampleFallback } from '../utils/dictionary';
 
 export default function QuizMode({
   allWords = [],
@@ -146,14 +147,13 @@ export default function QuizMode({
   const getClozeData = (wordObj) => {
     if (!wordObj) return { sentence: '', translation: '' };
     const rawWord = String(wordObj.word || '').trim();
-    const example = String(wordObj.example || '').trim();
-    const translation = wordObj.exampleTranslation || wordObj.meaning || '';
+    let example = String(wordObj.example || '').trim();
+    let translation = wordObj.exampleTranslation || wordObj.meaning || '';
 
     if (!example) {
-      return {
-        sentence: `Chọn từ tiếng Anh phù hợp: " [ ______ ] "`,
-        translation
-      };
+      const fallback = getToeicExampleFallback(rawWord, wordObj.partOfSpeech, wordObj.meaning);
+      example = fallback.example;
+      if (!wordObj.exampleTranslation) translation = fallback.translation;
     }
 
     const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

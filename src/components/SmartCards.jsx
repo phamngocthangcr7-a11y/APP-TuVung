@@ -24,6 +24,7 @@ import {
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
+import { getToeicExampleFallback } from '../utils/dictionary';
 
 // Sanitize and filter valid words helper (pure function at module scope)
 const sanitizeWords = (list) => {
@@ -449,26 +450,40 @@ export default function SmartCards({
     return 'text-2xl sm:text-4xl lg:text-5xl';
   }, [currentWord]);
 
+  // Effective example sentence: Always guaranteed to have an authentic TOEIC sentence & translation
+  const effectiveExample = useMemo(() => {
+    if (!currentWord || !currentWord.word) return { example: '', translation: '' };
+    if (currentWord.example && currentWord.example.trim()) {
+      return {
+        example: currentWord.example.trim(),
+        translation: currentWord.exampleTranslation || ''
+      };
+    }
+    return getToeicExampleFallback(currentWord.word, currentWord.partOfSpeech, currentWord.meaning);
+  }, [currentWord]);
+
   // Formatted example with bold word
   const formattedExample = useMemo(() => {
-    if (!currentWord || !currentWord.example || !currentWord.word) return '';
+    const ex = effectiveExample.example;
+    if (!currentWord || !ex || !currentWord.word) return '';
     try {
-      const parts = currentWord.example.split(new RegExp(`(${currentWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+      const parts = ex.split(new RegExp(`(${currentWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
       return parts.map((part, i) => 
         part.toLowerCase() === currentWord.word.toLowerCase() 
           ? <strong key={i} className="font-extrabold text-[#0B132B]">{part}</strong> 
           : part
       );
     } catch (e) {
-      return currentWord.example;
+      return ex;
     }
-  }, [currentWord]);
+  }, [currentWord, effectiveExample]);
 
   // Smart Cloze hint for front card (Word is NEVER revealed before flipping)
   const clozeHintExample = useMemo(() => {
-    if (!currentWord || !currentWord.example || !currentWord.word) return '';
+    const ex = effectiveExample.example;
+    if (!currentWord || !ex || !currentWord.word) return '';
     const rawWord = String(currentWord.word || '').trim();
-    const example = String(currentWord.example || '').trim();
+    const example = String(ex || '').trim();
 
     const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -516,7 +531,7 @@ export default function SmartCards({
     }
 
     return example;
-  }, [currentWord]);
+  }, [currentWord, effectiveExample]);
 
   // =========================================================================
   // LOGIC VÒNG 2: ACTIVE RECALL (VIẾT LẠI TỪ VỰNG VỪA HỌC)
@@ -1030,11 +1045,15 @@ export default function SmartCards({
             </div>
 
             {/* Context sentence with cloze */}
-            {currentRecallWord.example && (
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 italic max-w-lg mx-auto">
-                "{currentRecallWord.example.replace(new RegExp(currentRecallWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[ ______ ]')}"
-              </div>
-            )}
+            {(() => {
+              const ex = currentRecallWord.example || getToeicExampleFallback(currentRecallWord.word, currentRecallWord.partOfSpeech, currentRecallWord.meaning).example;
+              if (!ex) return null;
+              return (
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 italic max-w-lg mx-auto">
+                  "{ex.replace(new RegExp(currentRecallWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[ ______ ]')}"
+                </div>
+              );
+            })()}
 
             {/* Typing Form */}
             <form onSubmit={handleCheckRecall} className="max-w-md mx-auto space-y-3 pt-2">
@@ -1346,7 +1365,7 @@ export default function SmartCards({
               {/* MẶT TRƯỚC: CHƯA LẬT THẺ -> NGHĨA BỊ ẨN, HIỆN CÂU VÍ DỤ CHE TỪ */}
               {!isFlipped ? (
                 <div className="space-y-2 pt-1">
-                  {currentWord.example && (
+                  {effectiveExample.example && (
                     <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-700 italic">
                       "{clozeHintExample}"
                     </div>
@@ -1368,14 +1387,14 @@ export default function SmartCards({
                   </div>
 
                   {/* CONTEXT EXAMPLE PILL BOX */}
-                  {currentWord.example && (
+                  {effectiveExample.example && (
                     <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-0.5 text-center">
                       <p className="font-semibold text-slate-800 leading-relaxed">
                         {formattedExample}
                       </p>
-                      {currentWord.exampleTranslation && (
+                      {effectiveExample.translation && (
                         <p className="text-slate-500 italic text-[11px] sm:text-xs">
-                          {currentWord.exampleTranslation}
+                          {effectiveExample.translation}
                         </p>
                       )}
                     </div>
