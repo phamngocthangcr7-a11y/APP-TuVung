@@ -24,7 +24,7 @@ import {
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
-import { getToeicExampleFallback } from '../utils/dictionary';
+import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 
 // Sanitize and filter valid words helper (pure function at module scope)
 const sanitizeWords = (list) => {
@@ -450,16 +450,35 @@ export default function SmartCards({
     return 'text-2xl sm:text-4xl lg:text-5xl';
   }, [currentWord]);
 
-  // Effective example sentence: Always guaranteed to have an authentic TOEIC sentence & translation
+  // Effective example sentence: Ưu tiên câu thực tế chuẩn, loại bỏ triệt để câu lỗi Mad-libs
   const effectiveExample = useMemo(() => {
     if (!currentWord || !currentWord.word) return { example: '', translation: '' };
-    if (currentWord.example && currentWord.example.trim()) {
+
+    let ex = (currentWord.example || '').trim();
+    let tr = (currentWord.exampleTranslation || '').trim();
+
+    // Tẩy rửa nếu từ đang mang câu mẫu mad-libs ghép sai
+    if (isBadTemplateSentence(ex, tr)) {
+      ex = '';
+      tr = '';
+    }
+
+    if (ex) {
       return {
-        example: currentWord.example.trim(),
-        translation: currentWord.exampleTranslation || ''
+        example: ex,
+        translation: tr
       };
     }
-    return getToeicExampleFallback(currentWord.word, currentWord.partOfSpeech, currentWord.meaning);
+
+    const curated = CURATED_TOEIC_EXAMPLES[currentWord.word.toLowerCase()];
+    if (curated) {
+      return {
+        example: curated.example,
+        translation: curated.translation
+      };
+    }
+
+    return { example: '', translation: '' };
   }, [currentWord]);
 
   // Formatted example with bold word
@@ -1046,7 +1065,13 @@ export default function SmartCards({
 
             {/* Context sentence with cloze */}
             {(() => {
-              const ex = currentRecallWord.example || getToeicExampleFallback(currentRecallWord.word, currentRecallWord.partOfSpeech, currentRecallWord.meaning).example;
+              let ex = (currentRecallWord.example || '').trim();
+              if (isBadTemplateSentence(ex)) {
+                ex = '';
+              }
+              if (!ex) {
+                ex = CURATED_TOEIC_EXAMPLES[currentRecallWord.word?.toLowerCase()]?.example || '';
+              }
               if (!ex) return null;
               return (
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 italic max-w-lg mx-auto">

@@ -13,7 +13,12 @@ import {
   Layers
 } from 'lucide-react';
 import { getTodayDateString } from '../utils/srs';
-import { lookupEnglishWord, getToeicExampleFallback } from '../utils/dictionary';
+import { 
+  lookupEnglishWord, 
+  CURATED_TOEIC_EXAMPLES, 
+  isBadTemplateSentence, 
+  inferPartOfSpeech 
+} from '../utils/dictionary';
 
 export default function BatchImportModal({
   isOpen,
@@ -110,12 +115,24 @@ export default function BatchImportModal({
       word = word.trim().replace(/^['"`]+|['"`]+$/g, '');
 
       if (word && word !== '-') {
+        const lower = word.toLowerCase();
+        const curated = CURATED_TOEIC_EXAMPLES[lower];
+        const determinedPos = curated?.partOfSpeech || inferPartOfSpeech(word);
+
+        let initialExample = example || (curated?.example || '');
+        let initialExTranslation = exampleTranslation || (curated?.translation || '');
+
+        if (isBadTemplateSentence(initialExample, initialExTranslation)) {
+          initialExample = curated?.example || '';
+          initialExTranslation = curated?.translation || '';
+        }
+
         result.push({
           word,
           meaning: meaning || '',
-          example: example || '',
-          exampleTranslation: exampleTranslation || '',
-          partOfSpeech: word.includes(' ') ? 'phr' : 'noun',
+          example: initialExample,
+          exampleTranslation: initialExTranslation,
+          partOfSpeech: determinedPos,
           tags: [defaultTag || 'Nạp hàng ngày'],
           addedDate: targetDate || getTodayDateString()
         });
@@ -145,19 +162,21 @@ export default function BatchImportModal({
 
     for (let i = 0; i < total; i++) {
       const item = updated[i];
-      // Tra cứu nếu từ chưa có nghĩa hoặc nghĩa quá ngắn
-      if (!item.meaning || item.meaning.trim() === '') {
+      const needsMeaning = !item.meaning || item.meaning.trim() === '';
+      const needsExample = !item.example || item.example.trim() === '' || isBadTemplateSentence(item.example, item.exampleTranslation);
+
+      if (needsMeaning || needsExample) {
         setTranslateProgress({ current: i + 1, total, currentWord: item.word });
         try {
           const dictRes = await lookupEnglishWord(item.word);
-          if (dictRes.found && dictRes.meaning) {
-            item.meaning = dictRes.meaning;
-            item.partOfSpeech = dictRes.partOfSpeech || item.partOfSpeech;
-            if (dictRes.phonetic) item.pronunciation = dictRes.phonetic;
-            if (dictRes.example && !item.example) item.example = dictRes.example;
-            if (dictRes.exampleTranslation && !item.exampleTranslation) item.exampleTranslation = dictRes.exampleTranslation;
-          } else {
-            item.meaning = '(Chưa có nghĩa)';
+          if (dictRes.found || dictRes.meaning) {
+            if (needsMeaning && dictRes.meaning) item.meaning = dictRes.meaning;
+            if (dictRes.partOfSpeech) item.partOfSpeech = dictRes.partOfSpeech;
+            if (dictRes.phonetic && !item.pronunciation) item.pronunciation = dictRes.phonetic;
+            if (needsExample && dictRes.example) {
+              item.example = dictRes.example;
+              item.exampleTranslation = dictRes.exampleTranslation || '';
+            }
           }
         } catch (e) {
           console.warn('Translate error:', e);
@@ -184,17 +203,32 @@ export default function BatchImportModal({
     setManualParsedWords(list);
   };
 
-  // Save words
+  // Save words (Tuyệt đối không dùng câu mad-libs ghép sai)
   const handleSave = (andStudy = false) => {
     if (activeWords.length === 0) return;
 
     const validWords = activeWords.map(w => {
-      const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+      const lower = (w.word || '').toLowerCase();
+      const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+      let ex = (w.example && w.example.trim()) ? w.example.trim() : (curated?.example || '');
+      let exTrans = (w.exampleTranslation && w.exampleTranslation.trim()) ? w.exampleTranslation.trim() : (curated?.translation || '');
+
+      if (isBadTemplateSentence(ex, exTrans)) {
+        ex = curated?.example || '';
+        exTrans = curated?.translation || '';
+      }
+
+      const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
+        ? w.partOfSpeech
+        : (curated?.partOfSpeech || inferPartOfSpeech(w.word));
+
       return {
         ...w,
         meaning: w.meaning && w.meaning.trim() !== '' ? w.meaning.trim() : '(Từ mới chưa dịch)',
-        example: (w.example && w.example.trim()) ? w.example.trim() : fallback.example,
-        exampleTranslation: (w.exampleTranslation && w.exampleTranslation.trim()) ? w.exampleTranslation.trim() : fallback.translation,
+        example: ex,
+        exampleTranslation: exTrans,
+        partOfSpeech: determinedPos,
         tags: [defaultTag || 'Nạp hàng ngày'],
         addedDate: targetDate || getTodayDateString()
       };

@@ -4,7 +4,12 @@
 // =========================================================================
 
 import { getTodayDateString } from './srs';
-import { getToeicExampleFallback } from './dictionary';
+import { 
+  CURATED_TOEIC_EXAMPLES, 
+  isBadTemplateSentence, 
+  inferPartOfSpeech, 
+  fetchAuthenticSentence 
+} from './dictionary';
 
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
@@ -31,26 +36,45 @@ export const getWeekNumber = (d = new Date()) => {
 };
 
 /**
- * Lấy danh sách từ người dùng tự thêm
+ * Lấy danh sách từ người dùng tự thêm (Tự động tẩy sạch triệt để các câu Mad-libs ghép từ lỗi)
  */
 export const getCustomWords = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
     const list = raw ? JSON.parse(raw) : [];
     let modified = false;
+
     const enriched = list.map(w => {
       if (!w || !w.word) return w;
-      if (!w.example || String(w.example).trim() === '') {
-        const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+      const item = { ...w };
+      const lower = (item.word || '').trim().toLowerCase();
+
+      // 1. Tẩy sạch triệt để câu ghép từ lỗi Mad-libs (VD: "The committee submitted a report on the...")
+      if (isBadTemplateSentence(item.example, item.exampleTranslation)) {
+        item.example = '';
+        item.exampleTranslation = '';
         modified = true;
-        return {
-          ...w,
-          example: fallback.example,
-          exampleTranslation: w.exampleTranslation || fallback.translation
-        };
       }
-      return w;
+
+      // 2. Tự động bổ sung câu ví dụ chuẩn ETS từ kho tinh tuyển nếu từ chưa có ví dụ
+      if ((!item.example || String(item.example).trim() === '') && CURATED_TOEIC_EXAMPLES[lower]) {
+        item.example = CURATED_TOEIC_EXAMPLES[lower].example;
+        item.exampleTranslation = CURATED_TOEIC_EXAMPLES[lower].translation;
+        modified = true;
+      }
+
+      // 3. Chuẩn hóa lại loại từ nếu bị gán mặc định là noun (như "northeastern" là adj)
+      if (!item.partOfSpeech || item.partOfSpeech === 'noun') {
+        const correctPos = CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech || inferPartOfSpeech(item.word);
+        if (correctPos && correctPos !== item.partOfSpeech) {
+          item.partOfSpeech = correctPos;
+          modified = true;
+        }
+      }
+
+      return item;
     });
+
     if (modified) {
       saveCustomWords(enriched);
     }
@@ -73,22 +97,44 @@ export const saveCustomWords = (words) => {
 };
 
 /**
- * Thêm một từ mới
+ * Thêm một từ mới (Ưu tiên ví dụ chuẩn, không bao giờ tự sinh câu ghép từ lỗi)
  */
 export const addCustomWord = (wordData) => {
   const words = getCustomWords();
   const today = getTodayDateString();
   const weekNum = getWeekNumber(new Date());
-  const fallback = getToeicExampleFallback(wordData.word, wordData.partOfSpeech, wordData.meaning);
+
+  const cleanWord = (wordData.word || '').trim();
+  const lower = cleanWord.toLowerCase();
+  const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+  let example = (wordData.example || '').trim();
+  let exampleTranslation = (wordData.exampleTranslation || '').trim();
+
+  // Tẩy rửa nếu người dùng hoặc hệ thống lưu câu mẫu mad-libs
+  if (isBadTemplateSentence(example, exampleTranslation)) {
+    example = '';
+    exampleTranslation = '';
+  }
+
+  // Tự động lấy câu mẫu chuẩn nếu từ có trong kho
+  if (!example && curated) {
+    example = curated.example;
+    exampleTranslation = curated.translation;
+  }
+
+  const determinedPos = wordData.partOfSpeech && wordData.partOfSpeech !== 'noun'
+    ? wordData.partOfSpeech
+    : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
 
   const newWord = {
     id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-    word: (wordData.word || '').trim(),
+    word: cleanWord,
     pronunciation: (wordData.pronunciation || '').trim(),
     meaning: (wordData.meaning || '').trim(),
-    partOfSpeech: wordData.partOfSpeech || 'noun',
-    example: (wordData.example || '').trim() || fallback.example,
-    exampleTranslation: (wordData.exampleTranslation || '').trim() || fallback.translation,
+    partOfSpeech: determinedPos,
+    example,
+    exampleTranslation,
     note: (wordData.note || '').trim(),
     tags: Array.isArray(wordData.tags) ? wordData.tags : (wordData.tags ? [wordData.tags] : []),
     folderId: wordData.folderId || 'daily',
@@ -120,15 +166,35 @@ export const addBatchCustomWords = (wordsList) => {
   const weekNum = getWeekNumber(new Date());
 
   const formattedWords = wordsList.map((w, index) => {
-    const fallback = getToeicExampleFallback(w.word, w.partOfSpeech, w.meaning);
+    const cleanWord = (w.word || '').trim();
+    const lower = cleanWord.toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+    let example = (w.example || '').trim();
+    let exampleTranslation = (w.exampleTranslation || '').trim();
+
+    if (isBadTemplateSentence(example, exampleTranslation)) {
+      example = '';
+      exampleTranslation = '';
+    }
+
+    if (!example && curated) {
+      example = curated.example;
+      exampleTranslation = curated.translation;
+    }
+
+    const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
+      ? w.partOfSpeech
+      : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
+
     return {
       id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
-      word: (w.word || '').trim(),
+      word: cleanWord,
       pronunciation: (w.pronunciation || '').trim(),
       meaning: (w.meaning || '').trim(),
-      partOfSpeech: w.partOfSpeech || 'noun',
-      example: (w.example || '').trim() || fallback.example,
-      exampleTranslation: (w.exampleTranslation || '').trim() || fallback.translation,
+      partOfSpeech: determinedPos,
+      example,
+      exampleTranslation,
       note: (w.note || '').trim(),
       tags: Array.isArray(w.tags) ? w.tags : (w.tags ? [w.tags] : ['Nhập hàng loạt']),
       folderId: w.folderId || 'daily',
@@ -150,6 +216,41 @@ export const addBatchCustomWords = (wordsList) => {
   const updated = [...formattedWords, ...currentWords];
   saveCustomWords(updated);
   return formattedWords;
+};
+
+/**
+ * Tự động tìm câu ví dụ thực tế ngầm dưới nền cho các từ chưa có câu ví dụ
+ */
+let isAutoEnriching = false;
+export const autoEnrichCustomWords = async (onUpdated) => {
+  if (isAutoEnriching) return;
+  try {
+    const words = getCustomWords();
+    const missing = words.filter(w => !w.example || w.example.trim() === '');
+    if (missing.length === 0) return;
+
+    isAutoEnriching = true;
+    let anyUpdated = false;
+
+    for (const w of missing.slice(0, 5)) {
+      const res = await fetchAuthenticSentence(w.word);
+      if (res && res.example) {
+        updateCustomWord(w.id, {
+          example: res.example,
+          exampleTranslation: res.translation
+        });
+        anyUpdated = true;
+      }
+    }
+
+    if (anyUpdated && typeof onUpdated === 'function') {
+      onUpdated(getCustomWords());
+    }
+  } catch (err) {
+    console.warn('Auto enrich words error:', err);
+  } finally {
+    isAutoEnriching = false;
+  }
 };
 
 /**

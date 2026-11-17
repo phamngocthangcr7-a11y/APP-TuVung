@@ -11,7 +11,7 @@ import {
   Gamepad2
 } from 'lucide-react';
 import { speakEnglish, sound } from '../utils/sound';
-import { getToeicExampleFallback } from '../utils/dictionary';
+import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 
 export default function QuizMode({
   allWords = [],
@@ -150,10 +150,17 @@ export default function QuizMode({
     let example = String(wordObj.example || '').trim();
     let translation = wordObj.exampleTranslation || wordObj.meaning || '';
 
+    if (isBadTemplateSentence(example, translation)) {
+      example = '';
+      translation = wordObj.meaning || '';
+    }
+
     if (!example) {
-      const fallback = getToeicExampleFallback(rawWord, wordObj.partOfSpeech, wordObj.meaning);
-      example = fallback.example;
-      if (!wordObj.exampleTranslation) translation = fallback.translation;
+      const curated = CURATED_TOEIC_EXAMPLES[rawWord.toLowerCase()];
+      if (curated) {
+        example = curated.example;
+        if (!wordObj.exampleTranslation) translation = curated.translation;
+      }
     }
 
     const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

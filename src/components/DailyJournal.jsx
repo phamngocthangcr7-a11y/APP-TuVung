@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
-import { getToeicExampleFallback } from '../utils/dictionary';
+import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 
 export default function DailyJournal({
   allWords = [],
@@ -364,8 +364,19 @@ export default function DailyJournal({
 
                           {/* Example */}
                           {(() => {
-                            const ex = word.example || getToeicExampleFallback(word.word, word.partOfSpeech, word.meaning).example;
-                            const trans = word.exampleTranslation || getToeicExampleFallback(word.word, word.partOfSpeech, word.meaning).translation;
+                            let ex = (word.example || '').trim();
+                            let trans = (word.exampleTranslation || '').trim();
+                            if (isBadTemplateSentence(ex, trans)) {
+                              ex = '';
+                              trans = '';
+                            }
+                            if (!ex) {
+                              const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
+                              if (curated) {
+                                ex = curated.example;
+                                trans = curated.translation;
+                              }
+                            }
                             if (!ex) return null;
                             return (
                               <div className="text-xs text-[#4A453E] bg-[#FAF8F5] p-2 rounded-xl border border-[#EAE5DC] space-y-0.5">

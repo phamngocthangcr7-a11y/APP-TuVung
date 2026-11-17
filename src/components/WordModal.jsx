@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { X, Volume2, Sparkles, Check, AlertCircle, Search, Loader2, ArrowRight } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
-import { lookupEnglishWord, checkUserMeaningAccuracy, getToeicExampleFallback } from '../utils/dictionary';
+import { 
+  lookupEnglishWord, 
+  checkUserMeaningAccuracy, 
+  CURATED_TOEIC_EXAMPLES, 
+  isBadTemplateSentence, 
+  inferPartOfSpeech, 
+  fetchAuthenticSentence 
+} from '../utils/dictionary';
 
 export default function WordModal({
   isOpen,
@@ -150,15 +157,28 @@ export default function WordModal({
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  const handleGenerateExample = () => {
+  const [isGeneratingExample, setIsGeneratingExample] = useState(false);
+
+  const handleGenerateExample = async () => {
     const cleanWord = word.trim();
     if (!cleanWord) {
       alert('Vui lòng nhập từ vựng tiếng Anh trước!');
       return;
     }
-    const fallback = getToeicExampleFallback(cleanWord, partOfSpeech, meaning);
-    setExample(fallback.example);
-    setExampleTranslation(fallback.translation);
+    setIsGeneratingExample(true);
+    try {
+      const res = await fetchAuthenticSentence(cleanWord);
+      if (res && res.example) {
+        setExample(res.example);
+        setExampleTranslation(res.translation);
+      } else {
+        alert('Chưa tìm thấy câu ví dụ mẫu phù hợp trong từ điển cho từ này. Bạn có thể tự gõ ví dụ hoặc để trống nhé!');
+      }
+    } catch (e) {
+      console.warn('Generate example error:', e);
+    } finally {
+      setIsGeneratingExample(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -171,14 +191,32 @@ export default function WordModal({
       return;
     }
 
-    const fallback = getToeicExampleFallback(cleanWord, partOfSpeech, cleanMeaning);
-    const finalExample = example.trim() || fallback.example;
-    const finalExampleTranslation = exampleTranslation.trim() || fallback.translation;
+    const lower = cleanWord.toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+    let finalExample = example.trim();
+    let finalExampleTranslation = exampleTranslation.trim();
+
+    // Tẩy rửa nếu từ đang dính câu ghép mad-libs lỗi
+    if (isBadTemplateSentence(finalExample, finalExampleTranslation)) {
+      finalExample = '';
+      finalExampleTranslation = '';
+    }
+
+    // Nếu để trống câu ví dụ và có trong kho tinh tuyển, nạp tự động
+    if (!finalExample && curated) {
+      finalExample = curated.example;
+      finalExampleTranslation = curated.translation;
+    }
+
+    const determinedPos = partOfSpeech && partOfSpeech !== 'noun'
+      ? partOfSpeech
+      : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
 
     onSave({
       word: cleanWord,
       pronunciation: pronunciation.trim(),
-      partOfSpeech,
+      partOfSpeech: determinedPos,
       meaning: cleanMeaning,
       example: finalExample,
       exampleTranslation: finalExampleTranslation,
@@ -366,10 +404,20 @@ export default function WordModal({
                 <button
                   type="button"
                   onClick={handleGenerateExample}
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                  disabled={isGeneratingExample}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
-                  <Sparkles className="w-3 h-3" />
-                  <span>Tự tạo câu TOEIC</span>
+                  {isGeneratingExample ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Đang tra câu chuẩn...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3" />
+                      <span>Tra câu ví dụ chuẩn</span>
+                    </>
+                  )}
                 </button>
               </div>
               <textarea

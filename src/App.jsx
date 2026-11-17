@@ -27,7 +27,8 @@ import {
   recordStudySession,
   getAppSettings,
   saveAppSettings,
-  getWeekNumber
+  getWeekNumber,
+  autoEnrichCustomWords
 } from './utils/storage';
 import { getTodayDateString, isDueForReview, calculateSRSStats } from './utils/srs';
 import { 
@@ -64,6 +65,15 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState(() => getFavoriteIds());
   const [streakInfo, setStreakInfo] = useState(() => getStreakInfo());
   const [settings, setSettings] = useState(() => getAppSettings());
+
+  // Tự động rà soát & tra cứu bổ sung câu ví dụ thực tế ngầm dưới nền
+  useEffect(() => {
+    autoEnrichCustomWords((updatedList) => {
+      if (Array.isArray(updatedList) && updatedList.length > 0) {
+        setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
+      }
+    });
+  }, []);
 
   const todayStr = getTodayDateString();
 
@@ -123,6 +133,15 @@ export default function App() {
     if (action === 'study') {
       handleStartSmartCards(created);
     }
+
+    // Tự động tìm câu ví dụ thực tế ngầm dưới nền nếu có từ chưa có ví dụ
+    setTimeout(() => {
+      autoEnrichCustomWords((updatedList) => {
+        if (Array.isArray(updatedList) && updatedList.length > 0) {
+          setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
+        }
+      });
+    }, 1000);
   };
 
   const handleEditWord = (wordData) => {
