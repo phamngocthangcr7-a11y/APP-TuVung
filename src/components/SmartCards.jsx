@@ -24,7 +24,8 @@ import {
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
-import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
+import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence, lookupEnglishPronunciation } from '../utils/dictionary';
+import { updateCustomWord } from '../utils/storage';
 
 // Sanitize and filter valid words helper (pure function at module scope)
 const sanitizeWords = (list) => {
@@ -449,6 +450,45 @@ export default function SmartCards({
     if (len > 15) return 'text-xl sm:text-3xl';
     return 'text-2xl sm:text-4xl lg:text-5xl';
   }, [currentWord]);
+
+  // Live state cho phiên âm được tự động tra cứu ngầm
+  const [livePronunciation, setLivePronunciation] = useState('');
+
+  // Tự động tìm phiên âm IPA chuẩn từ từ điển nếu thẻ từ chưa có phiên âm
+  useEffect(() => {
+    setLivePronunciation('');
+    if (!currentWord || !currentWord.word) return;
+
+    const rawPron = (currentWord.pronunciation || '').trim();
+    if (rawPron) return;
+
+    const lower = currentWord.word.toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower]?.pronunciation;
+    if (curated) {
+      setLivePronunciation(curated);
+      return;
+    }
+
+    lookupEnglishPronunciation(currentWord.word).then(ipa => {
+      if (ipa) {
+        setLivePronunciation(ipa);
+        if (String(currentWord.id || '').startsWith('usr_')) {
+          updateCustomWord(currentWord.id, { pronunciation: ipa });
+        }
+      }
+    }).catch(() => {});
+  }, [currentWord]);
+
+  // Phiên âm cách đọc hiệu quả (ưu tiên phiên âm từ vựng -> kho chuẩn -> tra cứu API)
+  const effectivePronunciation = useMemo(() => {
+    if (!currentWord || !currentWord.word) return '';
+    const raw = (currentWord.pronunciation || '').trim();
+    if (raw) return raw;
+    const lower = currentWord.word.toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower]?.pronunciation;
+    if (curated) return curated;
+    return livePronunciation;
+  }, [currentWord, livePronunciation]);
 
   // Effective example sentence: Ưu tiên câu thực tế chuẩn, loại bỏ triệt để câu lỗi Mad-libs
   const effectiveExample = useMemo(() => {
@@ -1368,15 +1408,23 @@ export default function SmartCards({
             {/* Core Word Content */}
             <div className="text-center space-y-3 py-2">
               
-              {/* Part of Speech & Phonetic */}
-              <div className="space-y-0.5">
-                <span className="text-xs sm:text-sm font-bold text-[#C52243]">
+              {/* Part of Speech & Phonetic Reading */}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-bold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shadow-2xs">
                   ({currentWord.partOfSpeech || 'phr'})
                 </span>
-                {currentWord.pronunciation && (
-                  <p className="text-xs font-mono text-slate-400 font-medium">
-                    /{currentWord.pronunciation}/
-                  </p>
+                {effectivePronunciation && (
+                  <span 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speakEnglish(currentWord.word);
+                    }}
+                    className="text-xs sm:text-sm font-mono text-slate-700 bg-slate-100/90 hover:bg-slate-200/90 px-3 py-0.5 rounded-full border border-slate-200 font-semibold tracking-wide flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                    title="Bấm để nghe phát âm từ này"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-slate-500 inline shrink-0" />
+                    /{effectivePronunciation.replace(/^\/+|\/+$/g, '')}/
+                  </span>
                 )}
               </div>
 
@@ -1387,16 +1435,10 @@ export default function SmartCards({
                 </h2>
               </div>
 
-              {/* MẶT TRƯỚC: CHƯA LẬT THẺ -> NGHĨA BỊ ẨN, HIỆN CÂU VÍ DỤ CHE TỪ */}
+              {/* MẶT TRƯỚC: CHƯA LẬT THẺ -> NGHĨA VÀ CÂU VÍ DỤ BỊ ẨN, CHỈ HIỆN KÊU GỌI NHỚ NGHĨA */}
               {!isFlipped ? (
-                <div className="space-y-2 pt-1">
-                  {effectiveExample.example && (
-                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-700 italic">
-                      "{clozeHintExample}"
-                    </div>
-                  )}
-
-                  <div className="text-xs font-bold text-blue-600 animate-pulse">
+                <div className="space-y-3 pt-3">
+                  <div className="text-xs sm:text-sm font-bold text-blue-600 animate-pulse bg-blue-50/70 border border-blue-200/60 rounded-2xl p-3 max-w-md mx-auto">
                     👉 Hãy nhớ lại nghĩa tiếng Việt, sau đó chạm vào thẻ để kiểm tra!
                   </div>
                 </div>

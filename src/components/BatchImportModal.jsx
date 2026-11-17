@@ -129,6 +129,7 @@ export default function BatchImportModal({
 
         result.push({
           word,
+          pronunciation: curated?.pronunciation || '',
           meaning: meaning || '',
           example: initialExample,
           exampleTranslation: initialExTranslation,
@@ -225,6 +226,7 @@ export default function BatchImportModal({
 
       return {
         ...w,
+        pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
         meaning: w.meaning && w.meaning.trim() !== '' ? w.meaning.trim() : '(Từ mới chưa dịch)',
         example: ex,
         exampleTranslation: exTrans,

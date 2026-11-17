@@ -215,7 +215,7 @@ export default function WordModal({
 
     onSave({
       word: cleanWord,
-      pronunciation: pronunciation.trim(),
+      pronunciation: pronunciation.trim() || (curated?.pronunciation || ''),
       partOfSpeech: determinedPos,
       meaning: cleanMeaning,
       example: finalExample,

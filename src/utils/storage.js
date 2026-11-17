@@ -8,7 +8,8 @@ import {
   CURATED_TOEIC_EXAMPLES, 
   isBadTemplateSentence, 
   inferPartOfSpeech, 
-  fetchAuthenticSentence 
+  fetchAuthenticSentence,
+  lookupEnglishPronunciation
 } from './dictionary';
 
 const STORAGE_KEYS = {
@@ -63,7 +64,13 @@ export const getCustomWords = () => {
         modified = true;
       }
 
-      // 3. Chuẩn hóa lại loại từ nếu bị gán mặc định là noun (như "northeastern" là adj)
+      // 3. Tự động bổ sung phiên âm chuẩn nếu chưa có
+      if ((!item.pronunciation || String(item.pronunciation).trim() === '') && CURATED_TOEIC_EXAMPLES[lower]?.pronunciation) {
+        item.pronunciation = CURATED_TOEIC_EXAMPLES[lower].pronunciation;
+        modified = true;
+      }
+
+      // 4. Chuẩn hóa lại loại từ nếu bị gán mặc định là noun (như "northeastern" là adj)
       if (!item.partOfSpeech || item.partOfSpeech === 'noun') {
         const correctPos = CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech || inferPartOfSpeech(item.word);
         if (correctPos && correctPos !== item.partOfSpeech) {
@@ -130,7 +137,7 @@ export const addCustomWord = (wordData) => {
   const newWord = {
     id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
     word: cleanWord,
-    pronunciation: (wordData.pronunciation || '').trim(),
+    pronunciation: (wordData.pronunciation || '').trim() || (curated?.pronunciation || ''),
     meaning: (wordData.meaning || '').trim(),
     partOfSpeech: determinedPos,
     example,
@@ -190,7 +197,7 @@ export const addBatchCustomWords = (wordsList) => {
     return {
       id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
       word: cleanWord,
-      pronunciation: (w.pronunciation || '').trim(),
+      pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
       meaning: (w.meaning || '').trim(),
       partOfSpeech: determinedPos,
       example,
@@ -226,19 +233,29 @@ export const autoEnrichCustomWords = async (onUpdated) => {
   if (isAutoEnriching) return;
   try {
     const words = getCustomWords();
-    const missing = words.filter(w => !w.example || w.example.trim() === '');
-    if (missing.length === 0) return;
+    const missingExampleOrPron = words.filter(w => !w.example || w.example.trim() === '' || !w.pronunciation || w.pronunciation.trim() === '');
+    if (missingExampleOrPron.length === 0) return;
 
     isAutoEnriching = true;
     let anyUpdated = false;
 
-    for (const w of missing.slice(0, 5)) {
-      const res = await fetchAuthenticSentence(w.word);
-      if (res && res.example) {
-        updateCustomWord(w.id, {
-          example: res.example,
-          exampleTranslation: res.translation
-        });
+    for (const w of missingExampleOrPron.slice(0, 5)) {
+      const updates = {};
+      if (!w.example || w.example.trim() === '') {
+        const res = await fetchAuthenticSentence(w.word);
+        if (res && res.example) {
+          updates.example = res.example;
+          updates.exampleTranslation = res.translation;
+        }
+      }
+      if (!w.pronunciation || w.pronunciation.trim() === '') {
+        const ipa = await lookupEnglishPronunciation(w.word);
+        if (ipa) {
+          updates.pronunciation = ipa;
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        updateCustomWord(w.id, updates);
         anyUpdated = true;
       }
     }
