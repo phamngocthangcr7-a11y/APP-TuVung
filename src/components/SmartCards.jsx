@@ -519,14 +519,25 @@ export default function SmartCards({
     return cleaned || currentWord.meaning;
   }, [currentWord]);
 
-  // Effective example sentence: ĐẢM BẢO 100% LUÔN CÓ CÂU VÍ DỤ CHUẨN TOEIC, KHÔNG BAO GIỜ ĐỂ TRỐNG
+  // Effective example sentence: ƯU TIÊN SỐ 1 TUYỆT ĐỐI CHO KHO VÍ DỤ ETS CHUẨN ĐƯỢC GIÁM TUYỂN
   const effectiveExample = useMemo(() => {
     if (!currentWord || !currentWord.word) return { example: '', translation: '' };
 
+    const lower = (currentWord.word || '').trim().toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+    // 1. ƯU TIÊN SỐ 1 TUYỆT ĐỐI: Kho ví dụ ETS chuẩn đã được giám tuyển tỉ mỉ (100% tự nhiên, không bao giờ ghép câu bậy)
+    if (curated?.example) {
+      return {
+        example: curated.example,
+        translation: curated.translation || ''
+      };
+    }
+
+    // 2. Nếu không có trong kho chuẩn, kiểm tra câu của từ (nhưng phải tẩy rửa triệt để câu mẫu ghép từ)
     let ex = (currentWord.example || '').trim();
     let tr = (currentWord.exampleTranslation || '').trim();
 
-    // Tẩy rửa nếu từ đang mang câu mẫu mad-libs ghép sai
     if (isBadTemplateSentence(ex, tr)) {
       ex = '';
       tr = '';
@@ -539,30 +550,29 @@ export default function SmartCards({
       };
     }
 
-    const lower = currentWord.word.toLowerCase();
-    const curated = CURATED_TOEIC_EXAMPLES[lower];
-    if (curated?.example) {
-      return {
-        example: curated.example,
-        translation: curated.translation
-      };
-    }
-
-    // Tự động xây dựng câu ví dụ TOEIC tự nhiên chân thực theo đúng loại từ (Đảm bảo 100% không bao giờ để trống)
+    // 3. Tự động xây dựng câu ví dụ tự nhiên (Không dùng mẫu rập khuôn)
     return getToeicExampleFallback(currentWord.word, currentWord.partOfSpeech, displayMeaning);
   }, [currentWord, displayMeaning]);
 
-  // Tự động lưu và cập nhật ngay vào bộ nhớ nếu từ đang học chưa có ví dụ hoặc bị lỗi chính tả
+  // Tự động lưu và cập nhật ngay vào bộ nhớ nếu từ đang học chưa có ví dụ chuẩn hoặc mang câu mẫu mad-libs
   useEffect(() => {
     if (currentWord && currentWord.id && String(currentWord.id).startsWith('usr_')) {
-      const needsExample = !currentWord.example || isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
-      const cleanedMeaning = correctVietnameseSpelling(currentWord.meaning);
-      const needsMeaningFix = cleanedMeaning !== currentWord.meaning;
+      const lower = (currentWord.word || '').trim().toLowerCase();
+      const curated = CURATED_TOEIC_EXAMPLES[lower];
 
-      if ((needsExample && effectiveExample.example) || needsMeaningFix) {
+      const hasCurated = !!curated?.example;
+      const isOutdatedExample = hasCurated && currentWord.example !== curated.example;
+      const isBadEx = isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
+      const cleanedMeaning = correctVietnameseSpelling(currentWord.meaning);
+      const isBadMean = !currentWord.meaning || currentWord.meaning.includes('chưa dịch') || cleanedMeaning !== currentWord.meaning;
+
+      if (isOutdatedExample || isBadEx || isBadMean) {
         updateCustomWord(currentWord.id, {
-          ...(needsExample && effectiveExample.example ? { example: effectiveExample.example, exampleTranslation: effectiveExample.translation } : {}),
-          ...(needsMeaningFix ? { meaning: cleanedMeaning } : {})
+          example: effectiveExample.example,
+          exampleTranslation: effectiveExample.translation,
+          ...(curated?.meaning ? { meaning: curated.meaning } : { meaning: cleanedMeaning }),
+          ...(curated?.pronunciation ? { pronunciation: curated.pronunciation } : {}),
+          ...(curated?.partOfSpeech ? { partOfSpeech: curated.partOfSpeech } : {})
         });
       }
     }
