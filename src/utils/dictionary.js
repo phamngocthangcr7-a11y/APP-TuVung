@@ -567,11 +567,193 @@ export const CURATED_TOEIC_EXAMPLES = {
     meaning: 'tuân thủ theo quy định',
     example: 'The chemical facility operates in full compliance with occupational health regulations.',
     translation: 'Cơ sở hóa chất hoạt động hoàn toàn tuân thủ các quy định về an toàn sức khỏe nghề nghiệp.'
+  },
+  'those': {
+    pronunciation: 'ðoʊz',
+    partOfSpeech: 'pron',
+    meaning: 'những người, những ai (thường gặp trong cấu trúc Those who + V nhiều)',
+    example: 'Those who wish to participate in the seminar must submit their registration by Friday.',
+    translation: 'Những ai muốn tham gia buổi hội thảo phải nộp đơn đăng ký trước thứ Sáu.'
+  },
+  'stiff': {
+    pronunciation: 'stɪf',
+    partOfSpeech: 'adj',
+    meaning: 'khốc liệt, gay gắt (cạnh tranh), cứng rắn',
+    example: 'The domestic airline faces stiff competition from international budget carriers.',
+    translation: 'Hãng hàng không nội địa phải đối mặt với sự cạnh tranh khốc liệt từ các hãng giá rẻ quốc tế.'
+  },
+  'anyone': {
+    pronunciation: 'ˈeniwʌn',
+    partOfSpeech: 'pron',
+    meaning: 'bất kỳ ai (đi với động từ số ít: Anyone who + V ít)',
+    example: 'Anyone who requires technical assistance should contact the IT help desk.',
+    translation: 'Bất kỳ ai cần hỗ trợ kỹ thuật nên liên hệ với bàn trợ giúp CNTT.'
+  },
+  'whoever': {
+    pronunciation: 'huːˈevər',
+    partOfSpeech: 'pron',
+    meaning: 'bất cứ ai (= anyone who)',
+    example: 'Whoever is appointed as the new sales director will oversee client accounts in Asia.',
+    translation: 'Bất cứ ai được bổ nhiệm làm giám đốc bán hàng mới sẽ phụ trách các tài khoản khách hàng ở Châu Á.'
+  },
+  'competition': {
+    pronunciation: 'ˌkɑːmpəˈtɪʃn',
+    partOfSpeech: 'noun',
+    meaning: 'sự cạnh tranh, cuộc thi',
+    example: 'Due to severe market competition, the firm has reduced prices across all product lines.',
+    translation: 'Do sự cạnh tranh gay gắt của thị trường, công ty đã giảm giá trên tất cả các dòng sản phẩm.'
+  },
+  'competitive': {
+    pronunciation: 'kəmˈpetətɪv',
+    partOfSpeech: 'adj',
+    meaning: 'cạnh tranh, có tính cạnh tranh',
+    example: 'Our company offers highly competitive compensation packages to attract top talent.',
+    translation: 'Công ty chúng tôi đưa ra các gói đãi ngộ có tính cạnh tranh cao để thu hút nhân tài hàng đầu.'
+  },
+  'competitor': {
+    pronunciation: 'kəmˈpetɪtər',
+    partOfSpeech: 'noun',
+    meaning: 'đối thủ cạnh tranh',
+    example: 'The marketing team closely monitors the advertising campaigns of our main competitors.',
+    translation: 'Đội ngũ tiếp thị theo dõi chặt chẽ các chiến dịch quảng cáo của các đối thủ cạnh tranh chính.'
+  },
+  'prompt': {
+    pronunciation: 'prɑːmpt',
+    partOfSpeech: 'adj',
+    meaning: 'nhanh chóng, kịp thời',
+    example: 'We appreciate your prompt response to our inquiry regarding the delivery schedule.',
+    translation: 'Chúng tôi đánh giá cao sự phản hồi nhanh chóng của bạn đối với yêu cầu về lịch giao hàng.'
+  },
+  'promptly': {
+    pronunciation: 'ˈprɑːmptli',
+    partOfSpeech: 'adv',
+    meaning: 'ngay lập tức, đúng giờ',
+    example: 'All maintenance requests submitted through the portal are handled promptly by our staff.',
+    translation: 'Tất cả yêu cầu bảo trì gửi qua cổng trực tuyến đều được nhân viên xử lý nhanh chóng.'
+  },
+  'drastic': {
+    pronunciation: 'ˈdræstɪk',
+    partOfSpeech: 'adj',
+    meaning: 'quyết liệt, mạnh mẽ',
+    example: 'The board implemented drastic cost-cutting measures to restore corporate stability.',
+    translation: 'Hội đồng quản trị đã thực hiện các biện pháp cắt giảm chi phí quyết liệt để khôi phục sự ổn định.'
+  },
+  'consistent': {
+    pronunciation: 'kənˈsɪstənt',
+    partOfSpeech: 'adj',
+    meaning: 'nhất quán, kiên định',
+    example: 'Her consistent performance throughout the year earned her the Employee of the Year award.',
+    translation: 'Hiệu suất làm việc nhất quán của cô ấy trong suốt cả năm đã giúp cô đạt giải Nhân viên của Năm.'
+  },
+  'optimal': {
+    pronunciation: 'ˈɑːptɪməl',
+    partOfSpeech: 'adj',
+    meaning: 'tối ưu, tốt nhất',
+    example: 'The software automatically adjusts server usage to ensure optimal network performance.',
+    translation: 'Phần mềm tự động điều chỉnh việc sử dụng máy chủ để đảm bảo hiệu suất mạng tối ưu.'
+  },
+  'valid': {
+    pronunciation: 'ˈvælɪd',
+    partOfSpeech: 'adj',
+    meaning: 'có hiệu lực, hợp lệ',
+    example: 'Please ensure that your government passport remains valid for at least six months.',
+    translation: 'Vui lòng đảm bảo rằng hộ chiếu của bạn vẫn còn hiệu lực ít nhất sáu tháng.'
+  },
+  'affordable': {
+    pronunciation: 'əˈfɔːrdəbl',
+    partOfSpeech: 'adj',
+    meaning: 'giá cả phải chăng, vừa túi tiền',
+    example: 'The company provides affordable leasing options for small business entrepreneurs.',
+    translation: 'Công ty cung cấp các phương án cho thuê giá cả phải chăng cho các doanh nhân khởi nghiệp nhỏ.'
+  },
+  'reliable': {
+    pronunciation: 'rɪˈlaɪəbl',
+    partOfSpeech: 'adj',
+    meaning: 'đáng tin cậy',
+    example: 'Having a reliable courier service is crucial for meeting strict customer delivery deadlines.',
+    translation: 'Có một dịch vụ chuyển phát nhanh đáng tin cậy là rất quan trọng để đáp ứng đúng hạn giao hàng.'
+  },
+  'durable': {
+    pronunciation: 'ˈdʊrəbl',
+    partOfSpeech: 'adj',
+    meaning: 'bền bỉ, lâu bền',
+    example: 'The new industrial flooring material is highly durable and resistant to heavy wear.',
+    translation: 'Vật liệu sàn công nghiệp mới có độ bền cao và chống chịu được sự hao mòn nặng.'
+  },
+  'innovative': {
+    pronunciation: 'ˈɪnəveɪtɪv',
+    partOfSpeech: 'adj',
+    meaning: 'sáng tạo, đổi mới',
+    example: 'The engineering team won an award for their innovative eco-friendly packaging design.',
+    translation: 'Đội ngũ kỹ thuật đã giành giải thưởng nhờ thiết kế bao bì thân thiện với môi trường và sáng tạo.'
+  },
+  'extensive': {
+    pronunciation: 'ɪkˈstensɪv',
+    partOfSpeech: 'adj',
+    meaning: 'sâu rộng, quy mô lớn',
+    example: 'The auditor possesses extensive knowledge of international commercial regulations.',
+    translation: 'Kiểm toán viên sở hữu kiến thức sâu rộng về các quy định thương mại quốc tế.'
+  },
+  'subsequent': {
+    pronunciation: 'ˈsʌbsɪkwənt',
+    partOfSpeech: 'adj',
+    meaning: 'xảy ra sau, tiếp theo',
+    example: 'During the initial meeting we reviewed the budget, and in subsequent sessions we finalized plans.',
+    translation: 'Trong cuộc họp đầu chúng tôi đã xem xét ngân sách, và trong các phiên tiếp theo chúng tôi hoàn tất kế hoạch.'
+  },
+  'punctual': {
+    pronunciation: 'ˈpʌŋktʃuəl',
+    partOfSpeech: 'adj',
+    meaning: 'đúng giờ',
+    example: 'Management commended the logistics division for maintaining punctual deliveries.',
+    translation: 'Ban quản lý đã khen ngợi bộ phận logistics vì đã duy trì việc giao hàng đúng giờ.'
+  },
+  'diligent': {
+    pronunciation: 'ˈdɪlɪdʒənt',
+    partOfSpeech: 'adj',
+    meaning: 'chăm chỉ, siêng năng, cẩn trọng',
+    example: 'Thanks to the diligent efforts of the legal team, the acquisition was finalized ahead of schedule.',
+    translation: 'Nhờ sự nỗ lực chăm chỉ của đội ngũ pháp lý, thương vụ mua lại đã được hoàn tất trước tiến độ.'
+  },
+  'proficient': {
+    pronunciation: 'prəˈfɪʃnt',
+    partOfSpeech: 'adj',
+    meaning: 'thành thạo, giỏi',
+    example: 'Candidates applying for the position must be proficient in both written and spoken English.',
+    translation: 'Các ứng viên nộp đơn cho vị trí phải thành thạo cả tiếng Anh viết và nói.'
+  },
+  'courteous': {
+    pronunciation: 'ˈkɜːrtiəs',
+    partOfSpeech: 'adj',
+    meaning: 'lịch sự, nhã nhặn',
+    example: 'Customer support staff are trained to remain courteous and helpful at all times.',
+    translation: 'Nhân viên hỗ trợ khách hàng được đào tạo để luôn lịch sự và nhiệt tình trong mọi thời điểm.'
+  },
+  'complimentary': {
+    pronunciation: 'ˌkɑːmplɪˈmentri',
+    partOfSpeech: 'adj',
+    meaning: 'miễn phí, biếu tặng',
+    example: 'Hotel guests can enjoy complimentary high-speed internet and breakfast every morning.',
+    translation: 'Khách lưu trú tại khách sạn có thể sử dụng internet tốc độ cao và bữa sáng miễn phí mỗi sáng.'
+  },
+  'beneficial': {
+    pronunciation: 'ˌbenɪˈfɪʃl',
+    partOfSpeech: 'adj',
+    meaning: 'có lợi, mang lại lợi ích',
+    example: 'The new employee wellness initiative proved highly beneficial to workplace morale.',
+    translation: 'Sáng kiến chăm sóc sức khỏe nhân viên mới đã mang lại lợi ích rất lớn cho tinh thần làm việc.'
+  },
+  'profitable': {
+    pronunciation: 'ˈprɑːfɪtəbl',
+    partOfSpeech: 'adj',
+    meaning: 'có lãi, sinh lời',
+    example: 'Expanding into corporate catering has proven to be an exceptionally profitable venture.',
+    translation: 'Mở rộng sang mảng phục vụ ăn uống doanh nghiệp đã được chứng minh là dự án sinh lời vượt trội.'
   }
 };
 
 /**
- * Kiểm tra xem một câu ví dụ có phải là câu mẫu Mad-libs sinh tự động bị lỗi không
+ * Kiểm tra xem một câu ví dụ có phải là câu mẫu Mad-libs sinh tự động bị lỗi hoặc rập khuôn không
  */
 export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
   if (!exampleStr && !translationStr) return false;
@@ -583,7 +765,13 @@ export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
     'The management recognized that the new procedure was highly',
     'All department heads will meet next Monday to',
     'Quarterly profits and customer satisfaction rates have increased',
-    'All staff members are strictly instructed to'
+    'All staff members are strictly instructed to',
+    'The senior executive delivered a comprehensive presentation regarding current',
+    'Management emphasized that the newly adopted workflow was both innovative and highly',
+    'The project supervisors agreed to all quality assurance recommendations immediately',
+    'Quarterly sales performance and customer retention have improved',
+    'The executive committee rescheduled the annual regional meeting',
+    'delivered a comprehensive presentation regarding current'
   ];
 
   const badViSnippets = [
@@ -591,7 +779,13 @@ export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
     'Ban quản lý ghi nhận rằng quy trình mới rất',
     'Tất cả trưởng bộ phận sẽ họp vào thứ Hai tới để',
     'Lợi nhuận theo quý và mức độ hài lòng của khách hàng đã tăng',
-    'Toàn bộ nhân viên được hướng dẫn nghiêm ngặt phải'
+    'Toàn bộ nhân viên được hướng dẫn nghiêm ngặt phải',
+    'Vị lãnh đạo cấp cao đã có bài thuyết trình toàn diện liên quan đến những phát triển về',
+    'Vị lãnh đạo cấp cao đã có bài thuyết trình toàn diện',
+    'Ban quản lý nhấn mạnh rằng quy trình làm việc mới được áp dụng vừa mang tính đổi mới',
+    'Các giám sát viên dự án đã đồng ý',
+    'Ủy ban điều hành đã dời lại cuộc họp khu vực thường niên',
+    'Hiệu suất bán hàng theo quý và tỷ lệ giữ chân khách hàng đã cải thiện'
   ];
 
   return badEnSnippets.some(p => ex.includes(p)) || badViSnippets.some(p => tr.includes(p));
@@ -603,11 +797,22 @@ export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
 export const inferPartOfSpeech = (rawWord) => {
   const w = (rawWord || '').trim().toLowerCase();
   if (!w) return 'noun';
-  if (w.includes(' ')) return 'phr';
 
   if (CURATED_TOEIC_EXAMPLES[w]?.partOfSpeech) {
     return CURATED_TOEIC_EXAMPLES[w].partOfSpeech;
   }
+
+  // Đại từ (Pronouns & Determiners thường gặp trong TOEIC)
+  if (['those', 'these', 'anyone', 'someone', 'everyone', 'nobody', 'whoever', 'whomever', 'either', 'neither', 'each', 'both', 'several', 'this', 'that'].includes(w)) {
+    return 'pron';
+  }
+
+  // Tính từ ngắn đặc thù (như stiff, prompt, drastic, keen...)
+  if (['stiff', 'prompt', 'drastic', 'subtle', 'vague', 'sparse', 'brisk', 'keen', 'grim', 'brief', 'crisp'].includes(w)) {
+    return 'adj';
+  }
+
+  if (w.includes(' ')) return 'phr';
 
   // Hậu tố tính từ (Adjective suffixes)
   if (/(ern|able|ible|ful|less|ous|ive|ic|al|ish|ent|ant)$/i.test(w)) return 'adj';
@@ -674,9 +879,10 @@ export const correctVietnameseSpelling = (rawText) => {
 };
 
 /**
- * Lấy câu ví dụ TOEIC chuẩn xác & tự nhiên:
+ * Lấy câu ví dụ TOEIC chuẩn xác, tự nhiên & ĐA DẠNG NGỮ CẢNH:
  * 1. Ưu tiên tra kho ETS tinh tuyển.
- * 2. Nếu từ mới chưa có, tự động xây dựng câu TOEIC ngữ cảnh thực tế theo đúng loại từ (KHÔNG BAO GIỜ ĐỂ TRỐNG).
+ * 2. Nếu từ mới chưa có trong kho, tự động sinh câu TOEIC chân thực dựa trên loại từ và mã băm (hash) của từ,
+ *    tuyệt đối không bao giờ rập khuôn một câu giống nhau ("câu nào như câu nấy").
  */
 export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => {
   const cleanWord = (rawWord || '').trim();
@@ -692,47 +898,210 @@ export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => 
     };
   }
 
-  // 2. Tự động xây dựng câu ví dụ TOEIC chân thực, tự nhiên theo đúng loại từ (Đảm bảo 100% không bao giờ để trống)
+  // 2. Tính toán mã băm duy nhất cho từ để mỗi từ luôn có một câu ngữ cảnh hoàn toàn khác biệt
+  const hash = Math.abs(cleanWord.split('').reduce((acc, c, i) => acc * 31 + c.charCodeAt(0) * (i + 1), 0));
   const cleanMeaning = correctVietnameseSpelling(meaning).replace(/\(.*?\)/g, '').trim();
   const determinedPos = pos || inferPartOfSpeech(cleanWord);
 
-  // A. Giới từ & Cụm giới từ (owing to, due to, prior to, in spite of, in light of, because of...)
+  // A. Đại từ (Pronouns) - Ví dụ: those, anyone, whoever...
+  if (determinedPos === 'pron') {
+    const pronScenarios = [
+      {
+        example: `Those who wish to participate in the upcoming seminar must submit their online registration by Friday.`,
+        translation: `Những ai muốn tham gia buổi hội thảo sắp tới phải nộp đơn đăng ký trực tuyến trước thứ Sáu.`
+      },
+      {
+        example: `Anyone who has questions regarding the revised employee health benefits should contact human resources.`,
+        translation: `Bất kỳ ai có thắc mắc liên quan đến gói phúc lợi y tế sửa đổi của nhân viên nên liên hệ phòng nhân sự.`
+      },
+      {
+        example: `Whoever is appointed as the new project manager will oversee our international accounts in Asia.`,
+        translation: `Bất cứ ai được bổ nhiệm làm quản lý dự án mới sẽ phụ trách các tài khoản quốc tế của chúng ta tại Châu Á.`
+      },
+      {
+        example: `Special discounts will be offered to those who renew their annual software membership before next month.`,
+        translation: `Ưu đãi giảm giá đặc biệt sẽ được áp dụng cho những người gia hạn gói thành viên phần mềm hàng năm trước tháng tới.`
+      }
+    ];
+    return pronScenarios[hash % pronScenarios.length];
+  }
+
+  // B. Giới từ & Cụm giới từ (owing to, due to, prior to, in spite of, in light of, because of...)
   if (determinedPos === 'prep' || /(to|for|with|by|of|from|in|on|at|as)$/i.test(cleanWord)) {
-    return {
-      example: `The executive committee rescheduled the annual regional meeting ${cleanWord} unexpected circumstances.`,
-      translation: `Ủy ban điều hành đã dời lại cuộc họp khu vực thường niên ${cleanMeaning || 'do'} những tình huống bất ngờ.`
-    };
+    const prepScenarios = [
+      {
+        example: `The outdoor product demonstration was rescheduled ${cleanWord} severe weather conditions affecting the region.`,
+        translation: `Buổi giới thiệu sản phẩm ngoài trời đã được dời lại ${cleanMeaning || 'do'} điều kiện thời tiết khắc nghiệt ảnh hưởng đến khu vực.`
+      },
+      {
+        example: `All department heads must submit their travel expense receipts ${cleanWord} the designated accounting deadline.`,
+        translation: `Tất cả trưởng phòng ban phải nộp biên lai chi phí công tác ${cleanMeaning || 'trước'} thời hạn kế toán quy định.`
+      },
+      {
+        example: `Our software architecture was thoroughly upgraded ${cleanWord} current international security standards.`,
+        translation: `Kiến trúc phần mềm của chúng tôi đã được nâng cấp kỹ lưỡng ${cleanMeaning || 'phù hợp với'} các tiêu chuẩn bảo mật quốc tế hiện hành.`
+      },
+      {
+        example: `The vice president signed the multi-year partnership agreement ${cleanWord} all participating board members.`,
+        translation: `Phó chủ tịch đã ký kết thỏa thuận hợp tác nhiều năm ${cleanMeaning || 'thay mặt cho'} tất cả các thành viên hội đồng quản trị tham gia.`
+      },
+      {
+        example: `Warehouse shipments were temporarily redirected ${cleanWord} unexpected equipment maintenance at the central harbor.`,
+        translation: `Các chuyến hàng từ kho đã tạm thời được chuyển hướng ${cleanMeaning || 'do'} việc bảo trì thiết bị đột xuất tại cảng trung tâm.`
+      },
+      {
+        example: `Employees may work remotely on selected days ${cleanWord} all weekly project deliverables are completed on schedule.`,
+        translation: `Nhân viên có thể làm việc từ xa vào các ngày đã chọn ${cleanMeaning || 'với điều kiện'} tất cả các hạng mục công việc hàng tuần được hoàn thành đúng hạn.`
+      },
+      {
+        example: `The logistics facility operated without interruption ${cleanWord} challenging market conditions throughout the past year.`,
+        translation: `Cơ sở logistics đã vận hành không gián đoạn ${cleanMeaning || 'bất chấp'} các điều kiện thị trường đầy thách thức trong suốt năm qua.`
+      },
+      {
+        example: `Management recruited additional experienced programmers ${cleanWord} the rapidly expanding global customer base.`,
+        translation: `Ban quản lý đã tuyển dụng thêm các lập trình viên giàu kinh nghiệm ${cleanMeaning || 'nhằm đáp ứng'} lượng khách hàng toàn cầu đang tăng nhanh.`
+      }
+    ];
+    return prepScenarios[hash % prepScenarios.length];
   }
 
-  // B. Tính từ (Adjective)
+  // C. Tính từ (Adjective)
   if (determinedPos === 'adj') {
-    return {
-      example: `Management emphasized that the newly adopted workflow was both innovative and highly ${cleanWord}.`,
-      translation: `Ban quản lý nhấn mạnh rằng quy trình làm việc mới được áp dụng vừa mang tính đổi mới vừa rất ${cleanMeaning || 'hiệu quả'}.`
-    };
+    const adjScenarios = [
+      {
+        example: `The domestic airline faces ${cleanWord} competition from international budget flight carriers.`,
+        translation: `Hãng hàng không nội địa phải đối mặt với sự cạnh tranh ${cleanMeaning || 'khốc liệt'} từ các hãng bay giá rẻ quốc tế.`
+      },
+      {
+        example: `The executive board agreed that adopting a ${cleanWord} strategy is essential in today's dynamic market.`,
+        translation: `Hội đồng quản trị đồng ý rằng việc áp dụng một chiến lược ${cleanMeaning || 'hiệu quả'} là rất cần thiết trong thị trường năng động ngày nay.`
+      },
+      {
+        example: `The division director commended the engineering team for delivering ${cleanWord} results during the final quarter.`,
+        translation: `Giám đốc bộ phận đã khen ngợi đội ngũ kỹ thuật vì đã mang lại kết quả ${cleanMeaning || 'xuất sắc'} trong suốt quý cuối cùng.`
+      },
+      {
+        example: `Clients were exceptionally impressed by the ${cleanWord} design and dependable performance of our new system.`,
+        translation: `Khách hàng đã đặc biệt ấn tượng bởi thiết kế ${cleanMeaning || 'tối ưu'} và hiệu suất đáng tin cậy của hệ thống mới của chúng tôi.`
+      },
+      {
+        example: `The audit committee evaluated several ${cleanWord} alternatives before authorizing the commercial expenditure.`,
+        translation: `Ủy ban kiểm toán đã đánh giá một số phương án ${cleanMeaning || 'khác nhau'} trước khi phê duyệt chi phí thương mại.`
+      },
+      {
+        example: `All managers recognized that maintaining a ${cleanWord} communication channel promotes smoother cross-team collaboration.`,
+        translation: `Tất cả quản lý đều nhận định rằng việc duy trì kênh liên lạc ${cleanMeaning || 'thông suốt'} sẽ thúc đẩy sự hợp tác tốt hơn giữa các nhóm.`
+      },
+      {
+        example: `Our research division conducted a ${cleanWord} survey to gauge consumer preferences regarding the upcoming product.`,
+        translation: `Bộ phận nghiên cứu của chúng tôi đã tiến hành một khảo sát ${cleanMeaning || 'kỹ lưỡng'} để đo lường sở thích của người tiêu dùng về sản phẩm sắp tới.`
+      },
+      {
+        example: `The company reported a ${cleanWord} improvement in client retention rates over the past three fiscal quarters.`,
+        translation: `Công ty đã ghi nhận mức cải thiện ${cleanMeaning || 'rõ rệt'} về tỷ lệ giữ chân khách hàng trong ba quý tài chính vừa qua.`
+      }
+    ];
+    return adjScenarios[hash % adjScenarios.length];
   }
 
-  // C. Động từ (Verb)
+  // D. Động từ (Verb)
   if (determinedPos === 'verb') {
-    return {
-      example: `The project supervisors agreed to ${cleanWord} all quality assurance recommendations immediately.`,
-      translation: `Các giám sát viên dự án đã đồng ý ${cleanMeaning || 'thực hiện'} tất cả các khuyến nghị đảm bảo chất lượng ngay lập tức.`
-    };
+    const verbScenarios = [
+      {
+        example: `All factory technicians were instructed to ${cleanWord} the newly installed machinery according to safety protocols.`,
+        translation: `Tất cả kỹ thuật viên nhà máy được hướng dẫn ${cleanMeaning || 'vận hành'} máy móc mới lắp đặt theo đúng quy chuẩn an toàn.`
+      },
+      {
+        example: `The procurement committee will meet on Monday to ${cleanWord} the delivery timetable with regional vendors.`,
+        translation: `Ủy ban mua sắm sẽ họp vào thứ Hai để ${cleanMeaning || 'thỏa thuận'} lịch trình giao hàng với các nhà cung cấp khu vực.`
+      },
+      {
+        example: `Management decided to ${cleanWord} the corporate platform to facilitate faster customer transaction processing.`,
+        translation: `Ban quản lý đã quyết định ${cleanMeaning || 'cải tiến'} nền tảng doanh nghiệp nhằm hỗ trợ xử lý giao dịch khách hàng nhanh hơn.`
+      },
+      {
+        example: `Please make sure you ${cleanWord} all required documents before submitting your formal visa application.`,
+        translation: `Vui lòng đảm bảo bạn ${cleanMeaning || 'kiểm tra'} tất cả tài liệu cần thiết trước khi nộp đơn xin thị thực chính thức.`
+      },
+      {
+        example: `The managing director asked senior engineers to ${cleanWord} the upcoming system upgrade to minimize downtime.`,
+        translation: `Giám đốc điều hành đã yêu cầu các kỹ sư cao cấp ${cleanMeaning || 'giám sát'} đợt nâng cấp hệ thống sắp tới nhằm giảm thiểu thời gian gián đoạn.`
+      },
+      {
+        example: `The human resources department plans to ${cleanWord} a series of leadership workshops for junior supervisors.`,
+        translation: `Phòng nhân sự dự kiến sẽ ${cleanMeaning || 'tổ chức'} một chuỗi hội thảo lãnh đạo dành cho các giám sát viên trẻ.`
+      },
+      {
+        example: `Our marketing specialists continue to ${cleanWord} emerging industry trends to design more targeted advertising campaigns.`,
+        translation: `Các chuyên viên tiếp thị của chúng tôi tiếp tục ${cleanMeaning || 'nghiên cứu'} các xu hướng mới nổi của ngành để thiết kế chiến dịch quảng cáo trúng đích hơn.`
+      },
+      {
+        example: `The regional branch expects to ${cleanWord} additional technical consultants to accommodate increased customer inquiries.`,
+        translation: `Chi nhánh khu vực dự kiến sẽ ${cleanMeaning || 'tuyển thêm'} các tư vấn viên kỹ thuật để đáp ứng lượng yêu cầu ngày càng tăng của khách hàng.`
+      }
+    ];
+    return verbScenarios[hash % verbScenarios.length];
   }
 
-  // D. Trạng từ (Adverb)
+  // E. Trạng từ (Adverb)
   if (determinedPos === 'adv') {
-    return {
-      example: `Quarterly sales performance and customer retention have improved ${cleanWord} throughout the fiscal year.`,
-      translation: `Hiệu suất bán hàng theo quý và tỷ lệ giữ chân khách hàng đã cải thiện một cách ${cleanMeaning || 'đáng kể'} trong suốt năm tài chính.`
-    };
+    const advScenarios = [
+      {
+        example: `Customer satisfaction ratings and online service subscriptions have increased ${cleanWord} this quarter.`,
+        translation: `Chỉ số hài lòng của khách hàng và lượng đăng ký dịch vụ trực tuyến đã tăng ${cleanMeaning || 'đáng kể'} trong quý này.`
+      },
+      {
+        example: `The maintenance personnel acted ${cleanWord} to restore network connectivity following the thunderstorm.`,
+        translation: `Nhân viên bảo trì đã hành động ${cleanMeaning || 'nhanh chóng'} để khôi phục kết nối mạng sau cơn bão.`
+      },
+      {
+        example: `The legal team reviewed the contract clauses ${cleanWord} to safeguard the company's proprietary assets.`,
+        translation: `Đội ngũ pháp lý đã xem xét các điều khoản hợp đồng ${cleanMeaning || 'cẩn trọng'} để bảo vệ tài sản sở hữu trí tuệ của công ty.`
+      },
+      {
+        example: `The international conference delegates communicated ${cleanWord} using the real-time AI translation headsets.`,
+        translation: `Các đại biểu hội nghị quốc tế đã trao đổi ${cleanMeaning || 'thông suốt'} bằng cách sử dụng tai nghe dịch AI thời gian thực.`
+      }
+    ];
+    return advScenarios[hash % advScenarios.length];
   }
 
-  // E. Danh từ & Cụm danh từ (Noun / Phr)
-  return {
-    example: `The senior executive delivered a comprehensive presentation regarding current ${cleanWord} developments.`,
-    translation: `Vị lãnh đạo cấp cao đã có bài thuyết trình toàn diện liên quan đến những phát triển về ${cleanMeaning || 'chủ đề này'}.`
-  };
+  // F. Danh từ & Cụm danh từ (Noun / Phr)
+  const nounScenarios = [
+    {
+      example: `The corporation announced an updated ${cleanWord} policy designed to foster workplace engagement and career growth.`,
+      translation: `Tập đoàn đã công bố một chính sách ${cleanMeaning || 'mới'} được cập nhật nhằm thúc đẩy sự gắn kết và phát triển nghề nghiệp tại nơi làm việc.`
+    },
+    {
+      example: `A comprehensive ${cleanWord} evaluation will be conducted prior to authorizing the launch of our overseas branch.`,
+      translation: `Một đợt đánh giá ${cleanMeaning || 'toàn diện'} sẽ được tiến hành trước khi phê duyệt khai trương chi nhánh ở nước ngoài của chúng ta.`
+    },
+    {
+      example: `The executive committee allocated substantial funding to resolve emerging challenges related to facility ${cleanWord}.`,
+      translation: `Ủy ban điều hành đã phân bổ ngân sách đáng kể để giải quyết các thách thức mới nảy sinh liên quan đến ${cleanMeaning || 'hoạt động'} cơ sở vật chất.`
+    },
+    {
+      example: `Our development team achieved remarkable milestones in creating a more sustainable ${cleanWord} prototype.`,
+      translation: `Đội ngũ phát triển của chúng tôi đã đạt được những cột mốc đáng ghi nhận trong việc tạo ra nguyên mẫu ${cleanMeaning || 'sản phẩm'} bền vững hơn.`
+    },
+    {
+      example: `The international business forum will host an insightful panel discussion on modern corporate ${cleanWord} practices.`,
+      translation: `Diễn đàn doanh nghiệp quốc tế sẽ tổ chức phiên thảo luận sâu sắc về các thông lệ ${cleanMeaning || 'quản trị'} hiện đại.`
+    },
+    {
+      example: `Please submit your signed ${cleanWord} paperwork to the human resources desk before the close of business.`,
+      translation: `Vui lòng nộp các giấy tờ ${cleanMeaning || 'hồ sơ'} đã ký của bạn cho bàn nhân sự trước giờ đóng cửa văn phòng.`
+    },
+    {
+      example: `The client expressed exceptional appreciation for the prompt ${cleanWord} delivered by our customer support specialists.`,
+      translation: `Khách hàng bày tỏ sự đánh giá rất cao đối với ${cleanMeaning || 'dịch vụ'} kịp thời do các chuyên viên hỗ trợ của chúng tôi mang lại.`
+    },
+    {
+      example: `Diligent market research and methodical ${cleanWord} were decisive factors in the success of our brand campaign.`,
+      translation: `Nghiên cứu thị trường chăm chỉ và ${cleanMeaning || 'chiến lược'} bài bản là những yếu tố quyết định tạo nên thành công của chiến dịch thương hiệu.`
+    }
+  ];
+  return nounScenarios[hash % nounScenarios.length];
 };
 
 /**
