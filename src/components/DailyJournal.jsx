@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -13,11 +13,15 @@ import {
   Clock, 
   CheckCircle2, 
   Gamepad2,
-  FolderOpen
+  FolderOpen,
+  Download,
+  Upload,
+  ShieldCheck
 } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
 import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
+import { exportAllDataAsJSON, importDataFromJSON } from '../utils/storage';
 
 export default function DailyJournal({
   allWords = [],
@@ -31,14 +35,52 @@ export default function DailyJournal({
   onDeleteWord,
   onStartSmartCards,
   onStartQuiz,
-  initialFilter = 'all'
+  initialFilter = 'all',
+  onDataImported
 }) {
   const [activeView, setActiveView] = useState(initialFilter); // 'today', 'week', 'custom', 'builtin', 'favorites'
   const [selectedBuiltInSetId, setSelectedBuiltInSetId] = useState(builtInSets[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [partOfSpeechFilter, setPartOfSpeechFilter] = useState('all');
+  const fileInputRef = useRef(null);
 
   const todayStr = getTodayDateString();
+
+  // 1-Click Xuất file sao lưu (JSON) để lưu trữ an toàn hoặc chuyển sang điện thoại
+  const handleExportBackup = () => {
+    const jsonStr = exportAllDataAsJSON();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `toeic_tuvung_backup_${todayStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // 1-Click Phục hồi từ file sao lưu
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === 'string') {
+        const result = importDataFromJSON(content);
+        if (result.success) {
+          alert(`✅ Đã khôi phục thành công ${result.count} từ vựng và tiến độ học!`);
+          if (onDataImported) onDataImported();
+          else window.location.reload();
+        } else {
+          alert(`❌ Khôi phục thất bại: ${result.error}`);
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Filter words based on active view with full null-safety
   const filteredWords = useMemo(() => {
@@ -116,7 +158,33 @@ export default function DailyJournal({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportFile}
+              accept=".json"
+              className="hidden"
+            />
+
+            <button
+              onClick={handleExportBackup}
+              title="Tải file JSON sao lưu từ vựng về máy để lưu trữ hoặc chuyển sang điện thoại"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-600" />
+              <span>Sao lưu (JSON)</span>
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Khôi phục từ vựng từ file sao lưu JSON"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5 text-amber-600" />
+              <span>Phục hồi</span>
+            </button>
+
             <button
               onClick={onOpenBatchModal}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#4A453E] bg-[#F7F4EB] hover:bg-[#EDE8DC] border border-[#DCD6C9] transition-colors"
@@ -133,6 +201,14 @@ export default function DailyJournal({
               <span>+ Thêm từ mới</span>
             </button>
           </div>
+        </div>
+
+        {/* Persistence Reassurance Banner */}
+        <div className="flex items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50/90 px-3 py-1.5 rounded-xl border border-emerald-200">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>
+            <b>Dữ liệu an toàn:</b> Toàn bộ từ vựng & tiến độ học được tự động lưu 2 lớp vào trình duyệt máy này. Bấm <b>Sao lưu (JSON)</b> khi muốn đồng bộ sang điện thoại!
+          </span>
         </div>
 
         {/* View selection tabs */}

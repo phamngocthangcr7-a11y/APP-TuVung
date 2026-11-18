@@ -247,6 +247,9 @@ export default function SmartCards({
         showToast('⭐ Bạn chưa lưu từ vựng nào vào mục Yêu thích.');
       } else if (deck === 'hard') {
         showToast('🎯 Hiện tại không có thẻ khó nào cần ôn.');
+      } else if (deck?.id === 'deck_custom') {
+        showToast('💡 Bạn chưa có từ nào trong "Bộ Của Tôi". Hãy bấm "Dán nhiều từ" để thêm nhé!');
+        onOpenBatchModal?.();
       } else {
         showToast('⚠️ Bộ từ vựng này hiện chưa có từ nào để học.');
       }
@@ -829,14 +832,22 @@ export default function SmartCards({
 
                 {/* Big Action Button "Học ngay" */}
                 <button
-                  onClick={() => handleOpenDeck(deck)}
+                  onClick={() => {
+                    if (deck.isCustom && stats.total === 0) {
+                      onOpenBatchModal?.();
+                    } else {
+                      handleOpenDeck(deck);
+                    }
+                  }}
                   className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white shadow-md active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deck.isCustom 
                       ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' 
                       : 'bg-[#2563EB] hover:bg-[#1D4ED8] shadow-blue-600/20'
                   }`}
                 >
-                  <span>Học ngay</span>
+                  <span>
+                    {deck.isCustom && stats.total === 0 ? '+ Nạp từ để học' : 'Học ngay'}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

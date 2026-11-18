@@ -19,13 +19,14 @@ import {
   isBadTemplateSentence, 
   inferPartOfSpeech 
 } from '../utils/dictionary';
+import { getBatchDraft, saveBatchDraft, clearBatchDraft } from '../utils/storage';
 
 export default function BatchImportModal({
   isOpen,
   onClose,
   onBatchSave
 }) {
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(() => getBatchDraft());
   const [defaultTag, setDefaultTag] = useState('Nạp hàng ngày');
   const [targetDate, setTargetDate] = useState(getTodayDateString());
   const [isAutoTranslating, setIsAutoTranslating] = useState(false);
@@ -146,9 +147,11 @@ export default function BatchImportModal({
   // Use manualParsedWords if user triggered auto-translate or edited
   const activeWords = manualParsedWords || autoParsedWords;
 
-  // Reset manual state when input text changes
+  // Reset manual state when input text changes & auto-save draft to prevent loss
   const handleInputChange = (e) => {
-    setInputText(e.target.value);
+    const val = e.target.value;
+    setInputText(val);
+    saveBatchDraft(val);
     setManualParsedWords(null);
     setSavedSuccessMessage('');
   };
@@ -237,6 +240,7 @@ export default function BatchImportModal({
     });
 
     onBatchSave(validWords, andStudy ? 'study' : null);
+    clearBatchDraft();
     setSavedSuccessMessage(`🎉 Đã lưu thành công ${validWords.length} từ vựng vào Sổ tay của bạn!`);
 
     setTimeout(() => {
@@ -341,19 +345,38 @@ feasibility`;
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700">
-                Dán nội dung từ vựng vào đây:
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span>Dán nội dung từ vựng vào đây:</span>
+                <span className="text-[10px] font-normal text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  Tự lưu nháp
+                </span>
               </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setInputText(sampleExample);
-                  setManualParsedWords(null);
-                }}
-                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
-              >
-                Chèn dữ liệu mẫu
-              </button>
+              <div className="flex items-center gap-2">
+                {inputText.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputText('');
+                      clearBatchDraft();
+                      setManualParsedWords(null);
+                    }}
+                    className="text-[11px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer"
+                  >
+                    Xóa trắng
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputText(sampleExample);
+                    saveBatchDraft(sampleExample);
+                    setManualParsedWords(null);
+                  }}
+                  className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                >
+                  Chèn dữ liệu mẫu
+                </button>
+              </div>
             </div>
             <textarea
               rows="6"

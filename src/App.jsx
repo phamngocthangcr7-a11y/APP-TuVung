@@ -73,6 +73,18 @@ export default function App() {
         setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
       }
     });
+
+    // Lắng nghe sự kiện storage để đồng bộ tức thì nếu mở nhiều tab hoặc sửa dữ liệu
+    const handleStorageChange = (e) => {
+      if (!e.key || e.key.includes('toeic_custom_words') || e.key.includes('toeic_word_srs')) {
+        const freshCustom = getCustomWords();
+        setCustomWords(freshCustom.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
+        setSrsProgress(getWordSrsProgress());
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const todayStr = getTodayDateString();
@@ -235,6 +247,7 @@ export default function App() {
         setActiveTab={handleTabChange}
         streakInfo={streakInfo}
         dueTodayCount={dueWords.length}
+        customWordsCount={customWords.length}
         onOpenAddModal={() => {
           setEditingWord(null);
           setIsAddModalOpen(true);
@@ -292,6 +305,7 @@ export default function App() {
               onStartSmartCards={handleStartSmartCards}
               onStartQuiz={handleStartQuiz}
               initialFilter={journalFilter}
+              onDataImported={handleDataImported}
             />
           )}
 
@@ -379,6 +393,7 @@ export default function App() {
       <BottomNav
         activeTab={activeTab}
         setActiveTab={handleTabChange}
+        customWordsCount={customWords.length}
         onOpenAddModal={() => {
           setEditingWord(null);
           setIsAddModalOpen(true);

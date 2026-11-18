@@ -14,11 +14,40 @@ import {
 
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
+  CUSTOM_WORDS_BACKUP: 'toeic_custom_words_v2_backup',
   CUSTOM_FOLDERS: 'toeic_custom_folders_v2',
   WORD_SRS_PROGRESS: 'toeic_word_srs_progress_v2',
   STREAK_INFO: 'toeic_study_streak_v2',
   FAVORITES: 'toeic_favorite_ids_v2',
-  SETTINGS: 'toeic_app_settings_v2'
+  SETTINGS: 'toeic_app_settings_v2',
+  BATCH_DRAFT: 'toeic_batch_import_draft'
+};
+
+/**
+ * Quản lý bản nháp nhập từ hàng loạt để không bao giờ bị mất chữ khi đang gõ
+ */
+export const getBatchDraft = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.BATCH_DRAFT) || '';
+  } catch (_) {
+    return '';
+  }
+};
+
+export const saveBatchDraft = (text) => {
+  try {
+    if (text) {
+      localStorage.setItem(STORAGE_KEYS.BATCH_DRAFT, text);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
+    }
+  } catch (_) {}
+};
+
+export const clearBatchDraft = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
+  } catch (_) {}
 };
 
 /**
@@ -37,12 +66,51 @@ export const getWeekNumber = (d = new Date()) => {
 };
 
 /**
- * Lấy danh sách từ người dùng tự thêm (Tự động tẩy sạch triệt để các câu Mad-libs ghép từ lỗi)
+ * Lấy danh sách từ người dùng tự thêm (Bảo vệ 2 lớp chống mất dữ liệu + Tự động phục hồi)
  */
 export const getCustomWords = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
-    const list = raw ? JSON.parse(raw) : [];
+    let raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
+    let list = raw ? JSON.parse(raw) : [];
+
+    // LỚP 1: Nếu danh sách chính trống, tự động tìm và khôi phục từ bản sao lưu dự phòng
+    if (!Array.isArray(list) || list.length === 0) {
+      const backupRaw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
+      if (backupRaw) {
+        try {
+          const backupList = JSON.parse(backupRaw);
+          if (Array.isArray(backupList) && backupList.length > 0) {
+            list = backupList;
+            localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(list));
+            console.log('🔄 Đã tự động khôi phục từ vựng từ bản sao lưu dự phòng!');
+          }
+        } catch (e) {
+          console.warn('Lỗi đọc bản sao lưu:', e);
+        }
+      }
+    }
+
+    // LỚP 2: Tự động khôi phục dữ liệu từ các phiên bản khóa cũ (Legacy Keys) nếu có
+    if (!Array.isArray(list) || list.length === 0) {
+      const legacyKeys = ['toeic_custom_words', 'custom_words', 'toeic_words', 'toeic_user_words'];
+      for (const k of legacyKeys) {
+        try {
+          const legRaw = localStorage.getItem(k);
+          if (legRaw) {
+            const parsed = JSON.parse(legRaw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              list = parsed;
+              localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(list));
+              localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(list));
+              console.log(`🔄 Đã di chuyển và khôi phục thành công từ khóa cũ ${k}!`);
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!Array.isArray(list)) list = [];
     let modified = false;
 
     const enriched = list.map(w => {
@@ -93,11 +161,18 @@ export const getCustomWords = () => {
 };
 
 /**
- * Lưu danh sách từ người dùng tự thêm
+ * Lưu danh sách từ người dùng tự thêm (Ghi đồng thời vào Khóa chính và Khóa dự phòng)
  */
 export const saveCustomWords = (words) => {
   try {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(words));
+    if (!Array.isArray(words)) return;
+    const clean = words.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(clean));
+
+    // Luôn duy trì bản sao lưu dự phòng chống mất dữ liệu khi có từ hợp lệ
+    if (clean.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(clean));
+    }
   } catch (err) {
     console.error('Error saving custom words:', err);
   }
@@ -285,12 +360,17 @@ export const updateCustomWord = (wordId, updates) => {
 };
 
 /**
- * Xóa một từ
+ * Xóa một từ (Đồng bộ cả bản chính và bản dự phòng)
  */
 export const deleteCustomWord = (wordId) => {
   const words = getCustomWords();
   const filtered = words.filter(w => w.id !== wordId);
-  saveCustomWords(filtered);
+  try {
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(filtered));
+  } catch (err) {
+    console.error('Error deleting word:', err);
+  }
   return filtered;
 };
 

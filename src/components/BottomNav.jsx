@@ -9,7 +9,8 @@ import {
 export default function BottomNav({ 
   activeTab, 
   setActiveTab, 
-  onOpenAddModal 
+  onOpenAddModal,
+  customWordsCount = 0
 }) {
   return (
     <nav 
@@ -47,13 +48,20 @@ export default function BottomNav({
         {/* Journal Tab */}
         <button
           onClick={() => setActiveTab('journal')}
-          className={`flex flex-col items-center py-1 px-3 rounded-xl transition-all min-h-[44px] justify-center ${
+          className={`flex flex-col items-center py-1 px-3 rounded-xl transition-all min-h-[44px] justify-center relative ${
             activeTab === 'journal'
               ? 'text-blue-400 font-bold'
               : 'text-slate-400 hover:text-white'
           }`}
         >
-          <BookOpen className="w-5 h-5 mb-0.5" />
+          <div className="relative">
+            <BookOpen className="w-5 h-5 mb-0.5" />
+            {customWordsCount > 0 && (
+              <span className="absolute -top-1 -right-2 px-1 text-[9px] font-black bg-blue-500 text-white rounded-full">
+                {customWordsCount}
+              </span>
+            )}
+          </div>
           <span className="text-[10px]">Sổ từ</span>
         </button>
 

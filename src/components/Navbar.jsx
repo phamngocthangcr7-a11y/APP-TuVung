@@ -17,7 +17,8 @@ export default function Navbar({
   onOpenAddModal, 
   onOpenBatchModal,
   onOpenSettings,
-  dueTodayCount = 0
+  dueTodayCount = 0,
+  customWordsCount = 0
 }) {
   return (
     <header className="sticky top-0 z-40 bg-[#0B132B] text-white shadow-md border-b border-slate-800">
@@ -64,6 +65,11 @@ export default function Navbar({
             >
               <BookOpen className="w-4 h-4" />
               <span>Sổ Từ Vựng</span>
+              {customWordsCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                  {customWordsCount}
+                </span>
+              )}
             </button>
 
             <button
