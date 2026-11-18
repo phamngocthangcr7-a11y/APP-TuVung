@@ -9,7 +9,9 @@ import {
   isBadTemplateSentence, 
   inferPartOfSpeech, 
   fetchAuthenticSentence,
-  lookupEnglishPronunciation
+  lookupEnglishPronunciation,
+  correctVietnameseSpelling,
+  getToeicExampleFallback
 } from './dictionary';
 
 const STORAGE_KEYS = {
@@ -125,26 +127,40 @@ export const getCustomWords = () => {
         modified = true;
       }
 
-      // 2. Tự động bổ sung câu ví dụ chuẩn ETS từ kho tinh tuyển nếu từ chưa có ví dụ
-      if ((!item.example || String(item.example).trim() === '') && CURATED_TOEIC_EXAMPLES[lower]) {
-        item.example = CURATED_TOEIC_EXAMPLES[lower].example;
-        item.exampleTranslation = CURATED_TOEIC_EXAMPLES[lower].translation;
+      // 2. Tự động kiểm tra và sửa lỗi chính tả tiếng Việt trong nghĩa (VD: "bởi vị" -> "do, bởi vì")
+      const cleanedMeaning = correctVietnameseSpelling(item.meaning);
+      if (cleanedMeaning && cleanedMeaning !== item.meaning) {
+        item.meaning = cleanedMeaning;
         modified = true;
       }
 
-      // 3. Tự động bổ sung phiên âm chuẩn nếu chưa có
+      // Bổ sung nghĩa chuẩn từ kho ETS nếu từ chưa có nghĩa
+      if ((!item.meaning || item.meaning.trim() === '') && CURATED_TOEIC_EXAMPLES[lower]?.meaning) {
+        item.meaning = CURATED_TOEIC_EXAMPLES[lower].meaning;
+        modified = true;
+      }
+
+      // 3. Tự động bổ sung câu ví dụ chuẩn ETS hoặc câu ngữ cảnh thực tế (ĐẢM BẢO 100% CÓ CÂU VÍ DỤ VÀ DỊCH)
+      if (!item.example || String(item.example).trim() === '') {
+        const fallback = getToeicExampleFallback(item.word, item.partOfSpeech, item.meaning);
+        if (fallback.example) {
+          item.example = fallback.example;
+          item.exampleTranslation = fallback.translation;
+          modified = true;
+        }
+      }
+
+      // 4. Tự động bổ sung phiên âm chuẩn nếu chưa có
       if ((!item.pronunciation || String(item.pronunciation).trim() === '') && CURATED_TOEIC_EXAMPLES[lower]?.pronunciation) {
         item.pronunciation = CURATED_TOEIC_EXAMPLES[lower].pronunciation;
         modified = true;
       }
 
-      // 4. Chuẩn hóa lại loại từ nếu bị gán mặc định là noun (như "northeastern" là adj)
-      if (!item.partOfSpeech || item.partOfSpeech === 'noun') {
-        const correctPos = CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech || inferPartOfSpeech(item.word);
-        if (correctPos && correctPos !== item.partOfSpeech) {
-          item.partOfSpeech = correctPos;
-          modified = true;
-        }
+      // 5. Chuẩn hóa lại loại từ nếu bị gán mặc định là noun (như "owing to" là prep, "northeastern" là adj)
+      const correctPos = CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech || inferPartOfSpeech(item.word);
+      if (correctPos && correctPos !== item.partOfSpeech) {
+        item.partOfSpeech = correctPos;
+        modified = true;
       }
 
       return item;
@@ -190,6 +206,8 @@ export const addCustomWord = (wordData) => {
   const lower = cleanWord.toLowerCase();
   const curated = CURATED_TOEIC_EXAMPLES[lower];
 
+  const cleanedMeaning = correctVietnameseSpelling(wordData.meaning || curated?.meaning || '');
+
   let example = (wordData.example || '').trim();
   let exampleTranslation = (wordData.exampleTranslation || '').trim();
 
@@ -199,21 +217,27 @@ export const addCustomWord = (wordData) => {
     exampleTranslation = '';
   }
 
-  // Tự động lấy câu mẫu chuẩn nếu từ có trong kho
-  if (!example && curated) {
-    example = curated.example;
-    exampleTranslation = curated.translation;
-  }
-
   const determinedPos = wordData.partOfSpeech && wordData.partOfSpeech !== 'noun'
     ? wordData.partOfSpeech
     : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
+
+  // Tự động lấy câu mẫu chuẩn nếu từ chưa có ví dụ
+  if (!example) {
+    if (curated?.example) {
+      example = curated.example;
+      exampleTranslation = curated.translation;
+    } else {
+      const fallback = getToeicExampleFallback(cleanWord, determinedPos, cleanedMeaning);
+      example = fallback.example;
+      exampleTranslation = fallback.translation;
+    }
+  }
 
   const newWord = {
     id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
     word: cleanWord,
     pronunciation: (wordData.pronunciation || '').trim() || (curated?.pronunciation || ''),
-    meaning: (wordData.meaning || '').trim(),
+    meaning: cleanedMeaning || '(Từ mới)',
     partOfSpeech: determinedPos,
     example,
     exampleTranslation,
@@ -252,6 +276,8 @@ export const addBatchCustomWords = (wordsList) => {
     const lower = cleanWord.toLowerCase();
     const curated = CURATED_TOEIC_EXAMPLES[lower];
 
+    const cleanedMeaning = correctVietnameseSpelling(w.meaning || curated?.meaning || '');
+
     let example = (w.example || '').trim();
     let exampleTranslation = (w.exampleTranslation || '').trim();
 
@@ -260,20 +286,26 @@ export const addBatchCustomWords = (wordsList) => {
       exampleTranslation = '';
     }
 
-    if (!example && curated) {
-      example = curated.example;
-      exampleTranslation = curated.translation;
-    }
-
     const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
       ? w.partOfSpeech
       : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
+
+    if (!example) {
+      if (curated?.example) {
+        example = curated.example;
+        exampleTranslation = curated.translation;
+      } else {
+        const fallback = getToeicExampleFallback(cleanWord, determinedPos, cleanedMeaning);
+        example = fallback.example;
+        exampleTranslation = fallback.translation;
+      }
+    }
 
     return {
       id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
       word: cleanWord,
       pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
-      meaning: (w.meaning || '').trim(),
+      meaning: cleanedMeaning || '(Từ mới)',
       partOfSpeech: determinedPos,
       example,
       exampleTranslation,

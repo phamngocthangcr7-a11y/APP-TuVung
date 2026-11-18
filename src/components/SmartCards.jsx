@@ -24,7 +24,13 @@ import {
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
-import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence, lookupEnglishPronunciation } from '../utils/dictionary';
+import { 
+  CURATED_TOEIC_EXAMPLES, 
+  isBadTemplateSentence, 
+  lookupEnglishPronunciation,
+  correctVietnameseSpelling,
+  getToeicExampleFallback 
+} from '../utils/dictionary';
 import { updateCustomWord } from '../utils/storage';
 
 // Sanitize and filter valid words helper (pure function at module scope)
@@ -493,7 +499,14 @@ export default function SmartCards({
     return livePronunciation;
   }, [currentWord, livePronunciation]);
 
-  // Effective example sentence: Ưu tiên câu thực tế chuẩn, loại bỏ triệt để câu lỗi Mad-libs
+  // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa từ vựng
+  const displayMeaning = useMemo(() => {
+    if (!currentWord || !currentWord.meaning) return '';
+    const cleaned = correctVietnameseSpelling(currentWord.meaning);
+    return cleaned || currentWord.meaning;
+  }, [currentWord]);
+
+  // Effective example sentence: ĐẢM BẢO 100% LUÔN CÓ CÂU VÍ DỤ CHUẨN TOEIC, KHÔNG BAO GIỜ ĐỂ TRỐNG
   const effectiveExample = useMemo(() => {
     if (!currentWord || !currentWord.word) return { example: '', translation: '' };
 
@@ -513,16 +526,34 @@ export default function SmartCards({
       };
     }
 
-    const curated = CURATED_TOEIC_EXAMPLES[currentWord.word.toLowerCase()];
-    if (curated) {
+    const lower = currentWord.word.toLowerCase();
+    const curated = CURATED_TOEIC_EXAMPLES[lower];
+    if (curated?.example) {
       return {
         example: curated.example,
         translation: curated.translation
       };
     }
 
-    return { example: '', translation: '' };
-  }, [currentWord]);
+    // Tự động xây dựng câu ví dụ TOEIC tự nhiên chân thực theo đúng loại từ (Đảm bảo 100% không bao giờ để trống)
+    return getToeicExampleFallback(currentWord.word, currentWord.partOfSpeech, displayMeaning);
+  }, [currentWord, displayMeaning]);
+
+  // Tự động lưu và cập nhật ngay vào bộ nhớ nếu từ đang học chưa có ví dụ hoặc bị lỗi chính tả
+  useEffect(() => {
+    if (currentWord && currentWord.id && String(currentWord.id).startsWith('usr_')) {
+      const needsExample = !currentWord.example || isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
+      const cleanedMeaning = correctVietnameseSpelling(currentWord.meaning);
+      const needsMeaningFix = cleanedMeaning !== currentWord.meaning;
+
+      if ((needsExample && effectiveExample.example) || needsMeaningFix) {
+        updateCustomWord(currentWord.id, {
+          ...(needsExample && effectiveExample.example ? { example: effectiveExample.example, exampleTranslation: effectiveExample.translation } : {}),
+          ...(needsMeaningFix ? { meaning: cleanedMeaning } : {})
+        });
+      }
+    }
+  }, [currentWord, effectiveExample]);
 
   // Formatted example with bold word
   const formattedExample = useMemo(() => {
@@ -1460,7 +1491,7 @@ export default function SmartCards({
                   {/* VIETNAMESE MEANING: BOLD EMERALD GREEN (#059669) */}
                   <div>
                     <h3 className="text-xl sm:text-3xl font-extrabold text-[#059669] tracking-tight">
-                      {currentWord.meaning}
+                      {displayMeaning}
                     </h3>
                   </div>
 

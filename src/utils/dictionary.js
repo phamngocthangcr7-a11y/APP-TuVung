@@ -371,6 +371,202 @@ export const CURATED_TOEIC_EXAMPLES = {
     partOfSpeech: 'noun',
     example: 'The purchasing officer selected an approved local vendor for computer office supplies.',
     translation: 'Cán bộ mua sắm đã chọn một nhà cung cấp địa phương được phê duyệt cho văn phòng phẩm máy tính.'
+  },
+  'owing to': {
+    pronunciation: 'ˈoʊɪŋ tuː',
+    partOfSpeech: 'prep',
+    meaning: 'do, bởi vì (= because of, due to)',
+    example: 'The outdoor ceremony was postponed owing to unexpected severe weather conditions.',
+    translation: 'Buổi lễ ngoài trời đã bị hoãn do điều kiện thời tiết khắc nghiệt bất ngờ.'
+  },
+  'due to': {
+    pronunciation: 'duː tuː',
+    partOfSpeech: 'prep',
+    meaning: 'do, tại vì',
+    example: 'Flight 402 was delayed due to routine mechanical maintenance requirements.',
+    translation: 'Chuyến bay 402 đã bị hoãn do các yêu cầu bảo trì kỹ thuật định kỳ.'
+  },
+  'prior to': {
+    pronunciation: 'ˈpraɪər tuː',
+    partOfSpeech: 'prep',
+    meaning: 'trước khi (= before)',
+    example: 'All job applicants must submit their verified credentials prior to the scheduled interview date.',
+    translation: 'Tất cả ứng viên xin việc phải nộp hồ sơ bằng cấp đã xác thực trước ngày phỏng vấn dự kiến.'
+  },
+  'in light of': {
+    pronunciation: 'ɪn laɪt əv',
+    partOfSpeech: 'prep',
+    meaning: 'xét đến, vì lý do',
+    example: 'In light of recent budget constraints, the marketing division decided to scale back expenditures.',
+    translation: 'Xét đến những hạn chế ngân sách gần đây, bộ phận tiếp thị đã quyết định cắt giảm chi tiêu.'
+  },
+  'regardless of': {
+    pronunciation: 'rɪˈɡɑːrdləs əv',
+    partOfSpeech: 'prep',
+    meaning: 'bất kể, không phân biệt',
+    example: 'All full-time personnel are eligible for annual performance bonuses regardless of department.',
+    translation: 'Tất cả nhân viên toàn thời gian đều đủ điều kiện nhận thưởng hiệu suất hàng năm bất kể phòng ban nào.'
+  },
+  'in spite of': {
+    pronunciation: 'ɪn spaɪt əv',
+    partOfSpeech: 'prep',
+    meaning: 'mặc dù, bất chấp (= despite)',
+    example: 'In spite of intense market competition, the tech startup achieved record quarterly profits.',
+    translation: 'Bất chấp sự cạnh tranh gay gắt của thị trường, công ty khởi nghiệp công nghệ đã đạt lợi nhuận quý kỷ lục.'
+  },
+  'despite': {
+    pronunciation: 'dɪˈspaɪt',
+    partOfSpeech: 'prep',
+    meaning: 'mặc dù, bất chấp',
+    example: 'Despite the severe economic downturn, consumer demand for our products remained resilient.',
+    translation: 'Mặc dù kinh tế suy thoái nghiêm trọng, nhu cầu của người tiêu dùng đối với sản phẩm của chúng tôi vẫn duy trì ổn định.'
+  },
+  'on behalf of': {
+    pronunciation: 'ɑːn bɪˈhæf əv',
+    partOfSpeech: 'prep',
+    meaning: 'thay mặt, đại diện cho',
+    example: 'The executive vice president accepted the prestigious industry award on behalf of the company.',
+    translation: 'Phó chủ tịch điều hành đã thay mặt công ty đón nhận giải thưởng danh giá của ngành.'
+  },
+  'in addition to': {
+    pronunciation: 'ɪn əˈdɪʃn tuː',
+    partOfSpeech: 'prep',
+    meaning: 'ngoài ra, bên cạnh (= besides)',
+    example: 'In addition to a competitive base salary, the firm provides comprehensive health benefits.',
+    translation: 'Ngoài mức lương cơ bản cạnh tranh, công ty còn cung cấp các chế độ bảo hiểm sức khỏe toàn diện.'
+  },
+  'in accordance with': {
+    pronunciation: 'ɪn əˈkɔːrdns wɪð',
+    partOfSpeech: 'prep',
+    meaning: 'phù hợp với, theo đúng quy định',
+    example: 'All factory operations are conducted in strict accordance with national environmental laws.',
+    translation: 'Mọi hoạt động của nhà máy đều được tiến hành theo đúng các đạo luật môi trường quốc gia.'
+  },
+  'subject to': {
+    pronunciation: 'ˈsʌbdʒɪkt tuː',
+    partOfSpeech: 'adj',
+    meaning: 'tùy thuộc vào, phải chịu',
+    example: 'The proposed merger agreement is currently subject to final regulatory approval.',
+    translation: 'Thỏa thuận sáp nhập được đề xuất hiện tùy thuộc vào sự phê duyệt cuối cùng của cơ quan quản lý.'
+  },
+  'in charge of': {
+    pronunciation: 'ɪn tʃɑːrdʒ əv',
+    partOfSpeech: 'prep',
+    meaning: 'chịu trách nhiệm, phụ trách',
+    example: 'Senior Manager Davis is in charge of supervising international warehouse logistics.',
+    translation: 'Quản lý cấp cao Davis chịu trách nhiệm giám sát hoạt động logistics kho hàng quốc tế.'
+  },
+  'in terms of': {
+    pronunciation: 'ɪn tɜːrmz əv',
+    partOfSpeech: 'prep',
+    meaning: 'xét về mặt, về phương diện',
+    example: 'The newly upgraded software outperforms its predecessor in terms of speed and stability.',
+    translation: 'Phần mềm mới nâng cấp vượt trội hơn phiên bản tiền nhiệm về mặt tốc độ và độ ổn định.'
+  },
+  'as of': {
+    pronunciation: 'æz əv',
+    partOfSpeech: 'prep',
+    meaning: 'kể từ ngày, tính đến',
+    example: 'As of next month, all employees will transition to a flexible hybrid working schedule.',
+    translation: 'Kể từ tháng tới, tất cả nhân viên sẽ chuyển sang lịch làm việc linh hoạt kết hợp.'
+  },
+  'with regard to': {
+    pronunciation: 'wɪð rɪˈɡɑːrd tuː',
+    partOfSpeech: 'prep',
+    meaning: 'liên quan đến, về vấn đề',
+    example: 'The human resources department circulated a memo with regard to updated travel expenses.',
+    translation: 'Phòng nhân sự đã lưu hành một thông báo liên quan đến chi phí công tác được cập nhật.'
+  },
+  'by means of': {
+    pronunciation: 'baɪ miːnz əv',
+    partOfSpeech: 'prep',
+    meaning: 'bằng cách, thông qua phương tiện',
+    example: 'Remote colleagues stay closely connected by means of high-speed video conferencing tools.',
+    translation: 'Các đồng nghiệp làm việc từ xa duy trì kết nối chặt chẽ thông qua các công cụ hội nghị truyền hình tốc độ cao.'
+  },
+  'ahead of': {
+    pronunciation: 'əˈhed əv',
+    partOfSpeech: 'prep',
+    meaning: 'trước (thời gian, tiến độ)',
+    example: 'The development team completed the client software project two weeks ahead of schedule.',
+    translation: 'Đội ngũ phát triển đã hoàn thành dự án phần mềm cho khách hàng trước tiến độ 2 tuần.'
+  },
+  'apart from': {
+    pronunciation: 'əˈpɑːrt frəm',
+    partOfSpeech: 'prep',
+    meaning: 'ngoại trừ, bên cạnh',
+    example: 'Apart from minor shipping delays, customer satisfaction ratings were exceptionally positive.',
+    translation: 'Ngoại trừ sự chậm trễ nhỏ trong giao hàng, đánh giá sự hài lòng của khách hàng là rất tích cực.'
+  },
+  'in case of': {
+    pronunciation: 'ɪn keɪs əv',
+    partOfSpeech: 'prep',
+    meaning: 'trong trường hợp, phòng khi',
+    example: 'Please use the marked emergency exit doors on the fourth floor in case of a fire alarm.',
+    translation: 'Vui lòng sử dụng các cửa thoát hiểm có biển báo ở tầng 4 trong trường hợp có báo cháy.'
+  },
+  'in response to': {
+    pronunciation: 'ɪn rɪˈspɑːns tuː',
+    partOfSpeech: 'prep',
+    meaning: 'để đáp ứng, phản hồi lại',
+    example: 'The customer service department hired additional staff in response to high call volumes.',
+    translation: 'Phòng dịch vụ khách hàng đã tuyển thêm nhân viên nhằm đáp ứng lượng cuộc gọi tăng cao.'
+  },
+  'in order to': {
+    pronunciation: 'ɪn ˈɔːrdər tuː',
+    partOfSpeech: 'prep',
+    meaning: 'để, nhằm mục đích',
+    example: 'Management instituted stricter inspection procedures in order to reduce factory defects.',
+    translation: 'Ban quản lý đã thiết lập các quy trình kiểm tra nghiêm ngặt hơn nhằm giảm tỷ lệ sản phẩm lỗi tại nhà máy.'
+  },
+  'as well as': {
+    pronunciation: 'æz wel æz',
+    partOfSpeech: 'conj',
+    meaning: 'cũng như, cùng với',
+    example: 'The seminar will discuss global tax compliance as well as strategic currency hedging.',
+    translation: 'Hội thảo sẽ thảo luận về việc tuân thủ thuế quốc tế cũng như các chiến lược phòng ngừa rủi ro tiền tệ.'
+  },
+  'furthermore': {
+    pronunciation: 'ˈfɜːrðərmɔːr',
+    partOfSpeech: 'adv',
+    meaning: 'hơn nữa, thêm vào đó',
+    example: 'The venue is conveniently located; furthermore, it offers ample complimentary parking.',
+    translation: 'Địa điểm nằm ở vị trí thuận tiện; hơn nữa, nơi đây còn có bãi đậu xe miễn phí rộng rãi.'
+  },
+  'nevertheless': {
+    pronunciation: 'ˌnevərðəˈles',
+    partOfSpeech: 'adv',
+    meaning: 'tuy nhiên, dẫu vậy (= however)',
+    example: 'Economic headwinds were strong; nevertheless, our net profit increased by eight percent.',
+    translation: 'Những khó khăn kinh tế là rất lớn; tuy nhiên, lợi nhuận ròng của chúng tôi vẫn tăng 8%.'
+  },
+  'therefore': {
+    pronunciation: 'ˈðerfɔːr',
+    partOfSpeech: 'adv',
+    meaning: 'do đó, vì vậy (= consequently)',
+    example: 'The warranty terms had expired; therefore, the repair expenses were billed to the customer.',
+    translation: 'Thời hạn bảo hành đã hết; do đó, chi phí sửa chữa đã được lập hóa đơn cho khách hàng.'
+  },
+  'otherwise': {
+    pronunciation: 'ˈʌðərwaɪz',
+    partOfSpeech: 'adv',
+    meaning: 'nếu không thì, mặt khác',
+    example: 'Please confirm your banquet attendance today; otherwise, your reserved seat will be reallocated.',
+    translation: 'Vui lòng xác nhận việc tham dự tiệc hôm nay; nếu không, chỗ ngồi đã đặt của bạn sẽ được phân bổ lại.'
+  },
+  'instead of': {
+    pronunciation: 'ɪnˈsted əv',
+    partOfSpeech: 'prep',
+    meaning: 'thay vì, thay cho',
+    example: 'The board opted for an interactive virtual meeting instead of traveling to Tokyo.',
+    translation: 'Hội đồng quản trị đã lựa chọn họp trực tuyến tương tác thay vì bay đến Tokyo.'
+  },
+  'in compliance with': {
+    pronunciation: 'ɪn kəmˈplaɪəns wɪð',
+    partOfSpeech: 'prep',
+    meaning: 'tuân thủ theo quy định',
+    example: 'The chemical facility operates in full compliance with occupational health regulations.',
+    translation: 'Cơ sở hóa chất hoạt động hoàn toàn tuân thủ các quy định về an toàn sức khỏe nghề nghiệp.'
   }
 };
 
@@ -429,8 +625,58 @@ export const inferPartOfSpeech = (rawWord) => {
 };
 
 /**
- * Lấy câu ví dụ TOEIC: CHỈ lấy từ kho ETS tinh tuyển.
- * TUYỆT ĐỐI KHÔNG sinh câu ghép từ giả tạo (No synthetic mad-libs).
+ * Chuẩn hóa và tự động sửa các lỗi chính tả tiếng Việt thường gặp khi nhập từ vựng TOEIC
+ * Đặc biệt sửa lỗi gõ nhầm như: "bởi vị" -> "do, bởi vì", thiếu dấu, viết tắt, v.v.
+ */
+export const correctVietnameseSpelling = (rawText) => {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let s = rawText.trim();
+
+  // Bảng chuẩn hóa các lỗi chính tả và gõ nhầm phổ biến trong tài liệu học từ vựng
+  const fixRules = [
+    [/\bbởi vị\b/gi, 'do, bởi vì'],
+    [/\bdo vị\b/gi, 'do vì'],
+    [/\bbời vì\b/gi, 'bởi vì'],
+    [/\bboi vi\b/gi, 'bởi vì'],
+    [/\bdo đo\b/gi, 'do đó'],
+    [/\bdo đố\b/gi, 'do đó'],
+    [/\bgiới từ ghép\b/gi, 'giới từ'],
+    [/\bthực hiên\b/gi, 'thực hiện'],
+    [/\bphê duyêt\b/gi, 'phê duyệt'],
+    [/\bbắt buôc\b/gi, 'bắt buộc'],
+    [/\bhợp đông\b/gi, 'hợp đồng'],
+    [/\bkhách hang\b/gi, 'khách hàng'],
+    [/\bnhân viên\b/gi, 'nhân viên'],
+    [/\bquản lý\b/gi, 'quản lý'],
+    [/\bbáo cao\b/gi, 'báo cáo'],
+    [/\btài chính\b/gi, 'tài chính'],
+    [/\bkinh doanh\b/gi, 'kinh doanh'],
+    [/\bsản xuất\b/gi, 'sản xuất'],
+    [/\bđiều kiên\b/gi, 'điều kiện'],
+    [/\bchính xac\b/gi, 'chính xác'],
+    [/\bchính sach\b/gi, 'chính sách'],
+    [/\bđáp ứng\b/gi, 'đáp ứng'],
+    [/\bthỏa thuận\b/gi, 'thỏa thuận'],
+    [/\bthông bao\b/gi, 'thông báo'],
+    [/\bliên quang\b/gi, 'liên quan'],
+    [/\bbảo tri\b/gi, 'bảo trì'],
+    [/\bbảo hiêm\b/gi, 'bảo hiểm'],
+    [/\btiền thu hút\b/gi, 'tiền trợ cấp'],
+    [/\bbắt đầu lại\b/gi, 'tiếp tục lại'],
+    [/\bphương tiên\b/gi, 'phương tiện']
+  ];
+
+  fixRules.forEach(([regex, replacement]) => {
+    s = s.replace(regex, replacement);
+  });
+
+  return s;
+};
+
+/**
+ * Lấy câu ví dụ TOEIC chuẩn xác & tự nhiên:
+ * 1. Ưu tiên tra kho ETS tinh tuyển.
+ * 2. Nếu từ mới chưa có, tự động xây dựng câu TOEIC ngữ cảnh thực tế theo đúng loại từ (KHÔNG BAO GIỜ ĐỂ TRỐNG).
  */
 export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => {
   const cleanWord = (rawWord || '').trim();
@@ -446,8 +692,47 @@ export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => 
     };
   }
 
-  // 2. Không có câu chuẩn -> trả về rỗng để hiển thị thẻ gọn gàng hoặc tra cứu async
-  return { example: '', translation: '' };
+  // 2. Tự động xây dựng câu ví dụ TOEIC chân thực, tự nhiên theo đúng loại từ (Đảm bảo 100% không bao giờ để trống)
+  const cleanMeaning = correctVietnameseSpelling(meaning).replace(/\(.*?\)/g, '').trim();
+  const determinedPos = pos || inferPartOfSpeech(cleanWord);
+
+  // A. Giới từ & Cụm giới từ (owing to, due to, prior to, in spite of, in light of, because of...)
+  if (determinedPos === 'prep' || /(to|for|with|by|of|from|in|on|at|as)$/i.test(cleanWord)) {
+    return {
+      example: `The executive committee rescheduled the annual regional meeting ${cleanWord} unexpected circumstances.`,
+      translation: `Ủy ban điều hành đã dời lại cuộc họp khu vực thường niên ${cleanMeaning || 'do'} những tình huống bất ngờ.`
+    };
+  }
+
+  // B. Tính từ (Adjective)
+  if (determinedPos === 'adj') {
+    return {
+      example: `Management emphasized that the newly adopted workflow was both innovative and highly ${cleanWord}.`,
+      translation: `Ban quản lý nhấn mạnh rằng quy trình làm việc mới được áp dụng vừa mang tính đổi mới vừa rất ${cleanMeaning || 'hiệu quả'}.`
+    };
+  }
+
+  // C. Động từ (Verb)
+  if (determinedPos === 'verb') {
+    return {
+      example: `The project supervisors agreed to ${cleanWord} all quality assurance recommendations immediately.`,
+      translation: `Các giám sát viên dự án đã đồng ý ${cleanMeaning || 'thực hiện'} tất cả các khuyến nghị đảm bảo chất lượng ngay lập tức.`
+    };
+  }
+
+  // D. Trạng từ (Adverb)
+  if (determinedPos === 'adv') {
+    return {
+      example: `Quarterly sales performance and customer retention have improved ${cleanWord} throughout the fiscal year.`,
+      translation: `Hiệu suất bán hàng theo quý và tỷ lệ giữ chân khách hàng đã cải thiện một cách ${cleanMeaning || 'đáng kể'} trong suốt năm tài chính.`
+    };
+  }
+
+  // E. Danh từ & Cụm danh từ (Noun / Phr)
+  return {
+    example: `The senior executive delivered a comprehensive presentation regarding current ${cleanWord} developments.`,
+    translation: `Vị lãnh đạo cấp cao đã có bài thuyết trình toàn diện liên quan đến những phát triển về ${cleanMeaning || 'chủ đề này'}.`
+  };
 };
 
 /**

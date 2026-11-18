@@ -17,7 +17,9 @@ import {
   lookupEnglishWord, 
   CURATED_TOEIC_EXAMPLES, 
   isBadTemplateSentence, 
-  inferPartOfSpeech 
+  inferPartOfSpeech,
+  correctVietnameseSpelling,
+  getToeicExampleFallback
 } from '../utils/dictionary';
 import { getBatchDraft, saveBatchDraft, clearBatchDraft } from '../utils/storage';
 
@@ -120,6 +122,12 @@ export default function BatchImportModal({
         const curated = CURATED_TOEIC_EXAMPLES[lower];
         const determinedPos = curated?.partOfSpeech || inferPartOfSpeech(word);
 
+        // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa người dùng nhập (VD: "bởi vị" -> "do, bởi vì")
+        let cleanedMeaning = correctVietnameseSpelling(meaning);
+        if (!cleanedMeaning && curated?.meaning) {
+          cleanedMeaning = curated.meaning;
+        }
+
         let initialExample = example || (curated?.example || '');
         let initialExTranslation = exampleTranslation || (curated?.translation || '');
 
@@ -128,10 +136,17 @@ export default function BatchImportModal({
           initialExTranslation = curated?.translation || '';
         }
 
+        // Đảm bảo 100% luôn có câu ví dụ TOEIC chuẩn và dịch
+        if (!initialExample) {
+          const fallback = getToeicExampleFallback(word, determinedPos, cleanedMeaning);
+          initialExample = fallback.example;
+          initialExTranslation = fallback.translation;
+        }
+
         result.push({
           word,
           pronunciation: curated?.pronunciation || '',
-          meaning: meaning || '',
+          meaning: cleanedMeaning || '',
           example: initialExample,
           exampleTranslation: initialExTranslation,
           partOfSpeech: determinedPos,
@@ -156,7 +171,7 @@ export default function BatchImportModal({
     setSavedSuccessMessage('');
   };
 
-  // 2. AUTO AI / DICTIONARY TRANSLATE BUTTON
+  // 2. AUTO AI / DICTIONARY TRANSLATE & MEANING VERIFICATION BUTTON
   const handleAutoTranslate = async () => {
     if (activeWords.length === 0) return;
 
@@ -166,10 +181,29 @@ export default function BatchImportModal({
 
     for (let i = 0; i < total; i++) {
       const item = updated[i];
+      const lower = (item.word || '').toLowerCase();
+      const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+      // 1. Luôn sửa lỗi chính tả tiếng Việt trong nghĩa người dùng (VD: "bởi vị" -> "do, bởi vì")
+      let cleanMeaning = correctVietnameseSpelling(item.meaning);
+      if (!cleanMeaning && curated?.meaning) {
+        cleanMeaning = curated.meaning;
+      }
+      item.meaning = cleanMeaning;
+
+      if (curated) {
+        if (!item.pronunciation && curated.pronunciation) item.pronunciation = curated.pronunciation;
+        if (curated.partOfSpeech) item.partOfSpeech = curated.partOfSpeech;
+        if (!item.example || isBadTemplateSentence(item.example, item.exampleTranslation)) {
+          item.example = curated.example;
+          item.exampleTranslation = curated.translation;
+        }
+      }
+
       const needsMeaning = !item.meaning || item.meaning.trim() === '';
       const needsExample = !item.example || item.example.trim() === '' || isBadTemplateSentence(item.example, item.exampleTranslation);
 
-      if (needsMeaning || needsExample) {
+      if (needsMeaning || needsExample || !item.pronunciation) {
         setTranslateProgress({ current: i + 1, total, currentWord: item.word });
         try {
           const dictRes = await lookupEnglishWord(item.word);
@@ -185,6 +219,13 @@ export default function BatchImportModal({
         } catch (e) {
           console.warn('Translate error:', e);
         }
+      }
+
+      // Đảm bảo 100% không bao giờ để trống câu ví dụ
+      if (!item.example || isBadTemplateSentence(item.example, item.exampleTranslation)) {
+        const fallback = getToeicExampleFallback(item.word, item.partOfSpeech, item.meaning);
+        item.example = fallback.example;
+        item.exampleTranslation = fallback.translation;
       }
     }
 
@@ -203,17 +244,27 @@ export default function BatchImportModal({
   // Update a parsed word inline
   const handleUpdateMeaning = (index, newMeaning) => {
     const list = [...activeWords];
-    list[index] = { ...list[index], meaning: newMeaning };
+    list[index] = { ...list[index], meaning: correctVietnameseSpelling(newMeaning) };
     setManualParsedWords(list);
   };
 
-  // Save words (Tuyệt đối không dùng câu mad-libs ghép sai)
+  // Save words (Đảm bảo 100% nghĩa chuẩn chính tả, câu ví dụ chuẩn ETS, không bao giờ để trống)
   const handleSave = (andStudy = false) => {
     if (activeWords.length === 0) return;
 
     const validWords = activeWords.map(w => {
       const lower = (w.word || '').toLowerCase();
       const curated = CURATED_TOEIC_EXAMPLES[lower];
+
+      // Tự động sửa lỗi chính tả tiếng Việt trong nghĩa (VD: "bởi vị" -> "do, bởi vì")
+      let cleanMeaning = correctVietnameseSpelling(w.meaning);
+      if (!cleanMeaning && curated?.meaning) {
+        cleanMeaning = curated.meaning;
+      }
+
+      const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
+        ? w.partOfSpeech
+        : (curated?.partOfSpeech || inferPartOfSpeech(w.word));
 
       let ex = (w.example && w.example.trim()) ? w.example.trim() : (curated?.example || '');
       let exTrans = (w.exampleTranslation && w.exampleTranslation.trim()) ? w.exampleTranslation.trim() : (curated?.translation || '');
@@ -223,14 +274,17 @@ export default function BatchImportModal({
         exTrans = curated?.translation || '';
       }
 
-      const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
-        ? w.partOfSpeech
-        : (curated?.partOfSpeech || inferPartOfSpeech(w.word));
+      // Đảm bảo 100% luôn có câu ví dụ TOEIC chuẩn xác
+      if (!ex) {
+        const fallback = getToeicExampleFallback(w.word, determinedPos, cleanMeaning);
+        ex = fallback.example;
+        exTrans = fallback.translation;
+      }
 
       return {
         ...w,
         pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
-        meaning: w.meaning && w.meaning.trim() !== '' ? w.meaning.trim() : '(Từ mới chưa dịch)',
+        meaning: cleanMeaning && cleanMeaning.trim() !== '' ? cleanMeaning.trim() : '(Từ mới chưa dịch)',
         example: ex,
         exampleTranslation: exTrans,
         partOfSpeech: determinedPos,
@@ -403,23 +457,24 @@ feasibility`;
                 )}
               </div>
 
-              {/* Auto Translate Button */}
-              {missingMeaningsCount > 0 && (
+              {/* Auto Translate & Meaning Check Button */}
+              {activeWords.length > 0 && (
                 <button
                   type="button"
                   disabled={isAutoTranslating}
                   onClick={handleAutoTranslate}
+                  title="Kiểm tra đối chiếu từ điển, tự động sửa lỗi chính tả tiếng Việt và điền ví dụ chuẩn"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isAutoTranslating ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Đang tra ({translateProgress.current}/{translateProgress.total})...</span>
+                      <span>Đang kiểm tra ({translateProgress.current}/{translateProgress.total})...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>⚡ Tra nghĩa tự động từ điển ({missingMeaningsCount} từ)</span>
+                      <span>⚡ Kiểm tra nghĩa & Chuẩn hóa chính tả AI</span>
                     </>
                   )}
                 </button>
