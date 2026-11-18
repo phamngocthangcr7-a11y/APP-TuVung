@@ -359,10 +359,10 @@ export const MASTER_PRESET_WORDS = [
     "id": "usr_master_014_99344",
     "word": "Those",
     "pronunciation": "/ðoʊz/",
-    "meaning": "những người mà (dùng cho động từ số ít)",
+    "meaning": "những người mà (luôn đi kèm who + động từ số nhiều)",
     "partOfSpeech": "pron",
     "example": "Those who wish to apply for a parking permit must submit this form.",
-    "exampleTranslation": "Những người mà muốn đăng ký giấy phép đỗ xe phải nộp mẫu đơn này.",
+    "exampleTranslation": "Những người muốn đăng ký giấy phép đỗ xe phải nộp mẫu đơn này.",
     "note": "",
     "tags": [
       "Nạp hàng ngày",

@@ -108,10 +108,13 @@ export const mergeWordLists = (existingList = [], incomingList = []) => {
         betterTranslation = prev.exampleTranslation || w.exampleTranslation || '';
       }
 
-      const prevMeaning = (prev.meaning || '').trim();
-      const newMeaning = (w.meaning || '').trim();
+      const prevMeaning = correctVietnameseSpelling((prev.meaning || '').trim());
+      const newMeaning = correctVietnameseSpelling((w.meaning || '').trim());
       const curatedMeaning = curated?.meaning || '';
-      const betterMeaning = curatedMeaning || (newMeaning.length > prevMeaning.length ? newMeaning : prevMeaning);
+      let betterMeaning = curatedMeaning || (newMeaning.length > prevMeaning.length ? newMeaning : prevMeaning);
+      if (curatedMeaning && (betterMeaning.includes('số ít') || betterMeaning.includes('bởi vị') || betterMeaning.includes('chưa dịch'))) {
+        betterMeaning = curatedMeaning;
+      }
 
       const betterPron = curated?.pronunciation 
         || ((w.pronunciation && String(w.pronunciation).trim() !== '') ? w.pronunciation : (prev.pronunciation || ''));
@@ -408,7 +411,14 @@ export const getCustomWords = () => {
       const item = { ...w };
       const lower = (item.word || '').trim().toLowerCase();
 
-      // 1. LUÔN ƯU TIÊN SỐ 1: ĐỒNG BỘ NGUYÊN BẢN TỪ KHO VÍ DỤ ETS CHUẨN (Gold Standard)
+      // 1. Tự động kiểm tra và chuẩn hóa lỗi chính tả tiếng Việt cho mọi từ
+      const cleanedMeaning = correctVietnameseSpelling(item.meaning);
+      if (cleanedMeaning && cleanedMeaning !== item.meaning) {
+        item.meaning = cleanedMeaning;
+        modified = true;
+      }
+
+      // 2. LUÔN ƯU TIÊN SỐ 1: ĐỒNG BỘ NGUYÊN BẢN TỪ KHO VÍ DỤ ETS CHUẨN (Gold Standard)
       // Tẩy sạch vĩnh viễn mọi câu mẫu rập khuôn ghép từ bậy bạ đã lưu trong localStorage
       if (CURATED_TOEIC_EXAMPLES[lower]?.example) {
         if (item.example !== CURATED_TOEIC_EXAMPLES[lower].example) {
@@ -424,7 +434,13 @@ export const getCustomWords = () => {
           item.partOfSpeech = CURATED_TOEIC_EXAMPLES[lower].partOfSpeech;
           modified = true;
         }
-        if (CURATED_TOEIC_EXAMPLES[lower].meaning && (!item.meaning || item.meaning.includes('chưa dịch'))) {
+        if (CURATED_TOEIC_EXAMPLES[lower].meaning && (
+          !item.meaning || 
+          item.meaning.includes('chưa dịch') || 
+          item.meaning.includes('số ít') || 
+          item.meaning.includes('bởi vị') ||
+          item.meaning.includes('(v1)')
+        )) {
           item.meaning = CURATED_TOEIC_EXAMPLES[lower].meaning;
           modified = true;
         }
@@ -433,13 +449,6 @@ export const getCustomWords = () => {
         if (isBadTemplateSentence(item.example, item.exampleTranslation)) {
           item.example = '';
           item.exampleTranslation = '';
-          modified = true;
-        }
-
-        // Tự động kiểm tra và sửa lỗi chính tả tiếng Việt trong nghĩa (VD: "bởi vị" -> "do, bởi vì")
-        const cleanedMeaning = correctVietnameseSpelling(item.meaning);
-        if (cleanedMeaning && cleanedMeaning !== item.meaning) {
-          item.meaning = cleanedMeaning;
           modified = true;
         }
 

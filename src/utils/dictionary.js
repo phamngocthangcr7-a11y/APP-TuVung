@@ -1915,11 +1915,11 @@ export const CURATED_TOEIC_EXAMPLES = {
     example: 'Our new luxury resort offers breathtaking panoramic views overlooking the ocean.',
     translation: 'Khu nghỉ dưỡng sang trọng mới của chúng tôi có tầm nhìn toàn cảnh tuyệt đẹp hướng ra đại dương.'  },
   'those': {
-    meaning: 'những người mà (dùng cho động từ số ít)',
+    meaning: 'những người mà (luôn đi kèm who + động từ số nhiều)',
     pronunciation: '/ðoʊz/',
     partOfSpeech: 'pron',
     example: 'Those who wish to apply for a parking permit must submit this form.',
-    translation: 'Những người mà muốn đăng ký giấy phép đỗ xe phải nộp mẫu đơn này.'  },
+    translation: 'Những người muốn đăng ký giấy phép đỗ xe phải nộp mẫu đơn này.'  },
   'though': {
     meaning: 'mặc dù, dẫu cho',
     pronunciation: '/ðoʊ/',
@@ -2095,7 +2095,15 @@ export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
     'subcontractor submitted all requisite project milestones',
     'executive board authorized the acquisition of the regional',
     'acted promptly to restore network connectivity',
-    'to design more targeted advertising campaigns'
+    'to design more targeted advertising campaigns',
+    'Detailed guidelines and practical advice concerning',
+    'The team supervisor politely said',
+    'vital for continued success',
+    'keeping our workflow',
+    'all required documents thoroughly before attending the conference',
+    'responded to address the client\'s urgent inquiry',
+    'throughout the operational review',
+    'operational review'
   ];
 
   const badViSnippets = [
@@ -2120,7 +2128,12 @@ export const isBadTemplateSentence = (exampleStr, translationStr = '') => {
     'do các chuyên viên hỗ trợ của chúng tôi mang lại',
     'yếu tố quyết định tạo nên thành công của chiến dịch thương hiệu',
     'để bảo vệ tài sản sở hữu trí tuệ của công ty',
-    'bằng cách sử dụng tai nghe dịch AI thời gian thực'
+    'bằng cách sử dụng tai nghe dịch AI thời gian thực',
+    'Các hướng dẫn chi tiết và lời khuyên thiết thực liên quan đến',
+    'Người giám sát lịch sự nói:',
+    'rất cần thiết cho thành công lâu dài',
+    'để giải quyết thắc mắc khẩn cấp của khách hàng',
+    'trong suốt đợt đánh giá vận hành'
   ];
 
   return badEnSnippets.some(p => ex.includes(p)) || badViSnippets.some(p => tr.includes(p));
@@ -2166,7 +2179,7 @@ export const inferPartOfSpeech = (rawWord) => {
 
 /**
  * Chuẩn hóa và tự động sửa các lỗi chính tả tiếng Việt thường gặp khi nhập từ vựng TOEIC
- * Đặc biệt sửa lỗi gõ nhầm như: "bởi vị" -> "do, bởi vì", thiếu dấu, viết tắt, v.v.
+ * Đặc biệt sửa lỗi gõ nhầm như: "bởi vị" -> "do, bởi vì", sửa sai ngữ pháp "dùng cho động từ số ít", v.v.
  */
 export const correctVietnameseSpelling = (rawText) => {
   if (!rawText || typeof rawText !== 'string') return '';
@@ -2181,6 +2194,9 @@ export const correctVietnameseSpelling = (rawText) => {
     [/\bdo đo\b/gi, 'do đó'],
     [/\bdo đố\b/gi, 'do đó'],
     [/\bgiới từ ghép\b/gi, 'giới từ'],
+    [/\bnhững người mà\s*\(dùng cho động từ số ít\)/gi, 'những người mà (luôn đi kèm who + động từ số nhiều)'],
+    [/\bdùng cho động từ số ít\b/gi, 'luôn đi kèm who + động từ số nhiều'],
+    [/\(v1\)/gi, ''],
     [/\bthực hiên\b/gi, 'thực hiện'],
     [/\bphê duyêt\b/gi, 'phê duyệt'],
     [/\bbắt buôc\b/gi, 'bắt buộc'],
@@ -2214,10 +2230,10 @@ export const correctVietnameseSpelling = (rawText) => {
 };
 
 /**
- * Lấy câu ví dụ TOEIC chuẩn xác, tự nhiên & ĐA DẠNG NGỮ CẢNH:
- * 1. Ưu tiên tra kho ETS tinh tuyển.
- * 2. Nếu từ mới chưa có trong kho, tự động sinh câu TOEIC chân thực dựa trên loại từ và mã băm (hash) của từ,
- *    tuyệt đối không bao giờ rập khuôn một câu giống nhau ("câu nào như câu nấy").
+ * Lấy câu ví dụ TOEIC chuẩn xác, tự nhiên:
+ * 1. Ưu tiên tra kho ETS tinh tuyển (Gold Standard).
+ * 2. Tuyệt đối KHÔNG BAO GIỜ sinh câu mẫu ghép rập khuôn kiểu Mad-libs.
+ *    Nếu chưa có trong kho chuẩn, trả về rỗng để hiển thị thẻ sạch và tra cứu câu ngữ cảnh chân thực từ API.
  */
 export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => {
   const cleanWord = (rawWord || '').trim();
@@ -2233,43 +2249,8 @@ export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => 
     };
   }
 
-  const cleanMeaning = correctVietnameseSpelling(meaning).replace(/\(.*?\)/g, '').trim();
-  const determinedPos = pos || inferPartOfSpeech(cleanWord);
-
-  // Câu an toàn, chuẩn ngữ pháp tiếng Anh và đúng logic kinh doanh TOEIC (Tuyệt đối không ghép câu rập khuôn)
-  if (determinedPos === 'verb') {
-    return {
-      example: `Please ${cleanWord} all required documents thoroughly before attending the conference.`,
-      translation: `Vui lòng ${cleanMeaning || 'hoàn thành'} tất cả các tài liệu theo yêu cầu một cách cẩn thận trước khi tham dự hội nghị.`
-    };
-  }
-
-  if (determinedPos === 'adj') {
-    return {
-      example: `Management emphasized that keeping our workflow ${cleanWord} is vital for continued success.`,
-      translation: `Ban quản lý nhấn mạnh rằng việc duy trì quy trình làm việc ${cleanMeaning || 'hiệu quả'} là rất cần thiết cho thành công lâu dài.`
-    };
-  }
-
-  if (determinedPos === 'adv') {
-    return {
-      example: `The customer service staff responded ${cleanWord} to address the client's urgent inquiry.`,
-      translation: `Đội ngũ nhân viên chăm sóc khách hàng đã phản hồi ${cleanMeaning || 'kịp thời'} để giải quyết thắc mắc khẩn cấp của khách hàng.`
-    };
-  }
-
-  if (determinedPos === 'phr' || cleanWord.includes(' ')) {
-    return {
-      example: `The team supervisor politely said: "${cleanWord}, and we will proceed with the schedule."`,
-      translation: `Người giám sát lịch sự nói: "${cleanWord} (${cleanMeaning || 'hãy chú ý'}), và chúng ta sẽ tiếp tục theo lịch trình."`
-    };
-  }
-
-  // Danh từ mặc định
-  return {
-    example: `Detailed guidelines and practical advice concerning ${cleanWord} are provided in the company handbook.`,
-    translation: `Các hướng dẫn chi tiết và lời khuyên thiết thực liên quan đến ${cleanMeaning || cleanWord} được cung cấp trong sổ tay công ty.`
-  };
+  // 2. Tuyệt đối không sinh câu mẫu ghép từ rập khuôn
+  return { example: '', translation: '' };
 };
 
 /**

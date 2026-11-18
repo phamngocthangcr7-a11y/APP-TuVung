@@ -452,23 +452,23 @@ export default function DailyJournal({
 
                           {/* Vietnamese Meaning */}
                           <div className="text-xs sm:text-sm font-bold text-[#1E3A5F] bg-[#F1F5F9] p-2 rounded-xl">
-                            {word.meaning}
+                            {(() => {
+                              const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
+                              if (curated?.meaning && (word.meaning?.includes('số ít') || word.meaning?.includes('bởi vị') || word.meaning?.includes('chưa dịch'))) {
+                                return curated.meaning;
+                              }
+                              return word.meaning;
+                            })()}
                           </div>
 
                           {/* Example */}
                           {(() => {
-                            let ex = (word.example || '').trim();
-                            let trans = (word.exampleTranslation || '').trim();
-                            if (isBadTemplateSentence(ex, trans)) {
+                            const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
+                            let ex = curated?.example || (word.example || '').trim();
+                            let trans = curated?.translation || (word.exampleTranslation || '').trim();
+                            if (!curated && isBadTemplateSentence(ex, trans)) {
                               ex = '';
                               trans = '';
-                            }
-                            if (!ex) {
-                              const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
-                              if (curated) {
-                                ex = curated.example;
-                                trans = curated.translation;
-                              }
                             }
                             if (!ex) return null;
                             return (

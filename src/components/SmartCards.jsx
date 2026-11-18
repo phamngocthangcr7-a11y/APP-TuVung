@@ -146,7 +146,7 @@ export default function SmartCards({
       return cleanAll.filter(w => String(w.id).startsWith('builtin_5') || String(w.id).startsWith('builtin_6'));
     }
     if (deckId === 'deck_custom') {
-      return cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
+      return cleanAll.filter(w => w.isCustom || String(w.id || '').startsWith('usr_'));
     }
     return cleanAll;
   }, [allWords]);
@@ -154,7 +154,7 @@ export default function SmartCards({
   // Unified List of All Decks (Including "Bộ Của Tôi" prominently as Card #1)
   const displayDecks = useMemo(() => {
     const cleanAll = sanitizeWords(allWords);
-    const customList = cleanAll.filter(w => String(w.id || '').startsWith('usr_'));
+    const customList = cleanAll.filter(w => w.isCustom || String(w.id || '').startsWith('usr_'));
 
     const myDeck = {
       id: 'deck_custom',
@@ -501,20 +501,43 @@ export default function SmartCards({
     }).catch(() => {});
   }, [currentWord]);
 
-  // Phiên âm cách đọc hiệu quả (ưu tiên phiên âm từ vựng -> kho chuẩn -> tra cứu API)
+  // Phiên âm cách đọc hiệu quả (Ưu tiên số 1 cho kho ETS chuẩn -> phiên âm từ vựng -> tra cứu API)
   const effectivePronunciation = useMemo(() => {
     if (!currentWord || !currentWord.word) return '';
-    const raw = (currentWord.pronunciation || '').trim();
-    if (raw) return raw;
-    const lower = currentWord.word.toLowerCase();
+    const lower = currentWord.word.trim().toLowerCase();
     const curated = CURATED_TOEIC_EXAMPLES[lower]?.pronunciation;
     if (curated) return curated;
+    const raw = (currentWord.pronunciation || '').trim();
+    if (raw) return raw;
     return livePronunciation;
   }, [currentWord, livePronunciation]);
 
-  // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa từ vựng
+  // Loại từ chính xác (Ưu tiên số 1 cho kho ETS chuẩn -> phán đoán hình thái học Morphology)
+  const effectivePos = useMemo(() => {
+    if (!currentWord) return 'phr';
+    const lower = (currentWord.word || '').trim().toLowerCase();
+    if (CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech) {
+      return CURATED_TOEIC_EXAMPLES[lower].partOfSpeech;
+    }
+    if (currentWord.partOfSpeech && currentWord.partOfSpeech !== 'noun') {
+      return currentWord.partOfSpeech;
+    }
+    return inferPartOfSpeech(currentWord.word);
+  }, [currentWord]);
+
+  // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa từ vựng (Khắc phục lỗi "bởi vị", sai logic ngữ pháp "số ít"...)
   const displayMeaning = useMemo(() => {
     if (!currentWord || !currentWord.meaning) return '';
+    const lower = (currentWord.word || '').trim().toLowerCase();
+    const curatedMeaning = CURATED_TOEIC_EXAMPLES[lower]?.meaning;
+    if (curatedMeaning && (
+      currentWord.meaning.includes('số ít') || 
+      currentWord.meaning.includes('chưa dịch') || 
+      currentWord.meaning.includes('bởi vị') ||
+      currentWord.meaning.includes('(v1)')
+    )) {
+      return curatedMeaning;
+    }
     const cleaned = correctVietnameseSpelling(currentWord.meaning);
     return cleaned || currentWord.meaning;
   }, [currentWord]);
@@ -550,33 +573,34 @@ export default function SmartCards({
       };
     }
 
-    // 3. Tự động xây dựng câu ví dụ tự nhiên (Không dùng mẫu rập khuôn)
-    return getToeicExampleFallback(currentWord.word, currentWord.partOfSpeech, displayMeaning);
-  }, [currentWord, displayMeaning]);
+    // 3. Tự động trả về rỗng nếu chưa có câu chuẩn (Tuyệt đối không sinh câu mẫu rập khuôn)
+    return getToeicExampleFallback(currentWord.word, effectivePos, displayMeaning);
+  }, [currentWord, effectivePos, displayMeaning]);
 
   // Tự động lưu và cập nhật ngay vào bộ nhớ nếu từ đang học chưa có ví dụ chuẩn hoặc mang câu mẫu mad-libs
   useEffect(() => {
-    if (currentWord && currentWord.id && String(currentWord.id).startsWith('usr_')) {
+    if (currentWord && currentWord.id && (String(currentWord.id).startsWith('usr_') || currentWord.isCustom)) {
       const lower = (currentWord.word || '').trim().toLowerCase();
       const curated = CURATED_TOEIC_EXAMPLES[lower];
 
       const hasCurated = !!curated?.example;
       const isOutdatedExample = hasCurated && currentWord.example !== curated.example;
       const isBadEx = isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
-      const cleanedMeaning = correctVietnameseSpelling(currentWord.meaning);
-      const isBadMean = !currentWord.meaning || currentWord.meaning.includes('chưa dịch') || cleanedMeaning !== currentWord.meaning;
+      const isBadMean = !currentWord.meaning || currentWord.meaning.includes('chưa dịch') || displayMeaning !== currentWord.meaning;
+      const isOutdatedPos = effectivePos !== currentWord.partOfSpeech;
+      const isOutdatedPron = effectivePronunciation && currentWord.pronunciation !== effectivePronunciation;
 
-      if (isOutdatedExample || isBadEx || isBadMean) {
+      if (isOutdatedExample || isBadEx || isBadMean || isOutdatedPos || isOutdatedPron) {
         updateCustomWord(currentWord.id, {
           example: effectiveExample.example,
           exampleTranslation: effectiveExample.translation,
-          ...(curated?.meaning ? { meaning: curated.meaning } : { meaning: cleanedMeaning }),
-          ...(curated?.pronunciation ? { pronunciation: curated.pronunciation } : {}),
-          ...(curated?.partOfSpeech ? { partOfSpeech: curated.partOfSpeech } : {})
+          meaning: displayMeaning,
+          pronunciation: effectivePronunciation,
+          partOfSpeech: effectivePos
         });
       }
     }
-  }, [currentWord, effectiveExample]);
+  }, [currentWord, effectiveExample, displayMeaning, effectivePos, effectivePronunciation]);
 
   // Formatted example with bold word
   const formattedExample = useMemo(() => {
@@ -1516,7 +1540,7 @@ export default function SmartCards({
               {/* Part of Speech & Phonetic Reading */}
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <span className="text-xs sm:text-sm font-bold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shadow-2xs">
-                  ({currentWord.partOfSpeech || 'phr'})
+                  ({effectivePos || 'phr'})
                 </span>
                 {effectivePronunciation && (
                   <span 
