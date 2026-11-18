@@ -19,7 +19,8 @@ import {
   Check,
   Zap,
   Bookmark,
-  Plus
+  Plus,
+  ShieldCheck
 } from 'lucide-react';
 import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
@@ -31,7 +32,7 @@ import {
   correctVietnameseSpelling,
   getToeicExampleFallback 
 } from '../utils/dictionary';
-import { updateCustomWord } from '../utils/storage';
+import { updateCustomWord, deepRecoverCustomWords } from '../utils/storage';
 
 // Sanitize and filter valid words helper (pure function at module scope)
 const sanitizeWords = (list) => {
@@ -53,7 +54,8 @@ export default function SmartCards({
   favoriteIds = [],
   onToggleFavorite,
   streakInfo = {},
-  onStartQuiz
+  onStartQuiz,
+  onDeepRecovery
 }) {
   // Navigation View Modes: 'decks' (Dashboard Image 2), 'study' (Review Mode Image 3/4), 'recall_check' (Active Typing), 'summary' (Victory)
   const [viewMode, setViewMode] = useState(() => {
@@ -115,6 +117,17 @@ export default function SmartCards({
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 1800);
+  };
+
+  const handleTriggerDeepRecovery = () => {
+    if (onDeepRecovery) {
+      const count = onDeepRecovery();
+      showToast(`🎉 Đã quét và khôi phục thành công ${count} từ vựng vào Master Vault!`);
+    } else {
+      const recovered = deepRecoverCustomWords();
+      showToast(`🎉 Đã quét và khôi phục thành công ${recovered.length} từ vựng vào Master Vault!`);
+      setTimeout(() => window.location.reload(), 1200);
+    }
   };
 
   // Helper: Filter words by deck
@@ -780,13 +793,24 @@ export default function SmartCards({
             </p>
           </div>
 
-          <button
-            onClick={onOpenAddModal}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Thêm từ vào Bộ của tôi</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTriggerDeepRecovery}
+              title="Quét phục hồi lại toàn bộ từ vựng đã nạp từ Master Vault"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Khôi phục kho từ</span>
+            </button>
+
+            <button
+              onClick={onOpenAddModal}
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Thêm từ vào Bộ của tôi</span>
+            </button>
+          </div>
         </div>
 
         {/* ALL DECKS GRID (Including "Bộ Của Tôi" as Card #1) */}
@@ -859,6 +883,35 @@ export default function SmartCards({
                       style={{ width: `${Math.max(stats.progressPercent, 4)}%` }}
                     />
                   </div>
+
+                  {deck.isCustom && (
+                    <div className="pt-2 flex items-center justify-between text-[11px] border-t border-indigo-100/60 mt-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTriggerDeepRecovery();
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline"
+                        title="Quét lại Master Vault để tìm và khôi phục toàn bộ từ vựng đã nạp"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Khôi phục từ cũ</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenBatchModal?.();
+                        }}
+                        className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 cursor-pointer hover:underline"
+                        title="Dán thêm từ vựng mới vào bộ này"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Dán thêm từ</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Big Action Button "Học ngay" */}

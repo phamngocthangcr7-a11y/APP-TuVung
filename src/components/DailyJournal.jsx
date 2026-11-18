@@ -21,7 +21,7 @@ import {
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
 import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
-import { exportAllDataAsJSON, importDataFromJSON } from '../utils/storage';
+import { exportAllDataAsJSON, importDataFromJSON, deepRecoverCustomWords } from '../utils/storage';
 
 export default function DailyJournal({
   allWords = [],
@@ -80,6 +80,14 @@ export default function DailyJournal({
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  // 1-Click Quét sâu & Phục hồi toàn bộ từ vựng từ Master Vault và mọi nguồn sao lưu
+  const handleDeepRecovery = () => {
+    const recovered = deepRecoverCustomWords();
+    alert(`🎉 Đã quét toàn bộ kho lưu trữ Master Vault và khôi phục thành công ${recovered.length} từ vựng vào Sổ tay của bạn!`);
+    if (onDataImported) onDataImported();
+    else window.location.reload();
   };
 
   // Filter words based on active view with full null-safety
@@ -182,7 +190,16 @@ export default function DailyJournal({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
             >
               <Upload className="w-3.5 h-3.5 text-amber-600" />
-              <span>Phục hồi</span>
+              <span>Phục hồi (File)</span>
+            </button>
+
+            <button
+              onClick={handleDeepRecovery}
+              title="Quét phục hồi lại toàn bộ từ vựng đã nạp từ Master Vault và các bản sao lưu"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors cursor-pointer shadow-xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Khôi phục kho từ</span>
             </button>
 
             <button

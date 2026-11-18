@@ -17,12 +17,296 @@ import {
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
   CUSTOM_WORDS_BACKUP: 'toeic_custom_words_v2_backup',
+  MASTER_VAULT: 'toeic_custom_words_master_vault', // Kho lưu trữ bất biến (Bảo vệ tuyệt đối - Chỉ gộp thêm, không bao giờ xóa mất từ)
+  BATCH_HISTORY: 'toeic_batch_import_history_v2', // Lịch sử lưu lại các đợt dán từ vựng (chống mất văn bản đã dán)
   CUSTOM_FOLDERS: 'toeic_custom_folders_v2',
   WORD_SRS_PROGRESS: 'toeic_word_srs_progress_v2',
   STREAK_INFO: 'toeic_study_streak_v2',
   FAVORITES: 'toeic_favorite_ids_v2',
   SETTINGS: 'toeic_app_settings_v2',
   BATCH_DRAFT: 'toeic_batch_import_draft'
+};
+
+/**
+ * Quản lý lịch sử các đợt dán từ vựng hàng loạt (Lưu giữ tối đa 15 đợt dán gần nhất)
+ */
+export const getBatchHistory = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+};
+
+export const saveBatchHistory = (rawText, words = []) => {
+  try {
+    if (!rawText || !rawText.trim()) return;
+    const raw = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
+    let history = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(history)) history = [];
+
+    const cleanSample = (words || []).slice(0, 6).map(w => w?.word || '').filter(Boolean);
+    const count = words.length > 0 ? words.length : rawText.split(/\r?\n/).filter(l => l.trim()).length;
+
+    const newEntry = {
+      id: 'batch_' + Date.now(),
+      timestamp: Date.now(),
+      dateStr: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      text: rawText,
+      count,
+      sampleWords: cleanSample
+    };
+
+    // Kiểm tra xem nội dung này đã được lưu gần nhất chưa để tránh trùng lặp
+    if (history.length > 0 && history[0].text.trim() === rawText.trim()) {
+      return;
+    }
+
+    history.unshift(newEntry);
+    if (history.length > 15) history = history.slice(0, 15);
+    localStorage.setItem(STORAGE_KEYS.BATCH_HISTORY, JSON.stringify(history));
+  } catch (e) {
+    console.warn('Lỗi lưu lịch sử nạp từ:', e);
+  }
+};
+
+/**
+ * Gộp hai danh sách từ vựng thông minh (Deduplication + Giữ nguyên dữ liệu tốt nhất)
+ * Tuyệt đối không bao giờ làm mất từ vựng đã có.
+ */
+export const mergeWordLists = (existingList = [], incomingList = []) => {
+  const map = new Map();
+
+  const addOrUpdate = (w) => {
+    if (!w || !w.word || typeof w !== 'object') return;
+    const cleanWord = String(w.word).trim();
+    if (!cleanWord || cleanWord === '-') return;
+    const key = cleanWord.toLowerCase();
+
+    if (!map.has(key)) {
+      map.set(key, { ...w, word: cleanWord });
+    } else {
+      const prev = map.get(key);
+      const prevEx = (prev.example || '').trim();
+      const newEx = (w.example || '').trim();
+
+      const betterExample = (newEx.length > prevEx.length && !isBadTemplateSentence(newEx))
+        ? newEx
+        : prevEx;
+      const betterTranslation = (betterExample === newEx)
+        ? (w.exampleTranslation || prev.exampleTranslation || '')
+        : (prev.exampleTranslation || w.exampleTranslation || '');
+
+      const prevMeaning = (prev.meaning || '').trim();
+      const newMeaning = (w.meaning || '').trim();
+      const betterMeaning = newMeaning.length > prevMeaning.length ? newMeaning : prevMeaning;
+
+      const betterPron = (w.pronunciation && String(w.pronunciation).trim() !== '')
+        ? w.pronunciation
+        : (prev.pronunciation || '');
+
+      const betterPos = (w.partOfSpeech && w.partOfSpeech !== 'noun')
+        ? w.partOfSpeech
+        : (prev.partOfSpeech || 'noun');
+
+      const prevReps = prev.srs?.repetitions || 0;
+      const newReps = w.srs?.repetitions || 0;
+      const betterSrs = newReps > prevReps ? w.srs : prev.srs;
+
+      map.set(key, {
+        ...prev,
+        ...w,
+        word: cleanWord,
+        meaning: betterMeaning || prevMeaning,
+        example: betterExample || prevEx,
+        exampleTranslation: betterTranslation,
+        pronunciation: betterPron,
+        partOfSpeech: betterPos,
+        srs: betterSrs || prev.srs || {
+          repetitions: 0,
+          interval: 0,
+          easeFactor: 2.5,
+          nextReviewDate: prev.addedDate || getTodayDateString(),
+          state: 'new'
+        },
+        id: prev.id || w.id
+      });
+    }
+  };
+
+  (existingList || []).forEach(addOrUpdate);
+  (incomingList || []).forEach(addOrUpdate);
+
+  return Array.from(map.values());
+};
+
+/**
+ * QUÉT SÂU TOÀN DIỆN & PHỤC HỒI TỪ VỰNG TỪ MỌI NGUỒN LƯU TRỮ (DEEP RECOVERY)
+ * Quét Master Vault, Backup, Draft, Lịch sử, Legacy Keys, và quét từng key trong localStorage/sessionStorage.
+ */
+export const deepRecoverCustomWords = () => {
+  const candidates = [];
+
+  // 1. Kho bất biến Master Vault
+  try {
+    const rawVault = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
+    if (rawVault) {
+      const parsed = JSON.parse(rawVault);
+      if (Array.isArray(parsed)) candidates.push(...parsed);
+    }
+  } catch (_) {}
+
+  // 2. Khóa chính
+  try {
+    const rawCustom = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
+    if (rawCustom) {
+      const parsed = JSON.parse(rawCustom);
+      if (Array.isArray(parsed)) candidates.push(...parsed);
+    }
+  } catch (_) {}
+
+  // 3. Khóa sao lưu dự phòng
+  try {
+    const rawBackup = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
+    if (rawBackup) {
+      const parsed = JSON.parse(rawBackup);
+      if (Array.isArray(parsed)) candidates.push(...parsed);
+    }
+  } catch (_) {}
+
+  // 4. Lịch sử các lần dán từ
+  try {
+    const rawHistory = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
+    if (rawHistory) {
+      const parsedHistory = JSON.parse(rawHistory);
+      if (Array.isArray(parsedHistory)) {
+        parsedHistory.forEach(item => {
+          if (item?.text) {
+            const lines = item.text.split(/\r?\n/);
+            lines.forEach(l => {
+              const line = l.trim().replace(/^(\d+[\.\/\)\-\:]|\*|\•|\-|\+|\[\d+\]|\(\d+\))\s*/, '').trim();
+              if (!line || line.startsWith('//') || line.startsWith('#')) return;
+              const parts = line.split(/[|\t\-–—:;]/).map(p => p.trim());
+              const w = parts[0]?.replace(/^['"`]+|['"`]+$/g, '').trim();
+              if (w && w !== '-' && w.length >= 2) {
+                candidates.push({
+                  id: 'usr_rec_' + Math.random().toString(36).substring(2, 7),
+                  word: w,
+                  meaning: parts[1] || '',
+                  example: parts[2] || '',
+                  exampleTranslation: parts[3] || '',
+                  addedDate: getTodayDateString()
+                });
+              }
+            });
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  // 5. Bản nháp dán từ
+  try {
+    const draft = localStorage.getItem(STORAGE_KEYS.BATCH_DRAFT);
+    if (draft && draft.trim()) {
+      const lines = draft.split(/\r?\n/);
+      lines.forEach(l => {
+        const line = l.trim().replace(/^(\d+[\.\/\)\-\:]|\*|\•|\-|\+|\[\d+\]|\(\d+\))\s*/, '').trim();
+        if (!line || line.startsWith('//') || line.startsWith('#')) return;
+        const parts = line.split(/[|\t\-–—:;]/).map(p => p.trim());
+        const w = parts[0]?.replace(/^['"`]+|['"`]+$/g, '').trim();
+        if (w && w !== '-' && w.length >= 2) {
+          candidates.push({
+            id: 'usr_draft_' + Math.random().toString(36).substring(2, 7),
+            word: w,
+            meaning: parts[1] || '',
+            example: parts[2] || '',
+            exampleTranslation: parts[3] || '',
+            addedDate: getTodayDateString()
+          });
+        }
+      });
+    }
+  } catch (_) {}
+
+  // 6. Các khóa cũ trong các phiên bản trước (Legacy Keys)
+  const legacyKeys = [
+    'toeic_custom_words',
+    'custom_words',
+    'toeic_words',
+    'toeic_user_words',
+    'toeic_words_list',
+    'toeic_vocab_user',
+    'toeic_app_data',
+    'toeic_custom_backup'
+  ];
+  legacyKeys.forEach(k => {
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) candidates.push(...parsed);
+        else if (parsed && Array.isArray(parsed.customWords)) candidates.push(...parsed.customWords);
+      }
+    } catch (_) {}
+  });
+
+  // 7. Quét toàn bộ mọi khóa có trong localStorage
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if ([STORAGE_KEYS.SETTINGS, STORAGE_KEYS.STREAK_INFO, STORAGE_KEYS.FAVORITES].includes(key)) continue;
+      const val = localStorage.getItem(key);
+      if (val && (val.includes('"word"') || val.includes('"meaning"'))) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(item => {
+              if (item && item.word && typeof item.word === 'string') {
+                candidates.push(item);
+              }
+            });
+          } else if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.words)) candidates.push(...parsed.words);
+            if (Array.isArray(parsed.customWords)) candidates.push(...parsed.customWords);
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  // 8. Quét cả sessionStorage nếu có
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (!key) continue;
+      const val = sessionStorage.getItem(key);
+      if (val && val.includes('"word"')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) candidates.push(...parsed);
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  // Gộp tất cả các từ tìm được
+  const merged = mergeWordLists([], candidates);
+
+  // Đồng bộ và bảo vệ vào tất cả các khóa kho lưu trữ
+  if (merged.length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(merged));
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(merged));
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(merged));
+    } catch (e) {
+      console.warn('Lỗi ghi dữ liệu khôi phục:', e);
+    }
+  }
+
+  return merged;
 };
 
 /**
@@ -68,14 +352,22 @@ export const getWeekNumber = (d = new Date()) => {
 };
 
 /**
- * Lấy danh sách từ người dùng tự thêm (Bảo vệ 2 lớp chống mất dữ liệu + Tự động phục hồi)
+ * Lấy danh sách từ người dùng tự thêm (Bảo vệ 3 lớp chống mất dữ liệu + Tự động phục hồi Master Vault)
  */
 export const getCustomWords = () => {
   try {
     let raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
     let list = raw ? JSON.parse(raw) : [];
 
-    // LỚP 1: Nếu danh sách chính trống, tự động tìm và khôi phục từ bản sao lưu dự phòng
+    let vaultRaw = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
+    let vaultList = vaultRaw ? JSON.parse(vaultRaw) : [];
+
+    // LỚP 1: Nếu danh sách chính bị giảm hoặc ít hơn Master Vault hoặc trống -> Deep Recovery & Merge ngay!
+    if (!Array.isArray(list) || list.length === 0 || (Array.isArray(vaultList) && list.length < vaultList.length)) {
+      list = deepRecoverCustomWords();
+    }
+
+    // LỚP 2: Nếu vẫn trống, tìm bản sao lưu dự phòng
     if (!Array.isArray(list) || list.length === 0) {
       const backupRaw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
       if (backupRaw) {
@@ -84,31 +376,12 @@ export const getCustomWords = () => {
           if (Array.isArray(backupList) && backupList.length > 0) {
             list = backupList;
             localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(list));
+            localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(list));
             console.log('🔄 Đã tự động khôi phục từ vựng từ bản sao lưu dự phòng!');
           }
         } catch (e) {
           console.warn('Lỗi đọc bản sao lưu:', e);
         }
-      }
-    }
-
-    // LỚP 2: Tự động khôi phục dữ liệu từ các phiên bản khóa cũ (Legacy Keys) nếu có
-    if (!Array.isArray(list) || list.length === 0) {
-      const legacyKeys = ['toeic_custom_words', 'custom_words', 'toeic_words', 'toeic_user_words'];
-      for (const k of legacyKeys) {
-        try {
-          const legRaw = localStorage.getItem(k);
-          if (legRaw) {
-            const parsed = JSON.parse(legRaw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              list = parsed;
-              localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(list));
-              localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(list));
-              console.log(`🔄 Đã di chuyển và khôi phục thành công từ khóa cũ ${k}!`);
-              break;
-            }
-          }
-        } catch (_) {}
       }
     }
 
@@ -177,17 +450,40 @@ export const getCustomWords = () => {
 };
 
 /**
- * Lưu danh sách từ người dùng tự thêm (Ghi đồng thời vào Khóa chính và Khóa dự phòng)
+ * Lưu danh sách từ người dùng tự thêm (Bảo vệ Master Vault: Luôn gộp, không bao giờ làm co ngắn kho từ)
  */
 export const saveCustomWords = (words) => {
   try {
     if (!Array.isArray(words)) return;
     const clean = words.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(clean));
 
-    // Luôn duy trì bản sao lưu dự phòng chống mất dữ liệu khi có từ hợp lệ
-    if (clean.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(clean));
+    // Luôn lấy Master Vault hiện tại và GỘP lại, KHÔNG BAO GIỜ để kho từ vựng bị bốc hơi
+    let vault = [];
+    try {
+      const rawVault = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
+      if (rawVault) vault = JSON.parse(rawVault) || [];
+    } catch (_) {}
+
+    // Gộp danh sách mới vào Master Vault
+    const mergedVault = mergeWordLists(vault, clean);
+
+    // Luôn ghi vào Master Vault
+    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(mergedVault));
+
+    // Nếu clean ít từ hơn mergedVault rõ rệt (ví dụ clean chỉ có vài từ trong khi vault có hàng trăm từ),
+    // ta ghi mergedVault vào CUSTOM_WORDS để bảo toàn kho từ cho người dùng!
+    const toSave = (clean.length < mergedVault.length && (clean.length <= 15 || mergedVault.length > 30)) ? mergedVault : clean;
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(toSave));
+
+    // Khóa Backup luôn lưu giữ phiên bản có nhiều từ nhất
+    let currentBackup = [];
+    try {
+      const bRaw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
+      if (bRaw) currentBackup = JSON.parse(bRaw) || [];
+    } catch (_) {}
+
+    if (mergedVault.length >= currentBackup.length) {
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(mergedVault));
     }
   } catch (err) {
     console.error('Error saving custom words:', err);
@@ -327,7 +623,7 @@ export const addBatchCustomWords = (wordsList) => {
     };
   });
 
-  const updated = [...formattedWords, ...currentWords];
+  const updated = mergeWordLists(currentWords, formattedWords);
   saveCustomWords(updated);
   return formattedWords;
 };
@@ -392,13 +688,14 @@ export const updateCustomWord = (wordId, updates) => {
 };
 
 /**
- * Xóa một từ (Đồng bộ cả bản chính và bản dự phòng)
+ * Xóa một từ (Đồng bộ cả bản chính, Master Vault và bản dự phòng)
  */
 export const deleteCustomWord = (wordId) => {
   const words = getCustomWords();
   const filtered = words.filter(w => w.id !== wordId);
   try {
     localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(filtered));
     localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(filtered));
   } catch (err) {
     console.error('Error deleting word:', err);

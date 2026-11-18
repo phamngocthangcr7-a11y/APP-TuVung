@@ -28,7 +28,8 @@ import {
   getAppSettings,
   saveAppSettings,
   getWeekNumber,
-  autoEnrichCustomWords
+  autoEnrichCustomWords,
+  deepRecoverCustomWords
 } from './utils/storage';
 import { getTodayDateString, isDueForReview, calculateSRSStats } from './utils/srs';
 import { 
@@ -66,8 +67,16 @@ export default function App() {
   const [streakInfo, setStreakInfo] = useState(() => getStreakInfo());
   const [settings, setSettings] = useState(() => getAppSettings());
 
-  // Tự động rà soát & tra cứu bổ sung câu ví dụ thực tế ngầm dưới nền
+  // Tự động rà soát & tra cứu bổ sung câu ví dụ thực tế ngầm dưới nền + Tự động quét sâu Master Vault khi tải app
   useEffect(() => {
+    // 1. Quét sâu để đảm bảo khôi phục toàn bộ từ vựng từ Master Vault hoặc bản sao lưu cũ
+    try {
+      const recovered = deepRecoverCustomWords();
+      if (Array.isArray(recovered) && recovered.length > customWords.length) {
+        setCustomWords(recovered.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
+      }
+    } catch (_) {}
+
     autoEnrichCustomWords((updatedList) => {
       if (Array.isArray(updatedList) && updatedList.length > 0) {
         setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
@@ -140,7 +149,8 @@ export default function App() {
     const valid = (batchList || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
     if (valid.length === 0) return;
     const created = addBatchCustomWords(valid);
-    setCustomWords(prev => [...created, ...prev]);
+    const freshWords = getCustomWords();
+    setCustomWords(freshWords.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
 
     if (action === 'study') {
       handleStartSmartCards(created);
@@ -155,6 +165,14 @@ export default function App() {
       });
     }, 1000);
   };
+
+  const handleDeepRecovery = useCallback(() => {
+    const recovered = deepRecoverCustomWords();
+    const clean = (recovered || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
+    setCustomWords(clean);
+    setSrsProgress(getWordSrsProgress());
+    return clean.length;
+  }, []);
 
   const handleEditWord = (wordData) => {
     if (!editingWord) return;
@@ -281,6 +299,7 @@ export default function App() {
                 setIsAddModalOpen(true);
               }}
               onOpenBatchModal={() => setIsBatchModalOpen(true)}
+              onDeepRecovery={handleDeepRecovery}
             />
           )}
 
@@ -306,6 +325,7 @@ export default function App() {
               onStartQuiz={handleStartQuiz}
               initialFilter={journalFilter}
               onDataImported={handleDataImported}
+              onDeepRecovery={handleDeepRecovery}
             />
           )}
 

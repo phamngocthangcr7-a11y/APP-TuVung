@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   X, 
   FileSpreadsheet, 
@@ -10,7 +10,10 @@ import {
   Loader2, 
   ArrowRight,
   BookOpen,
-  Layers
+  Layers,
+  History,
+  ShieldCheck,
+  RotateCcw
 } from 'lucide-react';
 import { getTodayDateString } from '../utils/srs';
 import { 
@@ -21,7 +24,13 @@ import {
   correctVietnameseSpelling,
   getToeicExampleFallback
 } from '../utils/dictionary';
-import { getBatchDraft, saveBatchDraft, clearBatchDraft } from '../utils/storage';
+import { 
+  getBatchDraft, 
+  saveBatchDraft, 
+  clearBatchDraft,
+  getBatchHistory,
+  saveBatchHistory
+} from '../utils/storage';
 
 export default function BatchImportModal({
   isOpen,
@@ -35,6 +44,18 @@ export default function BatchImportModal({
   const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0, currentWord: '' });
   const [manualParsedWords, setManualParsedWords] = useState(null);
   const [savedSuccessMessage, setSavedSuccessMessage] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [batchHistory, setBatchHistory] = useState(() => getBatchHistory());
+
+  useEffect(() => {
+    if (isOpen) {
+      setBatchHistory(getBatchHistory());
+      const draft = getBatchDraft();
+      if (!inputText && draft) {
+        setInputText(draft);
+      }
+    }
+  }, [isOpen]);
 
   // 1. SMART MULTI-FORMAT PARSER
   const autoParsedWords = useMemo(() => {
@@ -293,9 +314,14 @@ export default function BatchImportModal({
       };
     });
 
+    // 1. Lưu bản dán vào lịch sử để không bao giờ bị mất chữ
+    saveBatchHistory(inputText, validWords);
+    setBatchHistory(getBatchHistory());
+
+    // 2. Gộp từ vào Sổ tay
     onBatchSave(validWords, andStudy ? 'study' : null);
     clearBatchDraft();
-    setSavedSuccessMessage(`🎉 Đã lưu thành công ${validWords.length} từ vựng vào Sổ tay của bạn!`);
+    setSavedSuccessMessage(`🎉 Đã lưu và bảo vệ thành công ${validWords.length} từ vựng vào Master Vault của bạn!`);
 
     setTimeout(() => {
       setInputText('');
@@ -303,6 +329,25 @@ export default function BatchImportModal({
       setSavedSuccessMessage('');
       onClose();
     }, 900);
+  };
+
+  const handleLoadHistoryItem = (item) => {
+    if (!item || !item.text) return;
+    setInputText(item.text);
+    saveBatchDraft(item.text);
+    setManualParsedWords(null);
+    setShowHistory(false);
+  };
+
+  const handleLoadCuratedPreset = () => {
+    const lines = [];
+    Object.entries(CURATED_TOEIC_EXAMPLES).forEach(([k, v]) => {
+      lines.push(`${k} | ${v.meaning || ''} | ${v.example || ''} | ${v.translation || ''}`);
+    });
+    const content = lines.join('\n');
+    setInputText(content);
+    saveBatchDraft(content);
+    setManualParsedWords(null);
   };
 
   if (!isOpen) return null;
@@ -398,14 +443,36 @@ feasibility`;
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <span>Dán nội dung từ vựng vào đây:</span>
                 <span className="text-[10px] font-normal text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                  Tự lưu nháp
+                  Tự lưu nháp & Master Vault
                 </span>
               </label>
-              <div className="flex items-center gap-2">
+
+              <div className="flex flex-wrap items-center gap-2">
+                {batchHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 font-bold flex items-center gap-1 cursor-pointer transition-all"
+                  >
+                    <History className="w-3 h-3 text-indigo-600" />
+                    <span>Lịch sử dán ({batchHistory.length})</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleLoadCuratedPreset}
+                  title="Nạp ngay danh sách hơn 115+ từ vựng TOEIC ETS chuẩn đã có sẵn phiên âm & ví dụ"
+                  className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 font-bold flex items-center gap-1 cursor-pointer transition-all"
+                >
+                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                  <span>Nạp 115+ từ ETS</span>
+                </button>
+
                 {inputText.trim() && (
                   <button
                     type="button"
@@ -419,6 +486,7 @@ feasibility`;
                     Xóa trắng
                   </button>
                 )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -428,10 +496,54 @@ feasibility`;
                   }}
                   className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
                 >
-                  Chèn dữ liệu mẫu
+                  Chèn mẫu
                 </button>
               </div>
             </div>
+
+            {/* Bảng lịch sử các đợt dán trước đây (Để khôi phục ngay nếu lỡ làm mất) */}
+            {showHistory && (
+              <div className="mb-2 p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2 animate-fadeIn text-xs">
+                <div className="flex items-center justify-between font-bold text-indigo-900">
+                  <span className="flex items-center gap-1.5">
+                    <History className="w-4 h-4 text-indigo-600" />
+                    Lịch sử các lần dán danh sách từ của bạn:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory(false)}
+                    className="text-slate-400 hover:text-slate-600 font-normal"
+                  >
+                    Đóng ✕
+                  </button>
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1.5 divide-y divide-indigo-100/60">
+                  {batchHistory.map((item, idx) => (
+                    <div key={item.id || idx} className="pt-1.5 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-indigo-950 flex items-center gap-1.5">
+                          <span>Đợt dán: {item.count} từ</span>
+                          <span className="text-[10px] text-indigo-500 font-normal">({item.dateStr})</span>
+                        </div>
+                        {item.sampleWords && item.sampleWords.length > 0 && (
+                          <div className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md">
+                            Ví dụ: {item.sampleWords.join(', ')}...
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadHistoryItem(item)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shrink-0 cursor-pointer shadow-xs"
+                      >
+                        Nạp lại vào ô
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <textarea
               rows="6"
               value={inputText}
