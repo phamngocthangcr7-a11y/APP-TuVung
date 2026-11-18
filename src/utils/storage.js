@@ -4,6 +4,7 @@
 // =========================================================================
 
 import { getTodayDateString } from './srs';
+import { MASTER_PRESET_WORDS } from '../data/masterPresetWords';
 import { 
   CURATED_TOEIC_EXAMPLES, 
   isBadTemplateSentence, 
@@ -292,6 +293,11 @@ export const deepRecoverCustomWords = () => {
     }
   } catch (_) {}
 
+  // 9. Kho từ gốc 298 từ ETS đã phục hồi từ hệ thống (Bảo vệ tối thượng - Chống mất vĩnh viễn)
+  if (Array.isArray(MASTER_PRESET_WORDS) && MASTER_PRESET_WORDS.length > 0) {
+    candidates.push(...MASTER_PRESET_WORDS);
+  }
+
   // Gộp tất cả các từ tìm được
   const merged = mergeWordLists([], candidates);
 
@@ -362,8 +368,9 @@ export const getCustomWords = () => {
     let vaultRaw = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
     let vaultList = vaultRaw ? JSON.parse(vaultRaw) : [];
 
-    // LỚP 1: Nếu danh sách chính bị giảm hoặc ít hơn Master Vault hoặc trống -> Deep Recovery & Merge ngay!
-    if (!Array.isArray(list) || list.length === 0 || (Array.isArray(vaultList) && list.length < vaultList.length)) {
+    // LỚP 1: Nếu danh sách chính bị giảm hoặc ít hơn Master Vault hoặc ít hơn kho gốc (226+ từ) -> Deep Recovery & Merge ngay!
+    const minThreshold = Array.isArray(MASTER_PRESET_WORDS) ? MASTER_PRESET_WORDS.length : 226;
+    if (!Array.isArray(list) || list.length < minThreshold || (Array.isArray(vaultList) && list.length < vaultList.length)) {
       list = deepRecoverCustomWords();
     }
 
