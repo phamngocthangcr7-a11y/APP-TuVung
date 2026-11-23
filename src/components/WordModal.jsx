@@ -32,6 +32,7 @@ export default function WordModal({
   const [isChecking, setIsChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
   const [dictData, setDictData] = useState(null);
+  const [isGeneratingExample, setIsGeneratingExample] = useState(false);
 
   useEffect(() => {
     if (editingWord) {
@@ -156,8 +157,6 @@ export default function WordModal({
   const handleRemoveTag = (tagToRemove) => {
     setTags(tags.filter(t => t !== tagToRemove));
   };
-
-  const [isGeneratingExample, setIsGeneratingExample] = useState(false);
 
   const handleGenerateExample = async () => {
     const cleanWord = word.trim();

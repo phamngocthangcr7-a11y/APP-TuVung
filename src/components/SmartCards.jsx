@@ -1584,10 +1584,23 @@ export default function SmartCards({
 
                   {/* CONTEXT EXAMPLE PILL BOX */}
                   {effectiveExample.example && (
-                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-0.5 text-center">
-                      <p className="font-semibold text-slate-800 leading-relaxed">
-                        {formattedExample}
-                      </p>
+                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-1 text-center relative">
+                      <div className="flex items-center justify-center gap-2">
+                        <p className="font-semibold text-slate-800 leading-relaxed">
+                          {formattedExample}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakEnglish(effectiveExample.example, 0.9);
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
+                          title="Nghe phát âm cả câu ví dụ"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       {effectiveExample.translation && (
                         <p className="text-slate-500 italic text-[11px] sm:text-xs">
                           {effectiveExample.translation}

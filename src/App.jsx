@@ -421,34 +421,46 @@ export default function App() {
       />
 
       {/* Add / Edit Word Modal with Auto Meaning Check */}
-      <WordModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingWord(null);
-        }}
-        onSave={editingWord ? handleEditWord : handleAddWord}
-        editingWord={editingWord}
-      />
+      {isAddModalOpen && (
+        <ErrorBoundary>
+          <WordModal
+            isOpen={isAddModalOpen}
+            onClose={() => {
+              setIsAddModalOpen(false);
+              setEditingWord(null);
+            }}
+            onSave={editingWord ? handleEditWord : handleAddWord}
+            editingWord={editingWord}
+          />
+        </ErrorBoundary>
+      )}
 
       {/* Batch Import Words Modal */}
-      <BatchImportModal
-        isOpen={isBatchModalOpen}
-        onClose={() => setIsBatchModalOpen(false)}
-        onBatchSave={handleBatchSave}
-      />
+      {isBatchModalOpen && (
+        <ErrorBoundary>
+          <BatchImportModal
+            isOpen={isBatchModalOpen}
+            onClose={() => setIsBatchModalOpen(false)}
+            onBatchSave={handleBatchSave}
+          />
+        </ErrorBoundary>
+      )}
 
       {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        allWords={allWords}
-        customWords={customWords}
-        settings={settings}
-        onUpdateSettings={handleUpdateSettings}
-        onResetProgress={handleResetProgress}
-        onDataImported={handleDataImported}
-      />
+      {isSettingsModalOpen && (
+        <ErrorBoundary>
+          <SettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
+            allWords={allWords}
+            customWords={customWords}
+            settings={settings}
+            onUpdateSettings={handleUpdateSettings}
+            onResetProgress={handleResetProgress}
+            onDataImported={handleDataImported}
+          />
+        </ErrorBoundary>
+      )}
 
     </div>
   );
