@@ -94,7 +94,15 @@ export const speakEnglish = (rawText, rate = 0.95) => {
     currentAudio = null;
   }
 
-  // 1. Thử phát qua Studio Native Human Voice (chuẩn app The MVP TOEIC)
+  // Đối với câu dài (> 5 từ hoặc > 45 ký tự), Web Speech API với giọng Natural là lựa chọn hoàn hảo nhất
+  // (tránh lỗi ORB của các từ điển vốn chỉ hỗ trợ từ đơn và cụm từ ngắn)
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 5 || text.length > 45) {
+    speakWithWebSpeech(text, rate);
+    return;
+  }
+
+  // 1. Thử phát qua Studio Native Human Voice (chuẩn app The MVP TOEIC cho từ đơn & cụm từ)
   try {
     const audioUrl = getHumanStudioAudioUrl(text);
     if (!audioUrl) {
