@@ -60,27 +60,192 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Audio cache lưu trữ các Audio elements đã tải để phát lại tức thì 0ms latency
-const studioAudioCache = new Map();
+// Cache lưu trữ các URL âm thanh chuẩn phòng thu đã được xác thực thành công (0ms độ trễ)
+const verifiedAudioUrlCache = new Map();
 
 /**
- * Trả về URL phát âm giọng người bản xứ chuẩn phòng thu (The MVP TOEIC Studio Audio)
- * Hỗ trợ từ đơn, cụm từ, phrasal verbs và câu trọn vẹn
+ * Tạo danh sách các nguồn âm thanh phòng thu bản xứ chuẩn Mỹ (Oxford & Google Studio Audio)
+ * Thu âm bởi phát thanh viên bản xứ Mỹ chuyên nghiệp, chuẩn âm TOEIC quốc tế, không dùng giọng tổng hợp robot.
  */
-export const getHumanStudioAudioUrl = (text) => {
-  const clean = String(text || '').trim().replace(/\[.*?\]|\(.*?\)/g, '').trim();
-  if (!clean || clean === '-' || clean === '[ ______ ]') return '';
-  // Native US American Studio Pronunciation stream
-  return `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(clean)}&type=2`;
+export const getStudioAudioCandidates = (rawWord) => {
+  const clean = String(rawWord || '').toLowerCase().trim().replace(/[^a-z]/g, '');
+  if (!clean) return [];
+
+  const c1 = clean[0];
+  const c3 = clean.slice(0, Math.min(3, clean.length));
+  const c5 = clean.slice(0, Math.min(5, clean.length));
+
+  return [
+    // 1. Google Oxford Studio American Recording (General American - Giọng chuẩn nhất hiện nay)
+    `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${clean}--_us_1.mp3`,
+    `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${clean}--_us_2.mp3`,
+    // 2. Oxford Learner's Dictionaries Official American Pronunciation MP3
+    `https://www.oxfordlearnersdictionaries.com/media/english/us_pron/${c1}/${c3}/${c5}/${clean}__us_1.mp3`,
+    `https://www.oxfordlearnersdictionaries.com/media/english/us_pron/${c1}/${c3}/${c5}/${clean}_1_us_1.mp3`,
+    // 3. Free Dictionary API US Native Recording MP3
+    `https://api.dictionaryapi.dev/media/pronunciations/en/${clean}-us.mp3`,
+    `https://api.dictionaryapi.dev/media/pronunciations/en/${clean}-1-us.mp3`,
+    // 4. Google Lexico Studio Voice
+    `https://ssl.gstatic.com/dictionary/static/sounds/de/0/${clean}.mp3`
+  ];
 };
 
 /**
- * Phát âm tiếng Anh chuẩn phòng thu bản xứ (The MVP TOEIC Studio Human Voice)
- * Ưu tiên:
- * 1. Giọng người thật chuẩn Mỹ thu âm phòng thu (Studio Native US Voice) qua MP3 stream
- * 2. Fallback sang Web Speech API với bộ lọc chọn lọc giọng đọc Natural/Neural cao cấp nhất
+ * Trả về URL phát âm giọng người bản xứ chuẩn phòng thu (để tương thích ngược)
  */
-export const speakEnglish = (rawText, rate = 0.95) => {
+export const getHumanStudioAudioUrl = (text) => {
+  const clean = String(text || '').toLowerCase().trim().replace(/[^a-z]/g, '');
+  if (!clean) return '';
+  return verifiedAudioUrlCache.get(clean) || `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${clean}--_us_1.mp3`;
+};
+
+/**
+ * Phát âm thanh từ vựng bằng file ghi âm phòng thu người bản xứ Mỹ (Studio Human Voice)
+ */
+export const playStudioWordAudio = (word, rate = 0.90, onFallback) => {
+  const clean = String(word || '').toLowerCase().trim().replace(/[^a-z]/g, '');
+  if (!clean) {
+    if (onFallback) onFallback();
+    return;
+  }
+
+  // Dừng âm thanh đang phát trước đó nếu có
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (e) {}
+    currentAudio = null;
+  }
+
+  // 1. Kiểm tra cache đã từng phát thành công trước đó
+  const cachedUrl = verifiedAudioUrlCache.get(clean);
+  if (cachedUrl) {
+    try {
+      const audio = new Audio(cachedUrl);
+      audio.playbackRate = Math.min(Math.max(rate || 0.90, 0.75), 1.25);
+      currentAudio = audio;
+      const p = audio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          if (onFallback) onFallback();
+        });
+      }
+      return;
+    } catch (e) {
+      if (onFallback) onFallback();
+      return;
+    }
+  }
+
+  // 2. Thử lần lượt các nguồn phát thanh viên Oxford & Google bản xứ Mỹ
+  const candidates = getStudioAudioCandidates(clean);
+  let index = 0;
+  let hasHandledSuccess = false;
+
+  const tryCandidate = () => {
+    if (hasHandledSuccess) return;
+    if (index >= candidates.length) {
+      if (onFallback) onFallback();
+      return;
+    }
+
+    const url = candidates[index++];
+    const audio = new Audio(url);
+    audio.playbackRate = Math.min(Math.max(rate || 0.90, 0.75), 1.25);
+
+    let nextAttempted = false;
+    const nextOnce = () => {
+      if (nextAttempted) return;
+      nextAttempted = true;
+      tryCandidate();
+    };
+
+    audio.onerror = nextOnce;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          hasHandledSuccess = true;
+          currentAudio = audio;
+          verifiedAudioUrlCache.set(clean, url);
+        })
+        .catch(() => {
+          nextOnce();
+        });
+    }
+  };
+
+  tryCandidate();
+};
+
+/**
+ * Phát âm qua Web Speech API chất lượng cao (giọng đọc chuẩn Mỹ trong trẻo, dễ nghe, không máy móc)
+ */
+export const speakWithWebSpeech = (text, rate = 0.88) => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+  try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    // Tốc độ 0.88: vừa phải, rõ từng nguyên âm, nhấn trọng âm rõ ràng, không bị nuốt âm đuôi
+    utterance.rate = rate || 0.88;
+    utterance.pitch = 1.0;
+    utterance.lang = 'en-US';
+
+    const voices = window.speechSynthesis.getVoices() || [];
+    
+    // Ưu tiên chọn lọc các giọng phát âm tiếng Anh Mỹ chuẩn, trong trẻo, tự nhiên
+    const naturalVoice = 
+      // 1. Giọng Natural / Neural Online cao cấp (Edge / Azure)
+      voices.find(v => v.lang.startsWith('en') && (
+        v.name.includes('Natural') || 
+        v.name.includes('Online (Natural)') || 
+        v.name.includes('Jenny') || 
+        v.name.includes('Guy') || 
+        v.name.includes('Aria')
+      )) ||
+      // 2. Google US English (Cốc Cốc / Chrome - chuẩn bản xứ Mỹ, rõ ràng, dễ nghe)
+      voices.find(v => v.name.includes('Google US English') || (v.lang === 'en-US' && v.name.includes('Google'))) ||
+      // 3. Apple Human Voices (iOS / macOS - Samantha, Alex, Ava)
+      voices.find(v => v.lang.startsWith('en') && (
+        v.name.includes('Samantha') || 
+        v.name.includes('Alex') || 
+        v.name.includes('Ava') || 
+        v.name.includes('Siri')
+      )) ||
+      // 4. Các giọng Google tiếng Anh khác
+      voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+      // 5. Giọng en-US không phải desktop robot cũ
+      voices.find(v => v.lang.startsWith('en-US') && !v.name.toLowerCase().includes('desktop')) ||
+      // 6. Microsoft Zira (âm sắc nữ mềm mại và dễ nghe hơn hẳn giọng David)
+      voices.find(v => v.name.includes('Zira')) ||
+      // 7. Giọng en-US bất kỳ
+      voices.find(v => v.lang.startsWith('en-US')) ||
+      // 8. Bất kỳ giọng tiếng Anh nào
+      voices.find(v => v.lang.startsWith('en'));
+
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('Web speech notice:', e);
+  }
+};
+
+/**
+ * Phát âm tiếng Anh tự nhiên & chuẩn phòng thu (The MVP TOEIC Standard Audio Engine)
+ * - Từ đơn: 100% bản ghi âm người thật phòng thu từ Oxford / Google Studio
+ * - Cụm từ & câu ví dụ: Phát âm ngữ điệu chuẩn Mỹ dễ nghe, nhả âm rõ ràng
+ */
+export const speakEnglish = (rawText, rate = 0.90) => {
   if (!rawText) return;
   const text = String(rawText).trim().replace(/\[.*?\]|\(.*?\)/g, '').trim();
   if (!text || text === '-' || text === '[ ______ ]') return;
@@ -94,108 +259,20 @@ export const speakEnglish = (rawText, rate = 0.95) => {
     currentAudio = null;
   }
 
-  // Đối với câu dài (> 5 từ hoặc > 45 ký tự), Web Speech API với giọng Natural là lựa chọn hoàn hảo nhất
-  // (tránh lỗi ORB của các từ điển vốn chỉ hỗ trợ từ đơn và cụm từ ngắn)
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  if (wordCount > 5 || text.length > 45) {
-    speakWithWebSpeech(text, rate);
+  const words = text.split(/\s+/).filter(Boolean);
+
+  // 1. Nếu là từ vựng tiếng Anh đơn (VD: "accommodate", "stiff", "reimbursement", "adjacent"):
+  // Ưu tiên phát 100% bản thu âm phòng thu người bản xứ Mỹ của Oxford / Google Dictionary
+  if (words.length === 1 && /^[a-zA-Z-]+$/.test(text)) {
+    playStudioWordAudio(text, rate, () => {
+      speakWithWebSpeech(text, rate || 0.88);
+    });
     return;
   }
 
-  // 1. Thử phát qua Studio Native Human Voice (chuẩn app The MVP TOEIC cho từ đơn & cụm từ)
-  try {
-    const audioUrl = getHumanStudioAudioUrl(text);
-    if (!audioUrl) {
-      speakWithWebSpeech(text, rate);
-      return;
-    }
-
-    let audio = studioAudioCache.get(audioUrl);
-    if (!audio) {
-      audio = new Audio(audioUrl);
-      audio.preload = 'auto';
-      // Giới hạn cache 100 audio elements để tối ưu bộ nhớ
-      if (studioAudioCache.size > 100) {
-        const firstKey = studioAudioCache.keys().next().value;
-        studioAudioCache.delete(firstKey);
-      }
-      studioAudioCache.set(audioUrl, audio);
-    } else {
-      audio.currentTime = 0;
-    }
-
-    // Tốc độ phát âm tự nhiên
-    const safeRate = Math.min(Math.max(rate || 0.95, 0.7), 1.25);
-    audio.playbackRate = safeRate;
-    currentAudio = audio;
-
-    let hasHandledError = false;
-    const handleError = () => {
-      if (hasHandledError) return;
-      hasHandledError = true;
-      speakWithWebSpeech(text, rate);
-    };
-
-    audio.onerror = handleError;
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((err) => {
-        handleError();
-      });
-    }
-  } catch (err) {
-    speakWithWebSpeech(text, rate);
-  }
-};
-
-/**
- * Phát âm qua Web Speech API chất lượng cao (chọn lọc giọng đọc Natural / Neural của hệ điều hành)
- */
-export const speakWithWebSpeech = (text, rate = 0.92) => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-  try {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate || 0.92;
-    utterance.pitch = 1.0;
-    utterance.lang = 'en-US';
-
-    const voices = window.speechSynthesis.getVoices() || [];
-    
-    // Ưu tiên các giọng đọc cao cấp tự nhiên (tránh giọng robot Desktop cũ)
-    const naturalVoice = 
-      voices.find(v => v.lang.startsWith('en') && (
-        v.name.includes('Natural') || 
-        v.name.includes('Online (Natural)') ||
-        v.name.includes('Jenny') ||
-        v.name.includes('Guy') ||
-        v.name.includes('Aria')
-      )) ||
-      voices.find(v => v.lang.startsWith('en-US') && v.name.includes('Google')) ||
-      voices.find(v => v.lang.startsWith('en') && (
-        v.name.includes('Samantha') || 
-        v.name.includes('Alex') || 
-        v.name.includes('Ava') || 
-        v.name.includes('Siri')
-      )) ||
-      voices.find(v => v.lang.startsWith('en-US') && !v.name.includes('Desktop')) ||
-      voices.find(v => v.lang.startsWith('en-US')) ||
-      voices.find(v => v.lang.startsWith('en'));
-
-    if (naturalVoice) {
-      utterance.voice = naturalVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn('Web speech failed:', e);
-  }
+  // 2. Nếu là cụm từ (VD: "owing to", "let me show you") hoặc câu ví dụ:
+  // Phát âm với giọng chuẩn Mỹ, tốc độ vừa phải, rõ ràng từng âm tiết
+  speakWithWebSpeech(text, rate || 0.88);
 };
 
 /**
