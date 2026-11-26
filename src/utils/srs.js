@@ -110,6 +110,8 @@ export const calculateNextSrs = (currentSrs = {}, rating = SRS_RATING.GOOD) => {
     easeFactor: Number(nextEaseFactor.toFixed(2)),
     nextReviewDate,
     lastReviewedDate: today,
+    firstLearnedDate: currentSrs.firstLearnedDate || (currentSrs.repetitions > 0
+      ? currentSrs.lastReviewedDate || today : nextRepetitions > 0 ? today : undefined),
     state: nextState
   };
 };
@@ -169,3 +171,43 @@ export const calculateSRSStats = (words = [], today = getTodayDateString()) => {
 
   return stats;
 };
+
+export const hasLearnedWord = ({ srs } = {}) => Boolean(
+  srs?.firstLearnedDate || srs?.repetitions > 0 || srs?.state === 'review' || srs?.state === 'mastered'
+);
+
+export function getDeckProgress(words, today = getTodayDateString()) {
+  return {
+    total: words.length,
+    learnedCount: words.filter(hasLearnedWord).length,
+    learnedToday: words.filter(word => word.srs?.firstLearnedDate === today).length,
+    newCount: words.filter(word => !word.srs?.state || word.srs.state === 'new').length,
+    dueCount: words.filter(word => word.srs?.state && word.srs.state !== 'new' && isDueForReview(word, today)).length
+  };
+}
+
+export function buildStudyQueue(words, limit, mode, today = getTodayDateString()) {
+  if (mode === 'free') return words.slice(0, limit);
+  const fresh = words.filter(word => !word.srs?.state || word.srs.state === 'new');
+  const previous = words.filter(word => word.srs?.state && word.srs.state !== 'new');
+  const due = previous.filter(word => isDueForReview(word, today));
+  due.sort((a, b) => (a.srs.nextReviewDate || '').localeCompare(b.srs.nextReviewDate || ''));
+  if (mode === 'new_first') return [...fresh, ...due].slice(0, limit);
+  if (!fresh.length) return due.slice(0, limit);
+
+  // Use the whole session for due reviews when they fill it.
+  if (due.length >= limit) return due.slice(0, limit);
+  const early = previous.filter(word => !isDueForReview(word, today) &&
+    word.srs.lastReviewedDate && word.srs.lastReviewedDate < today);
+  early.sort((a, b) => a.srs.lastReviewedDate.localeCompare(b.srs.lastReviewedDate));
+  const extraCount = Math.max(0, Math.min(Math.floor(limit / 5) - due.length, limit - due.length - 1));
+  const review = [...due, ...early.slice(0, extraCount)];
+  const newWords = fresh.slice(0, limit - review.length);
+  const queue = [];
+  let nextReview = 0;
+  for (const word of newWords) {
+    queue.push(word);
+    if (queue.length % 5 === 4 && nextReview < review.length) queue.push(review[nextReview++]);
+  }
+  return [...queue, ...review.slice(nextReview)];
+}

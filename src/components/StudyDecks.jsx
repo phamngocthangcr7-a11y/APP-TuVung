@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import EntryDialog from './EntryDialog';
+import { buildStudyQueue, getDeckProgress } from '../utils/srs';
 import { cardError } from '../utils/cardEntry';
 
 const key = 'toeic_personal_decks_v1';
@@ -28,13 +29,16 @@ export function saveStudyDeck(title, words, imported = false) {
   return decks;
 }
 
-export default function StudyDecks({ decks, words, onCreate, onStudy, onClose }) {
+export default function StudyDecks({ decks, words, progress, onCreate, onStudy, onClose }) {
   const [title, setTitle] = useState('');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState([]);
   const [message, setMessage] = useState('');
   const visible = words.filter(word => word.word.toLowerCase().includes(query.toLowerCase()));
-  const resolve = deck => deck.words.map(word => words.find(current => current.id === word.id) || word);
+  const resolve = deck => deck.words.map(word => {
+    const current = words.find(item => item.id === word.id) || word;
+    return { ...current, srs: progress?.[current.id] || current.srs };
+  });
   const share = deck => {
     const cards = resolve(deck).map(word => Object.fromEntries(fields.map(field => [field, word[field] || ''])));
     const file = new Blob([JSON.stringify({ format: 'vocab-toeic-deck-1', title: deck.title, cards }, null, 2)], { type: 'application/json' });
@@ -66,13 +70,18 @@ export default function StudyDecks({ decks, words, onCreate, onStudy, onClose })
   return <EntryDialog title="Bộ học riêng" onClose={onClose} wide>
     <div className="entry-body">
       <label>Nhận bộ học của bạn bè<input type="file" accept=".json,application/json" onChange={importDeck}/></label>
-      {decks.map(deck => <div className="entry-row p-3 mt-2" key={deck.id}>
-        <strong>{deck.title}</strong><p>{deck.words.length} thẻ</p>
+      {decks.map(deck => {
+        const cards = resolve(deck);
+        const { total, learnedCount, dueCount } = getDeckProgress(cards);
+        const session = buildStudyQueue(cards, 30, 'due_first');
+        return <div className="entry-row p-3 mt-2" key={deck.id}>
+        <strong>{deck.title}</strong>
+        <p>{learnedCount}/{total} đã học · {dueCount} đến hạn</p>
         <div className="entry-actions">
-          <button className="entry-primary" onClick={() => onStudy(resolve(deck), deck.title)}>Học bộ này</button>
+          <button className="entry-primary" onClick={() => onStudy(session.length ? session : cards.slice(0, 30), deck.title)}>{session.length ? 'Học bộ này' : 'Luyện tự do'}</button>
           <button className="entry-secondary" onClick={() => share(deck)}>Tải tệp chia sẻ</button>
         </div>
-      </div>)}
+      </div>;})}
       <form className="entry-details" onSubmit={event => {
         event.preventDefault();
         try {

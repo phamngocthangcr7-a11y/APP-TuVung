@@ -66,3 +66,10 @@ button:focus-visible { outline:3px solid #eaa646; outline-offset:3px; }
 @media(max-width:850px){.desktop-tabs button,.nav-tools button{padding:8px}.collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nav-tools button:first-child span{display:none}}
 @media(max-width:767px){.desktop-tabs{display:none}.mobile-tabs{display:flex;position:fixed;bottom:0;left:0;width:100%;background:white;border-top:1px solid var(--line);z-index:40;justify-content:space-around;padding:7px 0 max(7px,env(safe-area-inset-bottom))}.mobile-tabs button{display:grid;justify-items:center;gap:3px;color:#536664;font-size:13px}.mobile-tabs button[aria-current]{color:#075e53;font-weight:750}.nav-inner{min-height:60px;padding:0 15px}.library{padding-bottom:90px}.learn-hero{padding:25px;gap:12px}.hero-art{display:none}.learn-hero{grid-template-columns:1fr}.study-metrics{gap:8px 15px}.study-metrics span{font-size:13px}}
 @media(max-width:540px){.collection-grid{grid-template-columns:1fr}.brand{font-size:19px}.brand-icon{width:30px;height:30px}.brand-icon svg{width:19px}.deck-tile{padding:16px}.collection-heading{margin-top:20px}.study-metrics{padding:14px 0}.nav-inner{gap:4px}}
+
+.filters { flex-wrap: wrap; max-width: 100%; }
+.deck-tile .deck-today { flex: none; margin-top: 8px; font-size: 13px; }
+@media (max-width: 767px) {
+  .nav-tools button, .mobile-tabs button, .filters button { min-height: 44px; }
+  .deck-tile button, .hero-action { min-height: 44px; }
+}

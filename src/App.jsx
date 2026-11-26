@@ -65,10 +65,11 @@ export default function App() {
   const [streakInfo, setStreakInfo] = useState(() => getStreakInfo());
   const [settings, setSettings] = useState(() => getAppSettings());
 
-  // Tự động rà soát & tra cứu bổ sung câu ví dụ thực tế ngầm dưới nền + Tự động quét sâu Master Vault khi tải app
+  const [todayStr, setTodayStr] = useState(getTodayDateString);
   useEffect(() => {
     // Lắng nghe sự kiện storage để đồng bộ tức thì nếu mở nhiều tab hoặc sửa dữ liệu
     const handleStorageChange = (e) => {
+      if (!e.key || e.key === 'toeic_study_streak_v2') setStreakInfo(getStreakInfo());
       if (!e.key || e.key.includes('toeic_custom_words') || e.key.includes('toeic_word_srs')) {
         const freshCustom = getCustomWords();
         setCustomWords(freshCustom.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
@@ -76,11 +77,19 @@ export default function App() {
       }
     };
 
+    const refreshDate = () => {
+      setTodayStr(getTodayDateString());
+      setStreakInfo(getStreakInfo());
+    };
+    const timer = setInterval(refreshDate, 60_000);
+    window.addEventListener('focus', refreshDate);
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refreshDate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
-
-  const todayStr = getTodayDateString();
 
   // Combined all words (built-in sets + custom words with latest SRS applied)
   const allWords = useMemo(() => {
@@ -416,7 +425,7 @@ export default function App() {
         }}
       />
 
-      {showStudyDecks && <StudyDecks decks={studyDecks} words={customWords}
+      {showStudyDecks && <StudyDecks decks={studyDecks} words={customWords} progress={srsProgress}
         onCreate={(title, words, imported) => setStudyDecks(saveStudyDeck(title, words, imported))}
         onStudy={(words, title) => {
           setShowStudyDecks(false);

@@ -2,7 +2,7 @@ import DeckLibrary from './DeckLibrary';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Volume2, Star, Award, ArrowLeft } from 'lucide-react';
 import { speakEnglish, sound, stopSpeaking, unlockMobileAudio } from '../utils/sound';
-import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
+import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString, getDeckProgress, buildStudyQueue } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
 import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 import './study.css';
@@ -140,77 +140,31 @@ export default function SmartCards({
     return [myDeck, ...TOEIC_CORE_DECKS];
   }, [allWords]);
 
-  // Real Deck Stats Calculation
-  const deckStats = useMemo(() => {
-    const stats = {};
-
-    displayDecks.forEach(deck => {
-      const words = getWordsForDeck(deck.id);
-      let newCount = 0;
-      let learningCount = 0;
-      let masteredCount = 0;
-      let dueCount = 0;
-
-      words.forEach(w => {
-        const srs = w.srs || {};
-        const state = srs.state || 'new';
-
-        if (state === 'new') {
-          newCount++;
-        } else if (state === 'mastered') {
-          masteredCount++;
-        } else {
-          learningCount++;
-        }
-
-        // Đếm thẻ đã học và đến hạn ôn tập hôm nay
-        if (state !== 'new' && isDueForReview(w, todayStr)) {
-          dueCount++;
-        }
-      });
-
-      const total = words.length;
-      const progressPercent = total > 0 ? Math.round((masteredCount / total) * 100) : 0;
-
-      stats[deck.id] = {
-        total,
-        newCount,
-        learningCount,
-        masteredCount,
-        dueCount: dueCount,
-        hasDueReview: dueCount > 0,
-        progressPercent
-      };
-    });
-
-    return stats;
-  }, [displayDecks, getWordsForDeck, todayStr]);
+  const deckStats = useMemo(() => Object.fromEntries(displayDecks.map(deck =>
+    [deck.id, getDeckProgress(getWordsForDeck(deck.id), todayStr)]
+  )), [displayDecks, getWordsForDeck, todayStr]);
 
   // Overall Global Stats for Top Bar (Image 2)
   const overallStats = useMemo(() => {
     const cleanAll = sanitizeWords(allWords);
-    let totalMastered = 0;
     let hardCards = [];
 
     cleanAll.forEach(w => {
       const srs = w.srs || {};
-      if (srs.state === 'mastered') {
-        totalMastered++;
-      }
       if (srs.state === 'learning' || w.mistakeCount > 0 || (srs.easeFactor && srs.easeFactor < 2.2)) {
         hardCards.push(w);
       }
     });
 
     return {
-      totalMastered,
+      todayCount: streakInfo.history?.[todayStr] || 0,
       currentStreak: streakInfo.currentStreak || 0,
       longestStreak: streakInfo.longestStreak || 0,
       savedCount: (favoriteIds || []).length,
       hardCount: hardCards.length,
       hardCards
     };
-  }, [allWords, streakInfo, favoriteIds]);
+  }, [allWords, streakInfo, favoriteIds, todayStr]);
 
   // START STUDY SESSION: Hỗ trợ chia phiên 30 từ hôm nay, mai học 30 từ tiếp theo, không bị lặp!
   const startSession = (deck, targetCount = 30, mode = studyModeType) => {
@@ -242,12 +196,8 @@ export default function SmartCards({
       return;
     }
 
-    const newWords = words.filter(w => !w.srs?.state || w.srs.state === 'new');
-    const dueWords = words.filter(w => w.srs?.state && w.srs.state !== 'new' && isDueForReview(w, todayStr))
-      .sort((a, b) => (a.srs.nextReviewDate || '').localeCompare(b.srs.nextReviewDate || ''));
-    const ordered = mode === 'free' || deck === 'saved' || deck === 'hard' ? words
-      : mode === 'new_first' ? [...newWords, ...dueWords] : [...dueWords, ...newWords];
-    const selected = ordered.slice(0, targetCount);
+    const selectionMode = deck === 'saved' || deck === 'hard' ? 'free' : mode;
+    const selected = buildStudyQueue(words, targetCount, selectionMode, todayStr);
     if (!selected.length) {
       setIsSizeModalOpen(false);
       showToast('Bạn đã ôn xong bộ này hôm nay.');
@@ -305,14 +255,19 @@ export default function SmartCards({
     sound.playCorrect();
     showToast('✨ Đã nhớ! Xuất sắc!');
 
-    const nextSrs = calculateNextSrs(currentWord.srs, SRS_RATING.GOOD);
+    const nextSrs = !currentWord.srs?.state || currentWord.srs.state === 'new' || isDueForReview(currentWord, todayStr)
+      ? calculateNextSrs(currentWord.srs, SRS_RATING.GOOD)
+      : { ...currentWord.srs, lastReviewedDate: todayStr };
+    const updatedQueue = activeQueue.map((word, index) =>
+      index === currentIndex ? { ...word, srs: nextSrs } : word);
+    setActiveQueue(updatedQueue);
     if (onUpdateWordSrs) onUpdateWordSrs(currentWord.id, nextSrs);
 
     // Kiểm tra xem đã hoàn thành hết các thẻ trong activeQueue chưa
     if (currentIndex + 1 >= activeQueue.length) {
       // CHUYỂN SANG VÒNG 2: ACTIVE RECALL (VIẾT LẠI TỪ VỰNG VỪA HỌC)
       sound.playFlip();
-      const recallList = sessionTargetWords.length > 0 ? [...sessionTargetWords] : activeQueue;
+      const recallList = [...updatedQueue];
       setRecallQueue(recallList.sort(() => 0.5 - Math.random()));
       missedRecall.current.clear();
       setRecallIndex(0);
@@ -324,7 +279,7 @@ export default function SmartCards({
       setCurrentIndex(prev => prev + 1);
       setIsFlipped(false);
     }
-  }, [currentWord, currentIndex, activeQueue, sessionTargetWords, onUpdateWordSrs, isFlipped]);
+  }, [currentWord, currentIndex, activeQueue, todayStr, onUpdateWordSrs, isFlipped]);
 
   // Lật thẻ
   const handleFlipToggle = () => {
@@ -465,7 +420,7 @@ export default function SmartCards({
               <h2 id="session-title">{selectedDeckForSession.title}</h2>
               <p>{deckStats[selectedDeckForSession.id].dueCount} thẻ đến hạn · {deckStats[selectedDeckForSession.id].newCount} thẻ mới</p>
               <label>Thứ tự học<select autoFocus value={studyModeType} onChange={e => setStudyModeType(e.target.value)}>
-                <option value="due_first">Ôn thẻ đến hạn trước</option>
+                <option value="due_first">Xen từ mới và từ cần ôn</option>
                 <option value="new_first">Học thẻ mới trước</option>
                 <option value="free">Luyện tự do cả bộ</option>
               </select></label>

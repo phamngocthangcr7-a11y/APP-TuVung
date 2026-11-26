@@ -27,3 +27,10 @@
 .study-setup{width:min(100%,26rem)}.study-setup h2{font-weight:750;font-size:1.65rem}.study-setup p{color:#506675;margin:.5rem 0 1.2rem}
 .study-setup label{display:block;font-weight:600;margin:.85rem 0}.study-setup select{display:block;width:100%;background:white;color:#19384c;border:1px solid #a6bdc5;border-radius:.55rem;padding:.7rem;margin:.35rem 0;font:inherit}
 .study-notice{position:fixed;left:50%;bottom:6rem;transform:translateX(-50%);z-index:65;padding:.65rem 1rem;background:#17394a;color:white;border-radius:.65rem;max-width:92vw;width:max-content;font-size:.95rem}
+
+.study-setup { max-height: calc(100dvh - 2rem); overflow: auto; }
+@media (max-width: 540px) {
+  .study-session, .study-summary { margin-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  .study-actions > button { flex: 1 1 100%; min-height: 44px; }
+  .study-line > strong { overflow-wrap: anywhere; }
+}

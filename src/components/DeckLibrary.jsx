@@ -21,15 +21,16 @@ export default function DeckLibrary({ decks, stats, overall, start, open, add, r
       <button className="hero-action" onClick={() => next ? start(next, 10, 'due_first') : add()}><Play size={16}/>{next ? 'Học ngay' : 'Thêm từ mới'}</button></div>
       <div className="hero-art"><button className="sample-card" aria-label="Lật thẻ mẫu achievement" onClick={() => setFlipped(v => !v)}><small><Layers size={14}/> THẺ MẪU</small><strong lang={flipped ? 'vi' : 'en'}>{flipped ? 'thành tựu' : 'achievement'}</strong><span>{flipped ? 'danh từ' : '/əˈtʃiːv.mənt/'}</span><i><RotateCcw size={13}/> Lật thẻ</i></button></div>
     </section>
-    <div className="study-metrics"><span><Flame/ ><b>{overall.currentStreak} ngày</b> liên tiếp</span><span><CalendarDays/><b>{due}</b> đến hạn</span><span><CheckCircle2/><b>{overall.totalMastered}</b> đã thuộc</span></div>
+    <div className="study-metrics"><span><Flame/ ><b>{overall.currentStreak} ngày</b> liên tiếp</span><span><CalendarDays/><b>{due}</b> đến hạn</span><span><CheckCircle2/><b>{overall.todayCount}</b> lượt thẻ hôm nay</span></div>
     <section><div className="collection-heading"><div><h2>Thư viện thẻ học</h2><p>Chọn bộ từ để học hoặc ôn tập.</p></div><div className="filters"><button onClick={openStudyDecks}><BookMarked/> Bộ học riêng</button><button disabled={!overall.savedCount} onClick={() => start('saved', 30, 'mixed')}><Star/> Đã lưu · {overall.savedCount}</button><button disabled={!overall.hardCount} onClick={() => start('hard', 30, 'mixed')}><Zap/> Thẻ khó · {overall.hardCount}</button></div></div>
     <div className="collection-grid">{decks.map(deck => {
       const [Icon, title, subtitle] = covers[deck.id];
       const info = stats[deck.id];
       return <article className={'deck-tile ' + deck.id} key={deck.id}>
         <div className="tile-top"><div className="deck-emblem"><Icon/></div><span>{deck.isCustom ? 'Cá nhân' : deck.code}</span></div>
-        <h3>{title}</h3><p>{subtitle}</p><div className="deck-counts"><span>{info.total} từ</span><span>{info.dueCount ? info.dueCount + ' đến hạn' : info.newCount + ' thẻ mới'}</span></div>
-        <progress aria-label={'Tiến độ bộ ' + title} max="100" value={info.progressPercent}/>
+        <h3>{title}</h3><p>{subtitle}</p><div className="deck-counts"><span><strong>{info.learnedCount}/{info.total}</strong> đã học</span><span>{info.dueCount ? info.dueCount + ' đến hạn' : info.newCount + ' thẻ mới'}</span></div>
+        <progress aria-label={'Tiến độ bộ ' + title} max={info.total || 1} value={info.learnedCount}/>
+        <p className="deck-today">{info.learnedToday} từ học lần đầu hôm nay</p>
         <button onClick={() => info.total ? open(deck) : add()}>{info.total ? 'Mở bộ thẻ' : 'Thêm từ đầu tiên'}</button>
       </article>;
     })}</div></section><button className="recover-link" onClick={recover}><RotateCcw size={14}/> Khôi phục kho từ cũ</button>
