@@ -1,38 +1,11 @@
+import DeckLibrary from './DeckLibrary';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  Volume2, 
-  RotateCcw, 
-  Trash2, 
-  Star, 
-  Layers, 
-  Award,
-  BookOpen,
-  ArrowRight,
-  ArrowLeft,
-  Flame,
-  Trophy,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-  Sparkles,
-  Gamepad2,
-  Check,
-  Zap,
-  Bookmark,
-  Plus,
-  ShieldCheck
-} from 'lucide-react';
-import { speakEnglish, sound, unlockMobileAudio } from '../utils/sound';
+import { Volume2, Star, Award, ArrowLeft } from 'lucide-react';
+import { speakEnglish, sound, stopSpeaking, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
-import { 
-  CURATED_TOEIC_EXAMPLES, 
-  isBadTemplateSentence, 
-  lookupEnglishPronunciation,
-  correctVietnameseSpelling,
-  getToeicExampleFallback 
-} from '../utils/dictionary';
-import { updateCustomWord, deepRecoverCustomWords } from '../utils/storage';
+import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
+import './study.css';
 
 // Sanitize and filter valid words helper (pure function at module scope)
 const sanitizeWords = (list) => {
@@ -42,31 +15,30 @@ const sanitizeWords = (list) => {
 
 export default function SmartCards({
   allWords = [],
-  customWords = [],
-  builtInSets = [],
   onUpdateWordSrs,
   onRecordStudySession,
   initialWords = null,
-  initialMode = 'decks',
-  onBackToDashboard,
+  initialTitle = '',
+  onOpenStudyDecks,
   onOpenAddModal,
   onOpenBatchModal,
   favoriteIds = [],
   onToggleFavorite,
   streakInfo = {},
   onStartQuiz,
+  settings = {},
+  onUpdateSettings,
   onDeepRecovery
 }) {
   // Navigation View Modes: 'decks' (Dashboard Image 2), 'study' (Review Mode Image 3/4), 'recall_check' (Active Typing), 'summary' (Victory)
   const [viewMode, setViewMode] = useState(() => {
     if (initialWords && initialWords.length > 0) return 'study';
-    if (initialMode && initialMode !== 'decks' && initialMode !== 'all') return 'study';
     return 'decks';
   });
 
   const [activeDeck, setActiveDeck] = useState(null);
-  const [sessionSize, setSessionSize] = useState(30); // Khuyên dùng 30 từ như yêu cầu người dùng
-  const [studyModeType, setStudyModeType] = useState('new_first'); // 'new_first' (Học từ mới tiếp theo), 'due_first' (Ôn từ đến hạn), 'mixed' (Kết hợp)
+  const [sessionSize, setSessionSize] = useState(10); // Khuyên dùng 30 từ như yêu cầu người dùng
+  const [studyModeType, setStudyModeType] = useState('due_first'); // 'new_first' (Học từ mới tiếp theo), 'due_first' (Ôn từ đến hạn), 'mixed' (Kết hợp)
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
   const [selectedDeckForSession, setSelectedDeckForSession] = useState(null);
 
@@ -74,9 +46,14 @@ export default function SmartCards({
   const [activeQueue, setActiveQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [autoPlayAudio, setAutoPlayAudio] = useState(true);
-  const [rememberedCount, setRememberedCount] = useState(0);
-  const [forgottenCount, setForgottenCount] = useState(0);
+  const autoPlayAudio = settings.autoPlayAudio ?? true;
+  const [audioError, setAudioError] = useState('');
+  const playEnglish = useCallback(async (text) => {
+    setAudioError('');
+    if (await speakEnglish(text, settings.speechRate) === 'unavailable') {
+      setAudioError('Chưa phát được âm thanh. Hãy kiểm tra giọng đọc tiếng Anh trên thiết bị hoặc thử lại.');
+    }
+  }, [settings.speechRate]);
   const [sessionTargetWords, setSessionTargetWords] = useState([]); // Danh sách gốc N từ của phiên học
 
   // Active Recall State (Phase 2 - Luyện gõ củng cố sau khi học)
@@ -85,13 +62,11 @@ export default function SmartCards({
   const [recallInput, setRecallInput] = useState('');
   const [recallFeedback, setRecallFeedback] = useState(null); // 'correct', 'incorrect', 'revealed'
   const [revealedHint, setRevealedHint] = useState(false);
+  const missedRecall = useRef(new Set());
   const recallInputRef = useRef(null);
 
   const [toastMessage, setToastMessage] = useState('');
 
-  // Mobile Touch Swipe Handling
-  const [touchStartX, setTouchStartX] = useState(null);
-  const [touchStartY, setTouchStartY] = useState(null);
 
   const todayStr = getTodayDateString();
 
@@ -104,13 +79,11 @@ export default function SmartCards({
         setActiveQueue(clean);
         setCurrentIndex(0);
         setIsFlipped(false);
-        setRememberedCount(0);
-        setForgottenCount(0);
         setViewMode('study');
-        setActiveDeck({ id: 'custom_session', title: 'Phiên Học Đã Chọn', code: 'CUS' });
+        setActiveDeck({ id: 'custom_session', title: initialTitle || 'Phiên học đã chọn', code: 'CUS' });
       }
     }
-  }, [initialWords]);
+  }, [initialWords, initialTitle]);
 
   // Using sanitizeWords from module scope
 
@@ -119,15 +92,12 @@ export default function SmartCards({
     setTimeout(() => setToastMessage(''), 1800);
   };
 
-  const handleTriggerDeepRecovery = () => {
-    if (onDeepRecovery) {
-      const count = onDeepRecovery();
-      showToast(`🎉 Đã quét và khôi phục thành công ${count} từ vựng vào Master Vault!`);
-    } else {
-      const recovered = deepRecoverCustomWords();
-      showToast(`🎉 Đã quét và khôi phục thành công ${recovered.length} từ vựng vào Master Vault!`);
-      setTimeout(() => window.location.reload(), 1200);
-    }
+  const handleTriggerDeepRecovery = async () => {
+    if (!window.confirm('Thêm lại các từ còn thiếu từ bản sao lưu cũ vào Bộ của tôi?')) return;
+    try {
+      const count = await onDeepRecovery?.();
+      showToast(count ? `Đã khôi phục ${count} từ.` : 'Không có từ cần bổ sung từ bản sao lưu.');
+    } catch (error) { showToast(error.message); }
   };
 
   // Helper: Filter words by deck
@@ -184,19 +154,17 @@ export default function SmartCards({
       words.forEach(w => {
         const srs = w.srs || {};
         const state = srs.state || 'new';
-        const reps = srs.repetitions || 0;
-        const interval = srs.interval || 0;
 
-        if (reps === 0 || state === 'new') {
+        if (state === 'new') {
           newCount++;
-        } else if (state === 'mastered' || interval >= 3) {
+        } else if (state === 'mastered') {
           masteredCount++;
         } else {
           learningCount++;
         }
 
         // Đếm thẻ đã học và đến hạn ôn tập hôm nay
-        if (reps > 0 && isDueForReview(w, todayStr)) {
+        if (state !== 'new' && isDueForReview(w, todayStr)) {
           dueCount++;
         }
       });
@@ -226,18 +194,18 @@ export default function SmartCards({
 
     cleanAll.forEach(w => {
       const srs = w.srs || {};
-      if (srs.state === 'mastered' || (srs.interval && srs.interval >= 3)) {
+      if (srs.state === 'mastered') {
         totalMastered++;
       }
-      if (w.mistakeCount > 0 || (srs.easeFactor && srs.easeFactor < 2.2)) {
+      if (srs.state === 'learning' || w.mistakeCount > 0 || (srs.easeFactor && srs.easeFactor < 2.2)) {
         hardCards.push(w);
       }
     });
 
     return {
       totalMastered,
-      currentStreak: streakInfo.currentStreak || 1,
-      longestStreak: streakInfo.longestStreak || 1,
+      currentStreak: streakInfo.currentStreak || 0,
+      longestStreak: streakInfo.longestStreak || 0,
       savedCount: (favoriteIds || []).length,
       hardCount: hardCards.length,
       hardCards
@@ -254,7 +222,6 @@ export default function SmartCards({
       setActiveDeck({ id: 'saved', title: 'Từ Vựng Đã Lưu (⭐)', code: 'SAVED' });
     } else if (deck === 'hard') {
       words = overallStats.hardCards;
-      if (words.length === 0) words = sanitizeWords(allWords).slice(0, targetCount);
       setActiveDeck({ id: 'hard', title: 'Top Thẻ Khó & Cần Ôn', code: 'HARD' });
     } else {
       words = getWordsForDeck(deck.id);
@@ -275,68 +242,22 @@ export default function SmartCards({
       return;
     }
 
-    // 1. Thẻ mới chưa từng học: repetitions === 0 || state === 'new'
-    const newWords = words.filter(w => {
-      const reps = w.srs?.repetitions || 0;
-      const state = w.srs?.state || 'new';
-      return reps === 0 || state === 'new';
-    });
-
-    // 2. Thẻ đã học và ĐẾN HẠN ÔN TẬP HÔM NAY (Spaced Repetition): repetitions > 0 && isDueForReview
-    const dueWords = words.filter(w => {
-      const reps = w.srs?.repetitions || 0;
-      return reps > 0 && isDueForReview(w, todayStr);
-    });
-
-    // 3. Thẻ đã học nhưng CHƯA ĐẾN HẠN ÔN (lịch nhắc vào các ngày tới): repetitions > 0 && !isDueForReview
-    const notDueWords = words.filter(w => {
-      const reps = w.srs?.repetitions || 0;
-      return reps > 0 && !isDueForReview(w, todayStr);
-    });
-
-    let selected = [];
-
-    if (mode === 'new_first') {
-      // ƯU TIÊN HỌC TỪ MỚI TIẾP THEO (Hôm nay học 1-30, ngày mai tự động lấy 31-60)
-      if (newWords.length > 0) {
-        selected = newWords.slice(0, targetCount);
-      } else if (dueWords.length > 0) {
-        selected = dueWords.slice(0, targetCount);
-      } else {
-        selected = words.slice(0, targetCount);
-      }
-    } else if (mode === 'due_first') {
-      // ƯU TIÊN ÔN TẬP CÁC TỪ ĐẾN HẠN HÔM NAY
-      if (dueWords.length > 0) {
-        selected = dueWords.slice(0, targetCount);
-      } else if (newWords.length > 0) {
-        selected = newWords.slice(0, targetCount);
-      } else {
-        selected = words.slice(0, targetCount);
-      }
-    } else {
-      // KẾT HỢP THÔNG MINH (Chuẩn Anki): Ôn từ đến hạn trước, sau đó nạp thêm từ mới cho đủ targetCount
-      selected = [...dueWords.slice(0, targetCount)];
-      if (selected.length < targetCount) {
-        const remaining = targetCount - selected.length;
-        selected = [...selected, ...newWords.slice(0, remaining)];
-      }
-      if (selected.length < targetCount) {
-        const remaining = targetCount - selected.length;
-        const others = notDueWords.filter(w => !selected.some(s => s.id === w.id));
-        selected = [...selected, ...others.slice(0, remaining)];
-      }
+    const newWords = words.filter(w => !w.srs?.state || w.srs.state === 'new');
+    const dueWords = words.filter(w => w.srs?.state && w.srs.state !== 'new' && isDueForReview(w, todayStr))
+      .sort((a, b) => (a.srs.nextReviewDate || '').localeCompare(b.srs.nextReviewDate || ''));
+    const ordered = mode === 'free' || deck === 'saved' || deck === 'hard' ? words
+      : mode === 'new_first' ? [...newWords, ...dueWords] : [...dueWords, ...newWords];
+    const selected = ordered.slice(0, targetCount);
+    if (!selected.length) {
+      setIsSizeModalOpen(false);
+      showToast('Bạn đã ôn xong bộ này hôm nay.');
+      return;
     }
-
-    // Đảo ngẫu nhiên thứ tự các thẻ trong phiên để phản xạ nhanh
-    selected = selected.sort(() => 0.5 - Math.random());
 
     setSessionTargetWords(selected);
     setActiveQueue([...selected]);
     setCurrentIndex(0);
     setIsFlipped(false);
-    setRememberedCount(0);
-    setForgottenCount(0);
     setViewMode('study');
     setIsSizeModalOpen(false);
   };
@@ -350,19 +271,17 @@ export default function SmartCards({
 
   const currentWord = activeQueue[currentIndex];
 
-  // Auto-speak English when card loads if enabled
   useEffect(() => {
-    if (viewMode === 'study' && currentWord && currentWord.word && autoPlayAudio) {
-      speakEnglish(currentWord.word, 0.95);
-    }
-  }, [currentWord, currentIndex, autoPlayAudio, viewMode]);
+    setAudioError('');
+    if (viewMode === 'study' && currentWord && autoPlayAudio) playEnglish(currentWord.word);
+    return stopSpeaking;
+  }, [currentWord, currentIndex, recallIndex, autoPlayAudio, viewMode, playEnglish]);
 
   // 1. NÚT CHƯA NHỚ (Lặp lại ở cuối phiên)
   const handleUnremembered = useCallback(() => {
-    if (!currentWord) return;
+    if (!currentWord || !isFlipped) return;
     unlockMobileAudio();
     sound.playIncorrect();
-    setForgottenCount(prev => prev + 1);
     showToast('🔁 Chưa nhớ: Từ này sẽ lặp lại ở cuối phiên học!');
 
     const nextSrs = calculateNextSrs(currentWord.srs, SRS_RATING.AGAIN);
@@ -372,19 +291,18 @@ export default function SmartCards({
     setActiveQueue(prev => {
       const copy = [...prev];
       const item = copy.splice(currentIndex, 1)[0];
-      copy.push(item);
+      copy.push({ ...item, srs: nextSrs });
       return copy;
     });
 
     setIsFlipped(false);
-  }, [currentWord, currentIndex, onUpdateWordSrs]);
+  }, [currentWord, currentIndex, onUpdateWordSrs, isFlipped]);
 
   // 2. NÚT ĐÃ NHỚ (Chuyển sang từ tiếp theo)
   const handleRemembered = useCallback(() => {
-    if (!currentWord) return;
+    if (!currentWord || !isFlipped) return;
     unlockMobileAudio();
     sound.playCorrect();
-    setRememberedCount(prev => prev + 1);
     showToast('✨ Đã nhớ! Xuất sắc!');
 
     const nextSrs = calculateNextSrs(currentWord.srs, SRS_RATING.GOOD);
@@ -396,6 +314,7 @@ export default function SmartCards({
       sound.playFlip();
       const recallList = sessionTargetWords.length > 0 ? [...sessionTargetWords] : activeQueue;
       setRecallQueue(recallList.sort(() => 0.5 - Math.random()));
+      missedRecall.current.clear();
       setRecallIndex(0);
       setRecallInput('');
       setRecallFeedback(null);
@@ -405,7 +324,7 @@ export default function SmartCards({
       setCurrentIndex(prev => prev + 1);
       setIsFlipped(false);
     }
-  }, [currentWord, currentIndex, activeQueue, sessionTargetWords, onUpdateWordSrs]);
+  }, [currentWord, currentIndex, activeQueue, sessionTargetWords, onUpdateWordSrs, isFlipped]);
 
   // Lật thẻ
   const handleFlipToggle = () => {
@@ -417,7 +336,8 @@ export default function SmartCards({
   // Keyboard Shortcuts (Image 2 & 3: 1 Chưa nhớ, 2 Đã nhớ, Space Lật, A Phát âm)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, select, [role=dialog]') || document.querySelector('[role=dialog]')) return;
+      if (e.target.closest?.('button') && (e.code === 'Space' || e.code === 'Enter')) return;
 
       if (viewMode === 'study') {
         if (e.key === '1') {
@@ -428,7 +348,7 @@ export default function SmartCards({
           handleRemembered();
         } else if (e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'r') {
           e.preventDefault();
-          if (currentWord?.word) speakEnglish(currentWord.word, 0.95);
+          if (currentWord?.word) playEnglish(currentWord.word);
         } else if (e.code === 'Space' || e.code === 'Enter') {
           e.preventDefault();
           handleFlipToggle();
@@ -438,240 +358,15 @@ export default function SmartCards({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUnremembered, handleRemembered, currentWord, viewMode]);
+  }, [handleUnremembered, handleRemembered, currentWord, viewMode, playEnglish]);
 
-  // Touch Swipe on Mobile
-  const handleTouchStart = (e) => {
-    if (e.touches && e.touches[0]) {
-      setTouchStartX(e.touches[0].clientX);
-      setTouchStartY(e.touches[0].clientY);
-    }
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartX === null || touchStartY === null) return;
-    const diffX = e.changedTouches[0].clientX - touchStartX;
-    const diffY = e.changedTouches[0].clientY - touchStartY;
-
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-      if (diffX < 0) {
-        handleUnremembered(); // Swiped Left -> Chưa nhớ
-      } else {
-        handleRemembered();   // Swiped Right -> Đã nhớ
-      }
-    }
-    setTouchStartX(null);
-    setTouchStartY(null);
-  };
-
-  // Responsive font size for word so it never overflows
-  const wordFontSize = useMemo(() => {
-    if (!currentWord || !currentWord.word) return 'text-2xl sm:text-4xl';
-    const len = currentWord.word.length;
-    if (len > 24) return 'text-lg sm:text-2xl';
-    if (len > 15) return 'text-xl sm:text-3xl';
-    return 'text-2xl sm:text-4xl lg:text-5xl';
-  }, [currentWord]);
-
-  // Live state cho phiên âm được tự động tra cứu ngầm
-  const [livePronunciation, setLivePronunciation] = useState('');
-
-  // Tự động tìm phiên âm IPA chuẩn từ từ điển nếu thẻ từ chưa có phiên âm
-  useEffect(() => {
-    setLivePronunciation('');
-    if (!currentWord || !currentWord.word) return;
-
-    const rawPron = (currentWord.pronunciation || '').trim();
-    if (rawPron) return;
-
-    const lower = currentWord.word.toLowerCase();
-    const curated = CURATED_TOEIC_EXAMPLES[lower]?.pronunciation;
-    if (curated) {
-      setLivePronunciation(curated);
-      return;
-    }
-
-    lookupEnglishPronunciation(currentWord.word).then(ipa => {
-      if (ipa) {
-        setLivePronunciation(ipa);
-        if (String(currentWord.id || '').startsWith('usr_')) {
-          updateCustomWord(currentWord.id, { pronunciation: ipa });
-        }
-      }
-    }).catch(() => {});
-  }, [currentWord]);
-
-  // Phiên âm cách đọc hiệu quả (Ưu tiên số 1 cho kho ETS chuẩn -> phiên âm từ vựng -> tra cứu API)
-  const effectivePronunciation = useMemo(() => {
-    if (!currentWord || !currentWord.word) return '';
-    const lower = currentWord.word.trim().toLowerCase();
-    const curated = CURATED_TOEIC_EXAMPLES[lower]?.pronunciation;
-    if (curated) return curated;
-    const raw = (currentWord.pronunciation || '').trim();
-    if (raw) return raw;
-    return livePronunciation;
-  }, [currentWord, livePronunciation]);
-
-  // Loại từ chính xác (Ưu tiên số 1 cho kho ETS chuẩn -> phán đoán hình thái học Morphology)
-  const effectivePos = useMemo(() => {
-    if (!currentWord) return 'phr';
-    const lower = (currentWord.word || '').trim().toLowerCase();
-    if (CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech) {
-      return CURATED_TOEIC_EXAMPLES[lower].partOfSpeech;
-    }
-    if (currentWord.partOfSpeech && currentWord.partOfSpeech !== 'noun') {
-      return currentWord.partOfSpeech;
-    }
-    return inferPartOfSpeech(currentWord.word);
-  }, [currentWord]);
-
-  // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa từ vựng (Khắc phục lỗi "bởi vị", sai logic ngữ pháp "số ít"...)
-  const displayMeaning = useMemo(() => {
-    if (!currentWord || !currentWord.meaning) return '';
-    const lower = (currentWord.word || '').trim().toLowerCase();
-    const curatedMeaning = CURATED_TOEIC_EXAMPLES[lower]?.meaning;
-    if (curatedMeaning && (
-      currentWord.meaning.includes('số ít') || 
-      currentWord.meaning.includes('chưa dịch') || 
-      currentWord.meaning.includes('bởi vị') ||
-      currentWord.meaning.includes('(v1)')
-    )) {
-      return curatedMeaning;
-    }
-    const cleaned = correctVietnameseSpelling(currentWord.meaning);
-    return cleaned || currentWord.meaning;
-  }, [currentWord]);
-
-  // Effective example sentence: ƯU TIÊN SỐ 1 TUYỆT ĐỐI CHO KHO VÍ DỤ ETS CHUẨN ĐƯỢC GIÁM TUYỂN
-  const effectiveExample = useMemo(() => {
-    if (!currentWord || !currentWord.word) return { example: '', translation: '' };
-
-    const lower = (currentWord.word || '').trim().toLowerCase();
-    const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-    // 1. ƯU TIÊN SỐ 1 TUYỆT ĐỐI: Kho ví dụ ETS chuẩn đã được giám tuyển tỉ mỉ (100% tự nhiên, không bao giờ ghép câu bậy)
-    if (curated?.example) {
-      return {
-        example: curated.example,
-        translation: curated.translation || ''
-      };
-    }
-
-    // 2. Nếu không có trong kho chuẩn, kiểm tra câu của từ (nhưng phải tẩy rửa triệt để câu mẫu ghép từ)
-    let ex = (currentWord.example || '').trim();
-    let tr = (currentWord.exampleTranslation || '').trim();
-
-    if (isBadTemplateSentence(ex, tr)) {
-      ex = '';
-      tr = '';
-    }
-
-    if (ex) {
-      return {
-        example: ex,
-        translation: tr
-      };
-    }
-
-    // 3. Tự động trả về rỗng nếu chưa có câu chuẩn (Tuyệt đối không sinh câu mẫu rập khuôn)
-    return getToeicExampleFallback(currentWord.word, effectivePos, displayMeaning);
-  }, [currentWord, effectivePos, displayMeaning]);
-
-  // Tự động lưu và cập nhật ngay vào bộ nhớ nếu từ đang học chưa có ví dụ chuẩn hoặc mang câu mẫu mad-libs
-  useEffect(() => {
-    if (currentWord && currentWord.id && (String(currentWord.id).startsWith('usr_') || currentWord.isCustom)) {
-      const lower = (currentWord.word || '').trim().toLowerCase();
-      const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-      const hasCurated = !!curated?.example;
-      const isOutdatedExample = hasCurated && currentWord.example !== curated.example;
-      const isBadEx = isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
-      const isBadMean = !currentWord.meaning || currentWord.meaning.includes('chưa dịch') || displayMeaning !== currentWord.meaning;
-      const isOutdatedPos = effectivePos !== currentWord.partOfSpeech;
-      const isOutdatedPron = effectivePronunciation && currentWord.pronunciation !== effectivePronunciation;
-
-      if (isOutdatedExample || isBadEx || isBadMean || isOutdatedPos || isOutdatedPron) {
-        updateCustomWord(currentWord.id, {
-          example: effectiveExample.example,
-          exampleTranslation: effectiveExample.translation,
-          meaning: displayMeaning,
-          pronunciation: effectivePronunciation,
-          partOfSpeech: effectivePos
-        });
-      }
-    }
-  }, [currentWord, effectiveExample, displayMeaning, effectivePos, effectivePronunciation]);
-
-  // Formatted example with bold word
-  const formattedExample = useMemo(() => {
-    const ex = effectiveExample.example;
-    if (!currentWord || !ex || !currentWord.word) return '';
-    try {
-      const parts = ex.split(new RegExp(`(${currentWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
-      return parts.map((part, i) => 
-        part.toLowerCase() === currentWord.word.toLowerCase() 
-          ? <strong key={i} className="font-extrabold text-[#0B132B]">{part}</strong> 
-          : part
-      );
-    } catch (e) {
-      return ex;
-    }
-  }, [currentWord, effectiveExample]);
-
-  // Smart Cloze hint for front card (Word is NEVER revealed before flipping)
-  const clozeHintExample = useMemo(() => {
-    const ex = effectiveExample.example;
-    if (!currentWord || !ex || !currentWord.word) return '';
-    const rawWord = String(currentWord.word || '').trim();
-    const example = String(ex || '').trim();
-
-    const escapeReg = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    // 1. If starts with "be " (e.g. be accustomed to vs are accustomed to)
-    if (/^be\s+/i.test(rawWord)) {
-      const core = rawWord.replace(/^be\s+/i, '').trim();
-      const beRegex = new RegExp(`\\b(be|am|is|are|was|were|been|being)\\s+${escapeReg(core)}\\b`, 'gi');
-      if (beRegex.test(example)) {
-        return example.replace(beRegex, (m, verb) => `${verb} [ ______ ]`);
-      }
-      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
-      if (coreRegex.test(example)) {
-        return example.replace(coreRegex, '[ ______ ]');
-      }
-    }
-
-    // 2. If starts with "to "
-    if (/^to\s+/i.test(rawWord)) {
-      const core = rawWord.replace(/^to\s+/i, '').trim();
-      const coreRegex = new RegExp(`\\b${escapeReg(core)}\\b`, 'gi');
-      if (coreRegex.test(example)) {
-        return example.replace(coreRegex, '[ ______ ]');
-      }
-    }
-
-    // 3. Exact match with word boundary
-    const exactRegex = new RegExp(`\\b${escapeReg(rawWord)}\\b`, 'gi');
-    if (exactRegex.test(example)) {
-      return example.replace(exactRegex, '[ ______ ]');
-    }
-
-    // 4. Loose match
-    const looseRegex = new RegExp(escapeReg(rawWord), 'gi');
-    if (looseRegex.test(example)) {
-      return example.replace(looseRegex, '[ ______ ]');
-    }
-
-    // 5. Stem/token match
-    const tokens = rawWord.split(/\s+/).filter(t => t.length >= 4);
-    for (const token of tokens) {
-      const tokenRegex = new RegExp(`\\b${escapeReg(token)}[a-z]*\\b`, 'gi');
-      if (tokenRegex.test(example)) {
-        return example.replace(tokenRegex, '[ ______ ]');
-      }
-    }
-
-    return example;
-  }, [currentWord, effectiveExample]);
+  const curated = CURATED_TOEIC_EXAMPLES[currentWord?.word?.trim().toLowerCase()];
+  const effectivePronunciation = currentWord?.pronunciation || curated?.pronunciation || '';
+  const effectivePos = currentWord?.partOfSpeech || curated?.partOfSpeech || '';
+  const displayMeaning = currentWord?.meaning || curated?.meaning || '';
+  const useStoredExample = currentWord?.example && !isBadTemplateSentence(currentWord.example, currentWord.exampleTranslation);
+  const example = useStoredExample ? currentWord.example : curated?.example;
+  const translation = useStoredExample ? currentWord.exampleTranslation : curated?.translation;
 
   // =========================================================================
   // LOGIC VÒNG 2: ACTIVE RECALL (VIẾT LẠI TỪ VỰNG VỪA HỌC)
@@ -711,56 +406,46 @@ export default function SmartCards({
     return false;
   };
 
-  const handleCheckRecall = (e) => {
-    if (e) e.preventDefault();
+  const advanceRecall = () => {
+    if (recallIndex + 1 >= recallQueue.length) {
+      onRecordStudySession?.(sessionTargetWords.length);
+      sound.playVictory();
+      setViewMode('summary');
+      return;
+    }
+    setRecallIndex(i => i + 1);
+    setRecallInput('');
+    setRecallFeedback(null);
+    setRevealedHint(false);
+    recallInputRef.current?.focus();
+  };
+
+  const markRecallForReview = () => {
+    if (missedRecall.current.has(currentRecallWord.id)) return;
+    missedRecall.current.add(currentRecallWord.id);
+    onUpdateWordSrs?.(currentRecallWord.id, calculateNextSrs(currentRecallWord.srs, SRS_RATING.AGAIN));
+  };
+
+  const handleCheckRecall = (event) => {
+    event.preventDefault();
     if (!currentRecallWord) return;
-
-    unlockMobileAudio();
-
-    if (isMatchAnswer(recallInput, currentRecallWord.word)) {
-      // Đúng!
+    if (recallFeedback === 'correct' || recallFeedback === 'revealed') {
+      advanceRecall();
+    } else if (isMatchAnswer(recallInput, currentRecallWord.word)) {
       sound.playCorrect();
       setRecallFeedback('correct');
-
-      setTimeout(() => {
-        if (recallIndex + 1 >= recallQueue.length) {
-          // HOÀN THÀNH TOÀN BỘ PHIÊN HỌC CẢ 2 VÒNG!
-          // GHI NHẬN TIẾN ĐỘ THẬT VÀO LOCALSTORAGE
-          if (onRecordStudySession) {
-            onRecordStudySession(sessionTargetWords.length || 1);
-          }
-          // Cập nhật SRS trạng thái mastered cho toàn bộ từ trong phiên
-          (sessionTargetWords || []).forEach(w => {
-            const nextSrs = calculateNextSrs(w.srs, SRS_RATING.GOOD);
-            if (onUpdateWordSrs) onUpdateWordSrs(w.id, nextSrs);
-          });
-
-          sound.playVictory();
-          setViewMode('summary');
-        } else {
-          setRecallIndex(prev => prev + 1);
-          setRecallInput('');
-          setRecallFeedback(null);
-          setRevealedHint(false);
-          if (recallInputRef.current) recallInputRef.current.focus();
-        }
-      }, 700);
     } else {
       sound.playIncorrect();
+      markRecallForReview();
       setRecallFeedback('incorrect');
     }
   };
 
-  const handleShowHint = () => {
-    setRevealedHint(true);
-    if (!currentRecallWord) return;
-    const w = currentRecallWord.word;
-    const hint = w.length > 3 ? `${w.substring(0, 2)}...` : `${w[0]}...`;
-    showToast(`💡 Gợi ý chữ cái bắt đầu: "${hint}"`);
-  };
+  const handleShowHint = () => setRevealedHint(true);
 
   const handleRevealAnswer = () => {
     if (!currentRecallWord) return;
+    markRecallForReview();
     setRecallInput(currentRecallWord.word);
     setRecallFeedback('revealed');
   };
@@ -770,396 +455,27 @@ export default function SmartCards({
   // =========================================================================
   if (viewMode === 'decks') {
     return (
-      <div className="max-w-6xl mx-auto space-y-5 pb-24 sm:pb-16 px-3 sm:px-4">
-        
-        {/* TOP STATS BAR (Image 2) */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
-          
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Chuỗi học */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs sm:text-sm font-bold">
-              <Flame className="w-4 h-4 text-emerald-600 fill-emerald-500" />
-              <span>Chuỗi học: {overallStats.currentStreak} ngày</span>
-            </div>
-
-            {/* Kỷ lục */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs sm:text-sm font-bold">
-              <Trophy className="w-4 h-4 text-blue-600" />
-              <span>Kỷ lục: {overallStats.longestStreak} ngày</span>
-            </div>
-
-            {/* Từ đã học */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 text-xs sm:text-sm font-bold">
-              <BookOpen className="w-4 h-4 text-slate-600" />
-              <span>{overallStats.totalMastered} từ đã học</span>
-            </div>
-          </div>
-
-          {/* Right Action Filters */}
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={() => startSession('saved', 30, 'mixed')}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:border-amber-400 bg-white hover:bg-amber-50 text-xs font-bold text-slate-700 transition-all shadow-2xs cursor-pointer"
-            >
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>Đã lưu ({overallStats.savedCount})</span>
-            </button>
-
-            <button
-              onClick={() => startSession('hard', 30, 'mixed')}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 hover:border-rose-400 bg-white hover:bg-rose-50 text-xs font-bold text-slate-700 transition-all shadow-2xs cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-              <span>Top thẻ khó ({overallStats.hardCount})</span>
-            </button>
-          </div>
-
-        </div>
-
-        {/* SECTION TITLE */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-[#0B132B] tracking-tight">
-              Các Bộ Từ Vựng TOEIC Trọng Tâm
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Chọn một bộ thẻ để bắt đầu phiên học SmartCards & kiểm tra gõ từ củng cố
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleTriggerDeepRecovery}
-              title="Quét phục hồi lại toàn bộ từ vựng đã nạp từ Master Vault"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-xs"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Khôi phục kho từ</span>
-            </button>
-
-            <button
-              onClick={onOpenAddModal}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Thêm từ vào Bộ của tôi</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ALL DECKS GRID (Including "Bộ Của Tôi" as Card #1) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          
-          {displayDecks.map((deck) => {
-            const stats = deckStats[deck.id] || { total: 0, newCount: 0, learningCount: 0, masteredCount: 0, dueCount: 0, hasDueReview: false, progressPercent: 0 };
-
-            return (
-              <div 
-                key={deck.id}
-                className={`bg-white rounded-3xl p-5 border shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative ${
-                  deck.isCustom 
-                    ? 'border-indigo-200 hover:border-indigo-400 bg-gradient-to-b from-indigo-50/30 to-white' 
-                    : 'border-slate-200/90 hover:border-blue-300'
-                }`}
-              >
-                {/* Card Header: Badge & Status */}
-                <div className="flex items-center justify-between">
-                  <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${deck.badgeColor} shadow-xs`}>
-                    {deck.code}
-                  </span>
-
-                  {stats.hasDueReview ? (
-                    <span className="text-xs font-extrabold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
-                      {stats.dueCount} cần ôn
-                    </span>
-                  ) : stats.newCount > 0 ? (
-                    <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                      {stats.newCount} thẻ mới
-                    </span>
-                  ) : (
-                    <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                      Đã thuộc
-                    </span>
-                  )}
-                </div>
-
-                {/* Card Title & Subtitle */}
-                <div>
-                  <h3 className="text-xl font-black text-[#0B132B] group-hover:text-blue-600 transition-colors">
-                    {deck.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1 min-h-[32px] line-clamp-2">
-                    {deck.subtitle}
-                  </p>
-                </div>
-
-                {/* Stats List */}
-                <div className="space-y-1.5 text-xs text-slate-600 border-t border-slate-100 pt-3">
-                  <div className="flex justify-between font-medium">
-                    <span className="text-slate-500">Thẻ mới</span>
-                    <span className="font-bold text-slate-800">{stats.newCount}</span>
-                  </div>
-
-                  <div className="flex justify-between font-medium">
-                    <span className="text-slate-500">Đang học</span>
-                    <span className="font-bold text-amber-600">{stats.learningCount}</span>
-                  </div>
-
-                  <div className="flex justify-between font-medium">
-                    <span className="text-slate-500">Đã học</span>
-                    <span className="font-bold text-emerald-600">{stats.masteredCount} / {stats.total}</span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mt-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-500 ${deck.isCustom ? 'bg-indigo-600' : 'bg-blue-600'}`}
-                      style={{ width: `${Math.max(stats.progressPercent, 4)}%` }}
-                    />
-                  </div>
-
-                  {deck.isCustom && (
-                    <div className="pt-2 flex items-center justify-between text-[11px] border-t border-indigo-100/60 mt-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTriggerDeepRecovery();
-                        }}
-                        className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline"
-                        title="Quét lại Master Vault để tìm và khôi phục toàn bộ từ vựng đã nạp"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Khôi phục từ cũ</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenBatchModal?.();
-                        }}
-                        className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 cursor-pointer hover:underline"
-                        title="Dán thêm từ vựng mới vào bộ này"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Dán thêm từ</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Big Action Button "Học ngay" */}
-                <button
-                  onClick={() => {
-                    if (deck.isCustom && stats.total === 0) {
-                      onOpenBatchModal?.();
-                    } else {
-                      handleOpenDeck(deck);
-                    }
-                  }}
-                  className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white shadow-md active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    deck.isCustom 
-                      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' 
-                      : 'bg-[#2563EB] hover:bg-[#1D4ED8] shadow-blue-600/20'
-                  }`}
-                >
-                  <span>
-                    {deck.isCustom && stats.total === 0 ? '+ Nạp từ để học' : 'Học ngay'}
-                  </span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            );
-          })}
-
-        </div>
-
-        {/* MODAL CHỌN SỐ LƯỢNG TỪ & CHẾ ĐỘ HỌC (Đáp ứng chia phiên 30 từ, mai học tiếp 30 từ) */}
+      <div>
+        <DeckLibrary decks={displayDecks} stats={deckStats} overall={overallStats} start={startSession}
+          open={handleOpenDeck} add={onOpenAddModal} openStudyDecks={onOpenStudyDecks} recover={handleTriggerDeepRecovery} />
+        {toastMessage && <p className="study-notice" role="status">{toastMessage}</p>}
         {isSizeModalOpen && selectedDeckForSession && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-200">
-              
-              <div className="text-center space-y-1">
-                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                  Mục tiêu phiên học
-                </span>
-                <h3 className="text-xl font-black text-[#0B132B]">
-                  {selectedDeckForSession.title}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tổng {deckStats[selectedDeckForSession.id]?.total || 0} từ • Chia nhỏ học hàng ngày theo Spaced Repetition
-                </p>
-              </div>
-
-              {deckStats[selectedDeckForSession.id]?.total === 0 ? (
-                <div className="py-4 text-center space-y-4 animate-fadeIn">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
-                    <Bookmark className="w-7 h-7" />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="font-extrabold text-base text-[#0B132B]">
-                      Bộ "{selectedDeckForSession.title}" chưa có từ vựng
-                    </h4>
-                    <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                      Bạn chưa nạp từ vựng nào vào bộ này. Hãy dùng chức năng Dán nhiều từ hàng loạt hoặc thêm từ mới để bắt đầu học nhé!
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 pt-2">
-                    {onOpenBatchModal && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSizeModalOpen(false);
-                          onOpenBatchModal();
-                        }}
-                        className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#059669] hover:bg-[#047857] shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        <span>Dán nhiều từ hàng loạt (Batch Import)</span>
-                      </button>
-                    )}
-                    {onOpenAddModal && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSizeModalOpen(false);
-                          onOpenAddModal();
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>+ Thêm từng từ mới</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setIsSizeModalOpen(false)}
-                      className="py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      Đóng
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                {/* CHỌN CHẾ ĐỘ HỌC */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Chọn chế độ phiên học:
-                </label>
-                
-                <div className="grid grid-cols-1 gap-1.5 text-xs">
-                  
-                  {/* Mode 1: Học từ mới tiếp theo */}
-                  <button
-                    type="button"
-                    onClick={() => setStudyModeType('new_first')}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                      studyModeType === 'new_first'
-                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-blue-700">🌟 Học {sessionSize} từ mới tiếp theo</span>
-                      {studyModeType === 'new_first' && <Check className="w-4 h-4 text-blue-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
-                      Lấy các từ chưa học (Ví dụ: nay học 1-30, mai tự động lấy 31-60).
-                    </p>
-                  </button>
-
-                  {/* Mode 2: Ôn tập từ đến hạn */}
-                  <button
-                    type="button"
-                    onClick={() => setStudyModeType('due_first')}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                      studyModeType === 'due_first'
-                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-amber-700">🔁 Ôn tập các từ đến hạn (SRS)</span>
-                      {studyModeType === 'due_first' && <Check className="w-4 h-4 text-blue-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
-                      Chỉ ôn lại các từ đã học trước đây mà hôm nay đến lịch nhắc lại.
-                    </p>
-                  </button>
-
-                  {/* Mode 3: Kết hợp thông minh */}
-                  <button
-                    type="button"
-                    onClick={() => setStudyModeType('mixed')}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                      studyModeType === 'mixed'
-                        ? 'border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs font-bold'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-emerald-700">🎯 Kết hợp thông minh (Chuẩn Anki)</span>
-                      {studyModeType === 'mixed' && <Check className="w-4 h-4 text-blue-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 mt-0.5">
-                      Ưu tiên ôn từ đến hạn trước, sau đó nạp thêm từ mới cho đủ {sessionSize} từ.
-                    </p>
-                  </button>
-
-                </div>
-              </div>
-
-              {/* CHỌN SỐ LƯỢNG TỪ */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Số lượng từ cho phiên hôm nay:
-                </label>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  {[10, 20, 30].map(size => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => setSessionSize(size)}
-                      className={`py-2 px-3 rounded-xl border font-bold text-xs transition-all cursor-pointer text-center ${
-                        sessionSize === size 
-                          ? 'border-blue-600 bg-blue-600 text-white shadow-xs' 
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      {size} từ {size === 30 && '⭐'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ACTIONS */}
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSizeModalOpen(false)}
-                  className="w-1/3 py-2.5 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Hủy
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => startSession(selectedDeckForSession, sessionSize, studyModeType)}
-                  className="flex-1 py-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <span>Bắt đầu học {sessionSize} từ</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-              </>
-            )}
-
-            </div>
-          </div>
-        )}
-
+          <div className="study-overlay" onClick={() => setIsSizeModalOpen(false)}>
+            <section className="study-sheet study-setup" role="dialog" aria-modal="true" aria-labelledby="session-title" onKeyDown={e => { if (e.key === 'Escape') setIsSizeModalOpen(false); }} onClick={e => e.stopPropagation()}>
+              <h2 id="session-title">{selectedDeckForSession.title}</h2>
+              <p>{deckStats[selectedDeckForSession.id].dueCount} thẻ đến hạn · {deckStats[selectedDeckForSession.id].newCount} thẻ mới</p>
+              <label>Thứ tự học<select autoFocus value={studyModeType} onChange={e => setStudyModeType(e.target.value)}>
+                <option value="due_first">Ôn thẻ đến hạn trước</option>
+                <option value="new_first">Học thẻ mới trước</option>
+                <option value="free">Luyện tự do cả bộ</option>
+              </select></label>
+              <label>Số thẻ tối đa<select value={sessionSize} onChange={e => setSessionSize(Number(e.target.value))}>
+                {[5,10,20,30].map(n => <option key={n} value={n}>{n} thẻ</option>)}
+              </select></label>
+              <div className="study-actions"><button onClick={() => setIsSizeModalOpen(false)}>Quay lại</button>
+                <button className="study-primary" onClick={() => startSession(selectedDeckForSession, sessionSize, studyModeType)}>Bắt đầu học</button></div>
+            </section>
+          </div>)}
       </div>
     );
   }
@@ -1167,531 +483,53 @@ export default function SmartCards({
   // =========================================================================
   // VIEW 3: ACTIVE RECALL (VÒNG 2 - GÕ LẠI TỪ VỰNG ĐỂ KHẮC SÂU TRÍ NHỚ)
   // =========================================================================
-  if (viewMode === 'recall_check') {
-    const totalRecall = recallQueue.length;
-    const progressPercent = totalRecall > 0 ? Math.round(((recallIndex + 1) / totalRecall) * 100) : 0;
-
-    return (
-      <div className="max-w-2xl mx-auto space-y-4 pb-28 sm:pb-16 px-3 sm:px-4">
-        
-        {/* Top Header */}
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/90 shadow-xs flex items-center justify-between">
-          <button
-            onClick={() => setViewMode('decks')}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Thoát ra Decks</span>
-          </button>
-
-          <div className="text-center">
-            <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              Vòng 2: Gõ lại {totalRecall} từ vừa học
-            </span>
-          </div>
-
-          <div className="text-xs font-bold text-slate-600">
-            Câu {recallIndex + 1} / {totalRecall}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-          <div 
-            className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* Active Recall Card */}
-        {currentRecallWord && (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md space-y-5 text-center">
-            
-            {/* Word Part of Speech */}
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                ({currentRecallWord.partOfSpeech || 'v/n'})
-              </span>
-              <button
-                onClick={() => {
-                  unlockMobileAudio();
-                  speakEnglish(currentRecallWord.word, 0.95);
-                }}
-                className="p-1.5 rounded-full bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-                title="Nghe phát âm gợi ý"
-              >
-                <Volume2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Target Meaning in Bold Emerald */}
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400">Nghĩa tiếng Việt cần viết lại:</span>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#059669] tracking-tight">
-                "{currentRecallWord.meaning}"
-              </h2>
-            </div>
-
-            {/* Context sentence with cloze */}
-            {(() => {
-              let ex = (currentRecallWord.example || '').trim();
-              if (isBadTemplateSentence(ex)) {
-                ex = '';
-              }
-              if (!ex) {
-                ex = CURATED_TOEIC_EXAMPLES[currentRecallWord.word?.toLowerCase()]?.example || '';
-              }
-              if (!ex) return null;
-              return (
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 italic max-w-lg mx-auto">
-                  "{ex.replace(new RegExp(currentRecallWord.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[ ______ ]')}"
-                </div>
-              );
-            })()}
-
-            {/* Typing Form */}
-            <form onSubmit={handleCheckRecall} className="max-w-md mx-auto space-y-3 pt-2">
-              <div className="relative">
-                <input
-                  ref={recallInputRef}
-                  type="text"
-                  autoFocus
-                  value={recallInput}
-                  onChange={(e) => {
-                    setRecallInput(e.target.value);
-                    if (recallFeedback === 'incorrect') setRecallFeedback(null);
-                  }}
-                  placeholder="Nhập từ tiếng Anh tương ứng..."
-                  className={`w-full py-3.5 px-4 rounded-2xl border-2 text-center text-base sm:text-lg font-bold tracking-wide focus:outline-none transition-all shadow-inner ${
-                    recallFeedback === 'correct' 
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-4 ring-emerald-200' 
-                      : recallFeedback === 'incorrect' 
-                      ? 'border-rose-500 bg-rose-50 text-rose-900 ring-4 ring-rose-200 animate-shake' 
-                      : 'border-slate-300 focus:border-blue-600 bg-white text-slate-900'
-                  }`}
-                />
-              </div>
-
-              {/* Feedback Alert */}
-              {recallFeedback === 'correct' && (
-                <div className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1 animate-fadeIn">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Chính xác! Chuẩn bị chuyển sang từ tiếp theo...</span>
-                </div>
-              )}
-
-              {recallFeedback === 'incorrect' && (
-                <div className="text-xs font-bold text-rose-700 flex items-center justify-center gap-1 animate-fadeIn">
-                  <XCircle className="w-4 h-4 text-rose-600" />
-                  <span>Chưa đúng, hãy thử lại hoặc bấm "Gợi ý"!</span>
-                </div>
-              )}
-
-              {recallFeedback === 'revealed' && (
-                <div className="text-xs font-bold text-blue-700 animate-fadeIn">
-                  👉 Hãy nhìn đáp án trên và bấm Enter để tiếp tục!
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleShowHint}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
-                >
-                  💡 Gợi ý chữ cái
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-6 py-2 rounded-xl text-xs font-bold text-white bg-[#059669] hover:bg-[#047857] shadow-md transition-all active:scale-95 cursor-pointer"
-                >
-                  Kiểm tra (Enter)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRevealAnswer}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                >
-                  👀 Xem đáp án
-                </button>
-              </div>
-
-            </form>
-
-          </div>
-        )}
-
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // VIEW 4: SUMMARY & CELEBRATION (Hoàn thành trọn vẹn cả 2 vòng)
-  // =========================================================================
+  const leaveSession = () => setViewMode('decks');
   if (viewMode === 'summary') {
-    const count = sessionTargetWords.length || 30;
-
-    return (
-      <div className="max-w-lg mx-auto py-8 px-4 text-center pb-28 sm:pb-16 space-y-5">
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md space-y-6">
-          
-          <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
-            <Award className="w-9 h-9" />
-          </div>
-
-          <div className="space-y-1.5">
-            <h2 className="text-2xl sm:text-3xl font-black text-[#0B132B]">
-              Xuất sắc! Đã làm chủ {count} từ!
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Bạn đã hoàn thành cả 2 vòng: <strong>Nhận biết flashcards</strong> và <strong>Viết lại chính xác từ vựng</strong>. Tiến độ đã được lưu vào hệ thống!
-            </p>
-          </div>
-
-          {/* Stats Badges */}
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
-              <div className="text-lg font-black text-emerald-700">+{count}</div>
-              <div className="text-[11px] font-bold text-emerald-600">Từ đã ghi nhớ hôm nay</div>
-            </div>
-
-            <div className="p-3 bg-blue-50 rounded-2xl border border-blue-200 text-center">
-              <div className="text-lg font-black text-blue-700">{overallStats.currentStreak} ngày</div>
-              <div className="text-[11px] font-bold text-blue-600">Chuỗi học liên tục</div>
-            </div>
-          </div>
-
-          {/* Word list summary preview */}
-          <div className="text-left space-y-2 border-t border-slate-100 pt-3">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Các từ vừa hoàn thành:
-            </h4>
-            <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-              {sessionTargetWords.map((w, idx) => (
-                <div key={w.id || idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                  <div className="font-bold text-[#C52243]">{w.word}</div>
-                  <div className="text-slate-600 italic truncate max-w-[180px]">{w.meaning}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 pt-2">
-            <button
-              onClick={() => setViewMode('decks')}
-              className="flex-1 py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md transition-all cursor-pointer"
-            >
-              Học tiếp bộ khác
-            </button>
-
-            {onStartQuiz && (
-              <button
-                onClick={() => onStartQuiz(sessionTargetWords)}
-                className="flex-1 py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                Làm trắc nghiệm Quiz
-              </button>
-            )}
-          </div>
-
-        </div>
-      </div>
-    );
+    return <section className="study-sheet study-summary">
+      <Award size={38} /><h1>Hoàn thành phiên học</h1>
+      <p>Bạn đã ôn {sessionTargetWords.length} từ trong {activeDeck?.title || 'bộ đã chọn'}.</p>
+      <ul>{sessionTargetWords.map(w => <li key={w.id}><b lang="en">{w.word}</b><span>{w.meaning}</span></li>)}</ul>
+      <div className="study-actions"><button onClick={leaveSession}>Về bộ thẻ</button>
+        {onStartQuiz && <button className="study-primary" onClick={() => onStartQuiz(sessionTargetWords)}>Luyện trắc nghiệm</button>}</div>
+    </section>;
   }
 
-  // =========================================================================
-  // VIEW 2: FLASHCARD REVIEW MODE (VÒNG 1 - The MVP TOEIC Card Layout)
-  // =========================================================================
-  if (!currentWord || activeQueue.length === 0) {
-    return (
-      <div className="max-w-md mx-auto my-12 p-6 bg-white rounded-3xl border border-slate-200 text-center space-y-3">
-        <Layers className="w-8 h-8 text-blue-600 mx-auto" />
-        <h3 className="font-bold text-sm text-[#0B132B]">Đang chuẩn bị thẻ học...</h3>
-        <p className="text-xs text-slate-500">Vui lòng chờ trong giây lát hoặc quay lại danh sách bộ.</p>
-        <button
-          onClick={() => setViewMode('decks')}
-          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 cursor-pointer"
-        >
-          Về danh sách bộ
-        </button>
+  const isRecall = viewMode === 'recall_check';
+  const item = isRecall ? currentRecallWord : currentWord;
+  if (!item) return <section className="study-sheet"><h2>Chưa có thẻ để học</h2><button onClick={leaveSession}>Về bộ thẻ</button></section>;
+  const index = isRecall ? recallIndex : currentIndex;
+  const total = isRecall ? recallQueue.length : activeQueue.length;
+  const done = recallFeedback === 'correct' || recallFeedback === 'revealed';
+  const isFavorited = favoriteIds.includes(item.id);
+  return <section className="study-session">
+    <div className="study-line"><button onClick={leaveSession}><ArrowLeft size={16}/> Bộ thẻ</button><strong>{activeDeck?.title}</strong><span>{index + 1} / {total}</span></div>
+    <progress aria-label="Tiến độ vòng học" value={index} max={total}/>
+    <article className="study-sheet">
+      <header className="study-line"><span className="study-phase">{isRecall ? 'Vòng 2 · Viết lại từ' : 'Vòng 1 · Nhớ nghĩa'}</span>
+        <button aria-label={isFavorited ? 'Bỏ lưu từ' : 'Lưu từ'} aria-pressed={isFavorited} onClick={() => onToggleFavorite?.(item.id)}><Star size={18} fill={isFavorited ? 'currentColor' : 'none'}/></button></header>
+      {toastMessage && !isRecall && <p className="study-notice" role="status">{toastMessage}</p>}
+      <div className="study-prompt">
+        <h1 lang={isRecall ? 'vi' : 'en'}>{isRecall ? item.meaning : item.word}</h1>
+        {!isRecall && (effectivePos || effectivePronunciation) && <p>{[effectivePos, effectivePronunciation].filter(Boolean).join(' · ')}</p>}
+        <button className="study-audio" onClick={() => playEnglish(item.word)}><Volume2 size={18}/>{isRecall ? 'Nghe gợi ý' : 'Nghe từ'}</button>
       </div>
-    );
-  }
-
-  const isFavorited = (favoriteIds || []).includes(currentWord.id);
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-3 pb-24 sm:pb-16 px-2 sm:px-4">
-      
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#0B132B]/95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-md animate-fadeIn border border-slate-700">
-          {toastMessage}
-        </div>
-      )}
-
-      {/* TOP HEADER (Image 4) */}
-      <div className="bg-white rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/90 shadow-xs flex items-center justify-between gap-2">
-        
-        {/* Nút Quay Lại */}
-        <button
-          onClick={() => setViewMode('decks')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại</span>
-        </button>
-
-        {/* Tiêu đề & Tiến độ */}
-        <div className="text-center">
-          <div className="text-xs sm:text-sm font-black text-[#0B132B]">
-            {activeDeck?.title || 'TOEIC SmartCards'} • Review Mode
-          </div>
-          <div className="text-[11px] font-semibold text-slate-500">
-            Thẻ {currentIndex + 1} / {activeQueue.length}
-          </div>
-        </div>
-
-        {/* Nút Khôi Phục */}
-        <button
-          onClick={() => {
-            if (activeDeck) startSession(activeDeck, sessionSize, studyModeType);
-          }}
-          className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-          title="Tải lại lượt học"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-
-      </div>
-
-      {/* PROGRESS BAR */}
-      <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
-        <div 
-          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: `${Math.round(((currentIndex + 1) / activeQueue.length) * 100)}%` }}
-        />
-      </div>
-
-      {/* MAIN FLASHCARD WORKSPACE (The MVP TOEIC Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-        
-        {/* LEFT COLUMN: Shortcuts Pill (Desktop) */}
-        <div className="hidden lg:block lg:col-span-2 space-y-2">
-          <div className="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-xs space-y-2 text-xs">
-            <div className="font-bold text-slate-700">Phím tắt:</div>
-            <div className="space-y-1 text-slate-600 text-[11px]">
-              <div><kbd className="px-1.5 py-0.5 rounded bg-slate-100 border font-mono">Space</kbd> Lật thẻ</div>
-              <div><kbd className="px-1.5 py-0.5 rounded bg-slate-100 border font-mono">1</kbd> Chưa nhớ</div>
-              <div><kbd className="px-1.5 py-0.5 rounded bg-slate-100 border font-mono">2</kbd> Đã nhớ</div>
-              <div><kbd className="px-1.5 py-0.5 rounded bg-slate-100 border font-mono">A</kbd> Phát âm</div>
-            </div>
-          </div>
-        </div>
-
-        {/* CENTER COLUMN: The Card & Big Action Buttons */}
-        <div className="lg:col-span-8 space-y-3">
-          
-          {/* THE FLASHCARD CONTAINER */}
-          <div
-            onClick={handleFlipToggle}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            className={`w-full min-h-[300px] sm:min-h-[360px] bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-md flex flex-col justify-between cursor-pointer transition-all select-none relative ${
-              isFlipped ? 'ring-2 ring-emerald-500/20' : 'hover:border-slate-300'
-            }`}
-          >
-            {/* Top Bar inside Card */}
-            <div className="flex items-center justify-between">
-              
-              {/* Star Bookmark */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  unlockMobileAudio();
-                  if (onToggleFavorite) onToggleFavorite(currentWord.id);
-                  showToast(isFavorited ? 'Đã bỏ lưu từ' : '⭐ Đã lưu vào mục yêu thích');
-                }}
-                className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-                  isFavorited 
-                    ? 'border-amber-300 bg-amber-50 text-amber-500' 
-                    : 'border-slate-200 text-slate-400 hover:text-amber-500'
-                }`}
-                title="Lưu từ vào sổ tay yêu thích"
-              >
-                <Star className={`w-4 h-4 ${isFavorited ? 'fill-amber-500' : ''}`} />
-              </button>
-
-              {/* Status Hint */}
-              <span className="text-[11px] font-semibold text-slate-400">
-                {isFlipped ? 'Chạm để che bớt nghĩa' : 'Chạm để lật thẻ (Space)'}
-              </span>
-
-            </div>
-
-            {/* Core Word Content */}
-            <div className="text-center space-y-3 py-2">
-              
-              {/* Part of Speech & Phonetic Reading */}
-              <div className="flex items-center justify-center gap-2 flex-wrap">
-                <span className="text-xs sm:text-sm font-bold text-[#C52243] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shadow-2xs">
-                  ({effectivePos || 'phr'})
-                </span>
-                {effectivePronunciation && (
-                  <span 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakEnglish(currentWord.word);
-                    }}
-                    className="text-xs sm:text-sm font-mono text-slate-700 bg-slate-100/90 hover:bg-slate-200/90 px-3 py-0.5 rounded-full border border-slate-200 font-semibold tracking-wide flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
-                    title="Bấm để nghe phát âm từ này"
-                  >
-                    <Volume2 className="w-3.5 h-3.5 text-slate-500 inline shrink-0" />
-                    /{effectivePronunciation.replace(/^\/+|\/+$/g, '')}/
-                  </span>
-                )}
-              </div>
-
-              {/* WORD: CRIMSON FONT (#C52243) */}
-              <div>
-                <h2 className={`${wordFontSize} font-black font-mvp-word text-[#C52243] tracking-tight leading-tight py-0.5 px-2`}>
-                  {currentWord.word}
-                </h2>
-              </div>
-
-              {/* MẶT TRƯỚC: CHƯA LẬT THẺ -> NGHĨA VÀ CÂU VÍ DỤ BỊ ẨN, CHỈ HIỆN KÊU GỌI NHỚ NGHĨA */}
-              {!isFlipped ? (
-                <div className="space-y-3 pt-3">
-                  <div className="text-xs sm:text-sm font-bold text-blue-600 animate-pulse bg-blue-50/70 border border-blue-200/60 rounded-2xl p-3 max-w-md mx-auto">
-                    👉 Hãy nhớ lại nghĩa tiếng Việt, sau đó chạm vào thẻ để kiểm tra!
-                  </div>
-                </div>
-              ) : (
-                /* MẶT SAU: ĐÃ LẬT THẺ -> HIỆN ĐẦY ĐỦ NGHĨA XANH EMERALD & VÍ DỤ */
-                <div className="space-y-2.5 pt-1 animate-fadeIn">
-                  
-                  {/* VIETNAMESE MEANING: BOLD EMERALD GREEN (#059669) */}
-                  <div>
-                    <h3 className="text-xl sm:text-3xl font-extrabold text-[#059669] tracking-tight">
-                      {displayMeaning}
-                    </h3>
-                  </div>
-
-                  {/* CONTEXT EXAMPLE PILL BOX */}
-                  {effectiveExample.example && (
-                    <div className="max-w-lg mx-auto p-3 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 text-xs sm:text-sm text-slate-800 space-y-1 text-center relative">
-                      <div className="flex items-center justify-center gap-2">
-                        <p className="font-semibold text-slate-800 leading-relaxed">
-                          {formattedExample}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            speakEnglish(effectiveExample.example, 0.9);
-                          }}
-                          className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                          title="Nghe phát âm cả câu ví dụ"
-                        >
-                          <Volume2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      {effectiveExample.translation && (
-                        <p className="text-slate-500 italic text-[11px] sm:text-xs">
-                          {effectiveExample.translation}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                </div>
-              )}
-
-            </div>
-
-            {/* Bottom Prompt */}
-            <div className="text-center text-[11px] text-slate-400 font-medium">
-              {!isFlipped 
-                ? 'Nhấn Space để lật thẻ • Bấm 1 để chọn Chưa nhớ • Bấm 2 để chọn Đã nhớ' 
-                : 'Bấm 1 (Chưa nhớ) để lặp lại cuối phiên • Bấm 2 (Đã nhớ) để qua từ tiếp'}
-            </div>
-
-          </div>
-
-          {/* 2 ACTION BUTTONS (The MVP TOEIC Layout) */}
-          <div className="grid grid-cols-2 gap-2.5 pt-0.5">
-            
-            {/* 1. NÚT CHƯA NHỚ (Vivid Red #E5252A) */}
-            <button
-              onClick={handleUnremembered}
-              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#E5252A] hover:bg-[#D01F24] text-white shadow-md shadow-rose-600/20 transition-all active:scale-98 group cursor-pointer min-h-[52px]"
-            >
-              <span className="font-black text-sm sm:text-base tracking-wide">
-                Chưa nhớ
-              </span>
-              <span className="text-[10px] font-medium text-rose-100">
-                Xem lại trong phiên
-              </span>
-            </button>
-
-            {/* 2. NÚT ĐÃ NHỚ (Vivid Emerald Green #059669) */}
-            <button
-              onClick={handleRemembered}
-              className="flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl bg-[#059669] hover:bg-[#047857] text-white shadow-md shadow-emerald-600/20 transition-all active:scale-98 group cursor-pointer min-h-[52px]"
-            >
-              <span className="font-black text-sm sm:text-base tracking-wide">
-                Đã nhớ
-              </span>
-              <span className="text-[10px] font-medium text-emerald-100">
-                Hoàn tất • ôn sau 2 ngày
-              </span>
-            </button>
-
-          </div>
-
-          {/* Mobile Swipe Hint */}
-          <div className="sm:hidden text-center text-[10px] text-slate-400 pt-1">
-            💡 Mẹo: Vuốt Trái (Chưa nhớ) • Vuốt Phải (Đã nhớ) • Chạm thẻ (Lật)
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: Audio Controls (Desktop & Mobile accessible) */}
-        <div className="hidden lg:block lg:col-span-2 space-y-2.5">
-          
-          {/* Speaker Audio Box */}
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-xs text-center space-y-2.5">
-            <button
-              onClick={() => {
-                unlockMobileAudio();
-                speakEnglish(currentWord.word, 0.95);
-              }}
-              className="w-14 h-14 rounded-2xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 flex items-center justify-center mx-auto transition-transform active:scale-95 group shadow-xs cursor-pointer"
-              title="Phát âm tiếng Anh chuẩn bản xứ (Phím A)"
-            >
-              <Volume2 className="w-7 h-7 group-hover:scale-110 transition-transform" />
-            </button>
-
-            <label className="flex items-center justify-center gap-1.5 text-xs text-slate-600 font-semibold cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={autoPlayAudio}
-                onChange={(e) => setAutoPlayAudio(e.target.checked)}
-                className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
-              />
-              <span>Tự động phát</span>
-            </label>
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
+      {audioError && <p role="status">{audioError}</p>}
+      {isRecall ? <form className="study-recall" onSubmit={handleCheckRecall}>
+        <label htmlFor="recall-answer">Từ hoặc cụm từ tiếng Anh</label>
+        <input id="recall-answer" lang="en" ref={recallInputRef} autoFocus autoComplete="off" spellCheck={false} readOnly={done} value={recallInput} onChange={e => {setRecallInput(e.target.value); setRecallFeedback(null);}}/>
+        <div aria-live="polite">{recallFeedback === 'incorrect' ? 'Chưa đúng. Bạn có thể thử lại hoặc xem gợi ý.' : recallFeedback === 'correct' ? 'Chính xác!' : recallFeedback === 'revealed' ? 'Đây là đáp án. Đọc lại từ trước khi tiếp tục.' : revealedHint ? 'Bắt đầu bằng ' + item.word.slice(0, item.word.length > 3 ? 2 : 1) + '…' : ''}</div>
+        <div className="study-actions">{!done && <><button type="button" onClick={handleShowHint}>Gợi ý chữ cái</button><button type="button" onClick={handleRevealAnswer}>Xem đáp án</button></>}
+          <button className="study-primary" disabled={!recallInput.trim()}>{done ? index + 1 === total ? 'Hoàn thành' : 'Từ tiếp theo' : 'Kiểm tra'}</button></div>
+      </form> : <>
+        {isFlipped ? <div className="study-details">
+          <h2>Nghĩa tiếng Việt</h2><p>{displayMeaning}</p>
+          {example && <><div className="study-line"><h2>Câu ví dụ</h2><button className="study-audio" onClick={() => playEnglish(example)}><Volume2 size={16}/> Nghe câu</button></div><blockquote lang="en">{example}</blockquote>{translation && <p className="study-translation">{translation}</p>}</>}
+          {!example && <p className="study-translation">Thẻ này chưa có câu ví dụ.</p>}
+          {item.note && <p>Ghi chú · {item.note}</p>}
+          <div className="study-actions"><button onClick={handleUnremembered}>Học lại cuối phiên</button><button className="study-primary" onClick={handleRemembered}>Đã nhớ</button></div>
+        </div> : <div className="study-reveal"><p>Hãy thử nhớ nghĩa của từ.</p><button className="study-primary" onClick={handleFlipToggle}>Xem nghĩa và ví dụ</button></div>}
+        <label className="study-auto"><input type="checkbox" checked={autoPlayAudio} onChange={e => onUpdateSettings?.({...settings, autoPlayAudio:e.target.checked})}/> Tự động phát âm từ</label>
+      </>}
+    </article>
+  </section>;
 }

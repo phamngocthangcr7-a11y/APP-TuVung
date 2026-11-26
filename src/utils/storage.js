@@ -4,17 +4,6 @@
 // =========================================================================
 
 import { getTodayDateString } from './srs';
-import { MASTER_PRESET_WORDS } from '../data/masterPresetWords';
-import { 
-  CURATED_TOEIC_EXAMPLES, 
-  isBadTemplateSentence, 
-  inferPartOfSpeech, 
-  fetchAuthenticSentence,
-  lookupEnglishPronunciation,
-  correctVietnameseSpelling,
-  getToeicExampleFallback
-} from './dictionary';
-
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
   CUSTOM_WORDS_BACKUP: 'toeic_custom_words_v2_backup',
@@ -72,259 +61,46 @@ export const saveBatchHistory = (rawText, words = []) => {
   }
 };
 
-/**
- * Gộp hai danh sách từ vựng thông minh (Deduplication + Giữ nguyên dữ liệu tốt nhất)
- * Tuyệt đối không bao giờ làm mất từ vựng đã có.
- */
-export const mergeWordLists = (existingList = [], incomingList = []) => {
-  const map = new Map();
-
-  const addOrUpdate = (w) => {
-    if (!w || !w.word || typeof w !== 'object') return;
-    const cleanWord = String(w.word).trim();
-    if (!cleanWord || cleanWord === '-') return;
-    const key = cleanWord.toLowerCase();
-
-    if (!map.has(key)) {
-      map.set(key, { ...w, word: cleanWord });
-    } else {
-      const prev = map.get(key);
-      const prevEx = (prev.example || '').trim();
-      const newEx = (w.example || '').trim();
-
-      // Luôn ưu tiên tuyệt đối ví dụ chuẩn ETS từ CURATED_TOEIC_EXAMPLES
-      const curated = CURATED_TOEIC_EXAMPLES[key];
-      let betterExample = '';
-      let betterTranslation = '';
-
-      if (curated?.example) {
-        betterExample = curated.example;
-        betterTranslation = curated.translation || '';
-      } else if (!isBadTemplateSentence(newEx) && newEx) {
-        betterExample = newEx;
-        betterTranslation = w.exampleTranslation || prev.exampleTranslation || '';
-      } else if (!isBadTemplateSentence(prevEx) && prevEx) {
-        betterExample = prevEx;
-        betterTranslation = prev.exampleTranslation || w.exampleTranslation || '';
-      }
-
-      const prevMeaning = correctVietnameseSpelling((prev.meaning || '').trim());
-      const newMeaning = correctVietnameseSpelling((w.meaning || '').trim());
-      const curatedMeaning = curated?.meaning || '';
-      let betterMeaning = curatedMeaning || (newMeaning.length > prevMeaning.length ? newMeaning : prevMeaning);
-      if (curatedMeaning && (betterMeaning.includes('số ít') || betterMeaning.includes('bởi vị') || betterMeaning.includes('chưa dịch'))) {
-        betterMeaning = curatedMeaning;
-      }
-
-      const betterPron = curated?.pronunciation 
-        || ((w.pronunciation && String(w.pronunciation).trim() !== '') ? w.pronunciation : (prev.pronunciation || ''));
-
-      const betterPos = curated?.partOfSpeech 
-        || ((w.partOfSpeech && w.partOfSpeech !== 'noun') ? w.partOfSpeech : (prev.partOfSpeech || 'noun'));
-
-      const prevReps = prev.srs?.repetitions || 0;
-      const newReps = w.srs?.repetitions || 0;
-      const betterSrs = newReps > prevReps ? w.srs : prev.srs;
-
-      map.set(key, {
-        ...prev,
-        ...w,
-        word: cleanWord,
-        meaning: betterMeaning || prevMeaning,
-        example: betterExample || prevEx,
-        exampleTranslation: betterTranslation,
-        pronunciation: betterPron,
-        partOfSpeech: betterPos,
-        srs: betterSrs || prev.srs || {
-          repetitions: 0,
-          interval: 0,
-          easeFactor: 2.5,
-          nextReviewDate: prev.addedDate || getTodayDateString(),
-          state: 'new'
-        },
-        id: prev.id || w.id
-      });
-    }
-  };
-
-  (existingList || []).forEach(addOrUpdate);
-  (incomingList || []).forEach(addOrUpdate);
-
-  return Array.from(map.values());
-};
-
-/**
- * QUÉT SÂU TOÀN DIỆN & PHỤC HỒI TỪ VỰNG TỪ MỌI NGUỒN LƯU TRỮ (DEEP RECOVERY)
- * Quét Master Vault, Backup, Draft, Lịch sử, Legacy Keys, và quét từng key trong localStorage/sessionStorage.
- */
-export const deepRecoverCustomWords = () => {
-  const candidates = [];
-
-  // 1. Kho bất biến Master Vault
+function readStoredWords(key) {
   try {
-    const rawVault = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
-    if (rawVault) {
-      const parsed = JSON.parse(rawVault);
-      if (Array.isArray(parsed)) candidates.push(...parsed);
-    }
-  } catch (_) {}
+    const value = JSON.parse(localStorage.getItem(key));
+    const list = Array.isArray(value) ? value : value?.customWords;
+    if (!Array.isArray(list)) return null;
+    return list.filter(w => typeof w?.word === 'string' && w.word.trim() && w.word.trim() !== '-');
+  } catch {
+    return null;
+  }
+}
 
-  // 2. Khóa chính
-  try {
-    const rawCustom = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
-    if (rawCustom) {
-      const parsed = JSON.parse(rawCustom);
-      if (Array.isArray(parsed)) candidates.push(...parsed);
-    }
-  } catch (_) {}
+const wordKey = word => word.trim().normalize('NFC').replace(/\s+/g, ' ').toLowerCase();
+const newWordId = () => 'usr_' + (globalThis.crypto?.randomUUID?.() || Date.now() + '_' + Math.random().toString(36).slice(2));
 
-  // 3. Khóa sao lưu dự phòng
-  try {
-    const rawBackup = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
-    if (rawBackup) {
-      const parsed = JSON.parse(rawBackup);
-      if (Array.isArray(parsed)) candidates.push(...parsed);
-    }
-  } catch (_) {}
-
-  // 4. Lịch sử các lần dán từ
-  try {
-    const rawHistory = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
-    if (rawHistory) {
-      const parsedHistory = JSON.parse(rawHistory);
-      if (Array.isArray(parsedHistory)) {
-        parsedHistory.forEach(item => {
-          if (item?.text) {
-            const lines = item.text.split(/\r?\n/);
-            lines.forEach(l => {
-              const line = l.trim().replace(/^(\d+[\.\/\)\-\:]|\*|\•|\-|\+|\[\d+\]|\(\d+\))\s*/, '').trim();
-              if (!line || line.startsWith('//') || line.startsWith('#')) return;
-              const parts = line.split(/[|\t\-–—:;]/).map(p => p.trim());
-              const w = parts[0]?.replace(/^['"`]+|['"`]+$/g, '').trim();
-              if (w && w !== '-' && w.length >= 2) {
-                candidates.push({
-                  id: 'usr_rec_' + Math.random().toString(36).substring(2, 7),
-                  word: w,
-                  meaning: parts[1] || '',
-                  example: parts[2] || '',
-                  exampleTranslation: parts[3] || '',
-                  addedDate: getTodayDateString()
-                });
-              }
-            });
-          }
-        });
-      }
-    }
-  } catch (_) {}
-
-  // 5. Bản nháp dán từ
-  try {
-    const draft = localStorage.getItem(STORAGE_KEYS.BATCH_DRAFT);
-    if (draft && draft.trim()) {
-      const lines = draft.split(/\r?\n/);
-      lines.forEach(l => {
-        const line = l.trim().replace(/^(\d+[\.\/\)\-\:]|\*|\•|\-|\+|\[\d+\]|\(\d+\))\s*/, '').trim();
-        if (!line || line.startsWith('//') || line.startsWith('#')) return;
-        const parts = line.split(/[|\t\-–—:;]/).map(p => p.trim());
-        const w = parts[0]?.replace(/^['"`]+|['"`]+$/g, '').trim();
-        if (w && w !== '-' && w.length >= 2) {
-          candidates.push({
-            id: 'usr_draft_' + Math.random().toString(36).substring(2, 7),
-            word: w,
-            meaning: parts[1] || '',
-            example: parts[2] || '',
-            exampleTranslation: parts[3] || '',
-            addedDate: getTodayDateString()
-          });
-        }
-      });
-    }
-  } catch (_) {}
-
-  // 6. Các khóa cũ trong các phiên bản trước (Legacy Keys)
-  const legacyKeys = [
-    'toeic_custom_words',
-    'custom_words',
-    'toeic_words',
-    'toeic_user_words',
-    'toeic_words_list',
-    'toeic_vocab_user',
-    'toeic_app_data',
-    'toeic_custom_backup'
+/** Recover only previously saved records when the learner requests recovery. */
+export function deepRecoverCustomWords(snapshot = []) {
+  const current = getCustomWords();
+  const ids = new Set(current.map(w => w.id).filter(Boolean));
+  const names = new Set(current.map(w => wordKey(w.word)));
+  const recovered = [...current];
+  const keys = [
+    STORAGE_KEYS.MASTER_VAULT, STORAGE_KEYS.CUSTOM_WORDS_BACKUP,
+    'toeic_custom_words', 'custom_words', 'toeic_words', 'toeic_user_words',
+    'toeic_words_list', 'toeic_vocab_user', 'toeic_app_data', 'toeic_custom_backup'
   ];
-  legacyKeys.forEach(k => {
-    try {
-      const raw = localStorage.getItem(k);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) candidates.push(...parsed);
-        else if (parsed && Array.isArray(parsed.customWords)) candidates.push(...parsed.customWords);
-      }
-    } catch (_) {}
-  });
-
-  // 7. Quét toàn bộ mọi khóa có trong localStorage
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      if ([STORAGE_KEYS.SETTINGS, STORAGE_KEYS.STREAK_INFO, STORAGE_KEYS.FAVORITES].includes(key)) continue;
-      const val = localStorage.getItem(key);
-      if (val && (val.includes('"word"') || val.includes('"meaning"'))) {
-        try {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) {
-            parsed.forEach(item => {
-              if (item && item.word && typeof item.word === 'string') {
-                candidates.push(item);
-              }
-            });
-          } else if (parsed && typeof parsed === 'object') {
-            if (Array.isArray(parsed.words)) candidates.push(...parsed.words);
-            if (Array.isArray(parsed.customWords)) candidates.push(...parsed.customWords);
-          }
-        } catch (_) {}
-      }
-    }
-  } catch (_) {}
-
-  // 8. Quét cả sessionStorage nếu có
-  try {
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (!key) continue;
-      const val = sessionStorage.getItem(key);
-      if (val && val.includes('"word"')) {
-        try {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) candidates.push(...parsed);
-        } catch (_) {}
-      }
-    }
-  } catch (_) {}
-
-  // 9. Kho từ gốc 298 từ ETS đã phục hồi từ hệ thống (Bảo vệ tối thượng - Chống mất vĩnh viễn)
-  if (Array.isArray(MASTER_PRESET_WORDS) && MASTER_PRESET_WORDS.length > 0) {
-    candidates.push(...MASTER_PRESET_WORDS);
-  }
-
-  // Gộp tất cả các từ tìm được
-  const merged = mergeWordLists([], candidates);
-
-  // Đồng bộ và bảo vệ vào tất cả các khóa kho lưu trữ
-  if (merged.length > 0) {
-    try {
-      localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(merged));
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(merged));
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(merged));
-    } catch (e) {
-      console.warn('Lỗi ghi dữ liệu khôi phục:', e);
+  const archives = [...keys.map(key => readStoredWords(key) || []), snapshot];
+  for (const archive of archives) {
+    for (const word of archive) {
+      if (typeof word?.word !== 'string' || !word.word.trim()) continue;
+      const name = wordKey(word.word);
+      if (ids.has(word.id) || names.has(name)) continue;
+      const id = word.id || newWordId();
+      ids.add(id);
+      names.add(name);
+      recovered.push({ ...word, id, isCustom: true });
     }
   }
-
-  return merged;
-};
+  if (recovered.length !== current.length) saveCustomWords(recovered);
+  return recovered;
+}
 
 /**
  * Quản lý bản nháp nhập từ hàng loạt để không bao giờ bị mất chữ khi đang gõ
@@ -368,350 +144,80 @@ export const getWeekNumber = (d = new Date()) => {
   return 1 + Math.ceil((firstThursday - target) / 604800000);
 };
 
-/**
- * Lấy danh sách từ người dùng tự thêm (Bảo vệ 3 lớp chống mất dữ liệu + Tự động phục hồi Master Vault)
- */
-export const getCustomWords = () => {
+export function getCustomWords() {
+  // An empty primary list is a valid notebook, including after the last deletion.
+  return readStoredWords(STORAGE_KEYS.CUSTOM_WORDS)
+    ?? readStoredWords(STORAGE_KEYS.CUSTOM_WORDS_BACKUP)
+    ?? readStoredWords(STORAGE_KEYS.MASTER_VAULT)
+    ?? [];
+}
+
+export function saveCustomWords(words) {
+  const serialized = JSON.stringify(words);
+  const previous = getCustomWords();
+  const previousIds = new Set(previous.map(w => w.id).filter(Boolean));
+  const previousNames = new Set(previous.map(w => wordKey(w.word)));
+  const names = new Set(words.map(w => wordKey(w.word)));
+  const ids = new Set(words.map(w => w.id).filter(Boolean));
+  // Keep legacy records that exist only in the vault available for explicit recovery.
+  const archive = [];
+  for (const key of [STORAGE_KEYS.MASTER_VAULT, STORAGE_KEYS.CUSTOM_WORDS_BACKUP]) {
+    for (const word of readStoredWords(key) || []) {
+      const name = wordKey(word.word);
+      if (previousIds.has(word.id) || previousNames.has(name) || ids.has(word.id) || names.has(name)) continue;
+      archive.push(word);
+      if (word.id) ids.add(word.id);
+      names.add(name);
+    }
+  }
   try {
-    let raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS);
-    let list = raw ? JSON.parse(raw) : [];
-
-    let vaultRaw = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
-    let vaultList = vaultRaw ? JSON.parse(vaultRaw) : [];
-
-    // LỚP 1: Nếu danh sách chính bị giảm hoặc ít hơn Master Vault hoặc ít hơn kho gốc (226+ từ) -> Deep Recovery & Merge ngay!
-    const minThreshold = Array.isArray(MASTER_PRESET_WORDS) ? MASTER_PRESET_WORDS.length : 226;
-    if (!Array.isArray(list) || list.length < minThreshold || (Array.isArray(vaultList) && list.length < vaultList.length)) {
-      list = deepRecoverCustomWords();
-    }
-
-    // LỚP 2: Nếu vẫn trống, tìm bản sao lưu dự phòng
-    if (!Array.isArray(list) || list.length === 0) {
-      const backupRaw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
-      if (backupRaw) {
-        try {
-          const backupList = JSON.parse(backupRaw);
-          if (Array.isArray(backupList) && backupList.length > 0) {
-            list = backupList;
-            localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(list));
-            localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(list));
-            console.log('🔄 Đã tự động khôi phục từ vựng từ bản sao lưu dự phòng!');
-          }
-        } catch (e) {
-          console.warn('Lỗi đọc bản sao lưu:', e);
-        }
-      }
-    }
-
-    if (!Array.isArray(list)) list = [];
-    let modified = false;
-
-    const enriched = list.map(w => {
-      if (!w || !w.word) return w;
-      const item = { ...w };
-      const lower = (item.word || '').trim().toLowerCase();
-
-      // 1. Tự động kiểm tra và chuẩn hóa lỗi chính tả tiếng Việt cho mọi từ
-      const cleanedMeaning = correctVietnameseSpelling(item.meaning);
-      if (cleanedMeaning && cleanedMeaning !== item.meaning) {
-        item.meaning = cleanedMeaning;
-        modified = true;
-      }
-
-      // 2. LUÔN ƯU TIÊN SỐ 1: ĐỒNG BỘ NGUYÊN BẢN TỪ KHO VÍ DỤ ETS CHUẨN (Gold Standard)
-      // Tẩy sạch vĩnh viễn mọi câu mẫu rập khuôn ghép từ bậy bạ đã lưu trong localStorage
-      if (CURATED_TOEIC_EXAMPLES[lower]?.example) {
-        if (item.example !== CURATED_TOEIC_EXAMPLES[lower].example) {
-          item.example = CURATED_TOEIC_EXAMPLES[lower].example;
-          item.exampleTranslation = CURATED_TOEIC_EXAMPLES[lower].translation || '';
-          modified = true;
-        }
-        if (CURATED_TOEIC_EXAMPLES[lower].pronunciation && item.pronunciation !== CURATED_TOEIC_EXAMPLES[lower].pronunciation) {
-          item.pronunciation = CURATED_TOEIC_EXAMPLES[lower].pronunciation;
-          modified = true;
-        }
-        if (CURATED_TOEIC_EXAMPLES[lower].partOfSpeech && item.partOfSpeech !== CURATED_TOEIC_EXAMPLES[lower].partOfSpeech) {
-          item.partOfSpeech = CURATED_TOEIC_EXAMPLES[lower].partOfSpeech;
-          modified = true;
-        }
-        if (CURATED_TOEIC_EXAMPLES[lower].meaning && (
-          !item.meaning || 
-          item.meaning.includes('chưa dịch') || 
-          item.meaning.includes('số ít') || 
-          item.meaning.includes('bởi vị') ||
-          item.meaning.includes('(v1)')
-        )) {
-          item.meaning = CURATED_TOEIC_EXAMPLES[lower].meaning;
-          modified = true;
-        }
-      } else {
-        // Nếu không có trong kho chuẩn, kiểm tra tẩy rửa triệt để câu mẫu mad-libs
-        if (isBadTemplateSentence(item.example, item.exampleTranslation)) {
-          item.example = '';
-          item.exampleTranslation = '';
-          modified = true;
-        }
-
-        // Tự động bổ sung câu ví dụ nếu chưa có
-        if (!item.example || String(item.example).trim() === '') {
-          const fallback = getToeicExampleFallback(item.word, item.partOfSpeech, item.meaning);
-          if (fallback.example) {
-            item.example = fallback.example;
-            item.exampleTranslation = fallback.translation;
-            modified = true;
-          }
-        }
-
-        // Tự động bổ sung phiên âm chuẩn nếu chưa có
-        if ((!item.pronunciation || String(item.pronunciation).trim() === '') && CURATED_TOEIC_EXAMPLES[lower]?.pronunciation) {
-          item.pronunciation = CURATED_TOEIC_EXAMPLES[lower].pronunciation;
-          modified = true;
-        }
-
-        // Chuẩn hóa lại loại từ
-        const correctPos = CURATED_TOEIC_EXAMPLES[lower]?.partOfSpeech || inferPartOfSpeech(item.word);
-        if (correctPos && correctPos !== item.partOfSpeech) {
-          item.partOfSpeech = correctPos;
-          modified = true;
-        }
-      }
-
-      return item;
-    });
-
-    if (modified) {
-      saveCustomWords(enriched);
-    }
-    return enriched;
-  } catch (err) {
-    console.error('Error reading custom words:', err);
-    return [];
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, serialized);
+  } catch {
+    throw new Error('Không thể lưu vào trình duyệt. Hãy kiểm tra dung lượng và thử lại.');
   }
-};
-
-/**
- * Lưu danh sách từ người dùng tự thêm (Bảo vệ Master Vault: Luôn gộp, không bao giờ làm co ngắn kho từ)
- */
-export const saveCustomWords = (words) => {
   try {
-    if (!Array.isArray(words)) return;
-    const clean = words.filter(w => w && typeof w === 'object' && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
-
-    // Luôn lấy Master Vault hiện tại và GỘP lại, KHÔNG BAO GIỜ để kho từ vựng bị bốc hơi
-    let vault = [];
-    try {
-      const rawVault = localStorage.getItem(STORAGE_KEYS.MASTER_VAULT);
-      if (rawVault) vault = JSON.parse(rawVault) || [];
-    } catch (_) {}
-
-    // Gộp danh sách mới vào Master Vault
-    const mergedVault = mergeWordLists(vault, clean);
-
-    // Luôn ghi vào Master Vault
-    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(mergedVault));
-
-    // Nếu clean ít từ hơn mergedVault rõ rệt (ví dụ clean chỉ có vài từ trong khi vault có hàng trăm từ),
-    // ta ghi mergedVault vào CUSTOM_WORDS để bảo toàn kho từ cho người dùng!
-    const toSave = (clean.length < mergedVault.length && (clean.length <= 15 || mergedVault.length > 30)) ? mergedVault : clean;
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(toSave));
-
-    // Khóa Backup luôn lưu giữ phiên bản có nhiều từ nhất
-    let currentBackup = [];
-    try {
-      const bRaw = localStorage.getItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP);
-      if (bRaw) currentBackup = JSON.parse(bRaw) || [];
-    } catch (_) {}
-
-    if (mergedVault.length >= currentBackup.length) {
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(mergedVault));
-    }
-  } catch (err) {
-    console.error('Error saving custom words:', err);
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, serialized);
+    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify([...words, ...archive]));
+  } catch (error) {
+    console.warn('Không thể cập nhật bản sao dự phòng.', error);
   }
-};
+}
 
-/**
- * Thêm một từ mới (Ưu tiên ví dụ chuẩn, không bao giờ tự sinh câu ghép từ lỗi)
- */
-export const addCustomWord = (wordData) => {
-  const words = getCustomWords();
-  const today = getTodayDateString();
-  const weekNum = getWeekNumber(new Date());
-
-  const cleanWord = (wordData.word || '').trim();
-  const lower = cleanWord.toLowerCase();
-  const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-  const cleanedMeaning = correctVietnameseSpelling(wordData.meaning || curated?.meaning || '');
-
-  let example = (wordData.example || '').trim();
-  let exampleTranslation = (wordData.exampleTranslation || '').trim();
-
-  // Tẩy rửa nếu người dùng hoặc hệ thống lưu câu mẫu mad-libs
-  if (isBadTemplateSentence(example, exampleTranslation)) {
-    example = '';
-    exampleTranslation = '';
-  }
-
-  const determinedPos = wordData.partOfSpeech && wordData.partOfSpeech !== 'noun'
-    ? wordData.partOfSpeech
-    : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
-
-  // Tự động lấy câu mẫu chuẩn nếu từ chưa có ví dụ
-  if (!example) {
-    if (curated?.example) {
-      example = curated.example;
-      exampleTranslation = curated.translation;
-    } else {
-      const fallback = getToeicExampleFallback(cleanWord, determinedPos, cleanedMeaning);
-      example = fallback.example;
-      exampleTranslation = fallback.translation;
-    }
-  }
-
-  const newWord = {
-    id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-    word: cleanWord,
-    pronunciation: (wordData.pronunciation || '').trim() || (curated?.pronunciation || ''),
-    meaning: cleanedMeaning || '(Từ mới)',
-    partOfSpeech: determinedPos,
-    example,
-    exampleTranslation,
-    note: (wordData.note || '').trim(),
-    tags: Array.isArray(wordData.tags) ? wordData.tags : (wordData.tags ? [wordData.tags] : []),
-    folderId: wordData.folderId || 'daily',
-    addedDate: wordData.addedDate || today,
-    weekNumber: wordData.weekNumber || weekNum,
-    year: new Date().getFullYear(),
+function createCustomWord(data, today, isBatch) {
+  const addedDate = data.addedDate || today;
+  const date = new Date(addedDate + 'T12:00:00');
+  return {
+    ...data,
+    word: data.word.trim(),
+    id: newWordId(),
+    isCustom: true,
+    tags: Array.isArray(data.tags) ? data.tags : data.tags ? [data.tags] : isBatch ? ['Nhập hàng loạt'] : [],
+    folderId: data.folderId || 'daily',
+    addedDate,
+    weekNumber: getWeekNumber(date),
+    year: date.getFullYear(),
     isFavorite: false,
     mistakeCount: 0,
-    srs: {
-      repetitions: 0,
-      interval: 0,
-      easeFactor: 2.5,
-      nextReviewDate: today,
-      state: 'new'
-    }
+    srs: { repetitions: 0, interval: 0, easeFactor: 2.5, nextReviewDate: today, state: 'new' }
   };
+}
 
-  words.unshift(newWord);
-  saveCustomWords(words);
-  return newWord;
-};
-
-/**
- * Thêm nhiều từ cùng lúc (Batch Import)
- */
-export const addBatchCustomWords = (wordsList) => {
-  const currentWords = getCustomWords();
+function insertWords(data, isBatch) {
+  const current = getCustomWords();
+  const names = new Set(current.map(w => wordKey(w.word)));
   const today = getTodayDateString();
-  const weekNum = getWeekNumber(new Date());
-
-  const formattedWords = wordsList.map((w, index) => {
-    const cleanWord = (w.word || '').trim();
-    const lower = cleanWord.toLowerCase();
-    const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-    const cleanedMeaning = correctVietnameseSpelling(w.meaning || curated?.meaning || '');
-
-    let example = (w.example || '').trim();
-    let exampleTranslation = (w.exampleTranslation || '').trim();
-
-    if (isBadTemplateSentence(example, exampleTranslation)) {
-      example = '';
-      exampleTranslation = '';
-    }
-
-    const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
-      ? w.partOfSpeech
-      : (curated?.partOfSpeech || inferPartOfSpeech(cleanWord));
-
-    if (!example) {
-      if (curated?.example) {
-        example = curated.example;
-        exampleTranslation = curated.translation;
-      } else {
-        const fallback = getToeicExampleFallback(cleanWord, determinedPos, cleanedMeaning);
-        example = fallback.example;
-        exampleTranslation = fallback.translation;
-      }
-    }
-
-    return {
-      id: 'usr_' + (Date.now() + index) + '_' + Math.random().toString(36).substring(2, 6),
-      word: cleanWord,
-      pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
-      meaning: cleanedMeaning || '(Từ mới)',
-      partOfSpeech: determinedPos,
-      example,
-      exampleTranslation,
-      note: (w.note || '').trim(),
-      tags: Array.isArray(w.tags) ? w.tags : (w.tags ? [w.tags] : ['Nhập hàng loạt']),
-      folderId: w.folderId || 'daily',
-      addedDate: w.addedDate || today,
-      weekNumber: weekNum,
-      year: new Date().getFullYear(),
-      isFavorite: false,
-      mistakeCount: 0,
-      srs: {
-        repetitions: 0,
-        interval: 0,
-        easeFactor: 2.5,
-        nextReviewDate: today,
-        state: 'new'
-      }
-    };
+  const created = data.map(item => {
+    const key = wordKey(item.word);
+    if (names.has(key)) throw new Error('Từ “' + item.word + '” đã có trong sổ.');
+    names.add(key);
+    return createCustomWord(item, today, isBatch);
   });
+  saveCustomWords([...created, ...current]);
+  return created;
+}
 
-  const updated = mergeWordLists(currentWords, formattedWords);
-  saveCustomWords(updated);
-  return formattedWords;
-};
-
-/**
- * Tự động tìm câu ví dụ thực tế ngầm dưới nền cho các từ chưa có câu ví dụ
- */
-let isAutoEnriching = false;
-export const autoEnrichCustomWords = async (onUpdated) => {
-  if (isAutoEnriching) return;
-  try {
-    const words = getCustomWords();
-    const missingExampleOrPron = words.filter(w => !w.example || w.example.trim() === '' || !w.pronunciation || w.pronunciation.trim() === '');
-    if (missingExampleOrPron.length === 0) return;
-
-    isAutoEnriching = true;
-    let anyUpdated = false;
-
-    for (const w of missingExampleOrPron.slice(0, 5)) {
-      const updates = {};
-      if (!w.example || w.example.trim() === '') {
-        const res = await fetchAuthenticSentence(w.word);
-        if (res && res.example) {
-          updates.example = res.example;
-          updates.exampleTranslation = res.translation;
-        }
-      }
-      if (!w.pronunciation || w.pronunciation.trim() === '') {
-        const ipa = await lookupEnglishPronunciation(w.word);
-        if (ipa) {
-          updates.pronunciation = ipa;
-        }
-      }
-      if (Object.keys(updates).length > 0) {
-        updateCustomWord(w.id, updates);
-        anyUpdated = true;
-      }
-    }
-
-    if (anyUpdated && typeof onUpdated === 'function') {
-      onUpdated(getCustomWords());
-    }
-  } catch (err) {
-    console.warn('Auto enrich words error:', err);
-  } finally {
-    isAutoEnriching = false;
-  }
-};
+export const addCustomWord = data => insertWords([data], false)[0];
+export const addBatchCustomWords = list => insertWords(list, true);
 
 /**
  * Cập nhật một từ
@@ -720,6 +226,9 @@ export const updateCustomWord = (wordId, updates) => {
   const words = getCustomWords();
   const index = words.findIndex(w => w.id === wordId);
   if (index !== -1) {
+    if (updates.word && words.some(w => w.id !== wordId && wordKey(w.word) === wordKey(updates.word))) {
+      throw new Error('Tên từ này đã có trong sổ.');
+    }
     words[index] = { ...words[index], ...updates };
     saveCustomWords(words);
     return words[index];
@@ -733,13 +242,12 @@ export const updateCustomWord = (wordId, updates) => {
 export const deleteCustomWord = (wordId) => {
   const words = getCustomWords();
   const filtered = words.filter(w => w.id !== wordId);
-  try {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, JSON.stringify(filtered));
-    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify(filtered));
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, JSON.stringify(filtered));
-  } catch (err) {
-    console.error('Error deleting word:', err);
-  }
+  saveCustomWords(filtered);
+  const favorites = getFavoriteIds().filter(id => id !== wordId);
+  const progress = getWordSrsProgress();
+  delete progress[wordId];
+  localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+  localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
   return filtered;
 };
 
@@ -800,49 +308,29 @@ export const toggleFavoriteId = (wordId) => {
  * Quản lý Streak (chuỗi ngày học liên tục)
  */
 export const getStreakInfo = () => {
+  const empty = { currentStreak: 0, longestStreak: 0, lastStudiedDate: null, history: {} };
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.STREAK_INFO);
-    const defaultStreak = {
-      currentStreak: 1,
-      longestStreak: 1,
-      lastStudiedDate: getTodayDateString(),
-      history: { [getTodayDateString()]: 1 }
-    };
-    if (!raw) return defaultStreak;
-    return JSON.parse(raw);
-  } catch (err) {
-    return { currentStreak: 1, longestStreak: 1, lastStudiedDate: getTodayDateString(), history: {} };
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.STREAK_INFO));
+    if (!saved?.lastStudiedDate) return empty;
+    const today = getTodayDateString();
+    const yesterday = new Date(today + 'T12:00:00');
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastDate = new Date(saved.lastStudiedDate + 'T12:00:00');
+    return { ...empty, ...saved, currentStreak: lastDate < yesterday ? 0 : saved.currentStreak };
+  } catch {
+    return empty;
   }
 };
 
-/**
- * Ghi nhận một phiên học để cập nhật Streak
- */
 export const recordStudySession = (count = 1) => {
   const streakInfo = getStreakInfo();
+  if (!Number.isFinite(count) || count <= 0) return streakInfo;
   const today = getTodayDateString();
-  const history = streakInfo.history || {};
-
-  history[today] = (history[today] || 0) + count;
-
-  let currentStreak = streakInfo.currentStreak || 0;
-  let longestStreak = streakInfo.longestStreak || 0;
-
-  if (streakInfo.lastStudiedDate !== today) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    if (streakInfo.lastStudiedDate === yesterdayStr) {
-      currentStreak += 1;
-    } else {
-      currentStreak = 1;
-    }
-
-    if (currentStreak > longestStreak) {
-      longestStreak = currentStreak;
-    }
-  }
+  const history = { ...streakInfo.history, [today]: (Number(streakInfo.history?.[today]) || 0) + count };
+  const currentStreak = streakInfo.lastStudiedDate === today
+    ? Math.max(1, streakInfo.currentStreak)
+    : streakInfo.currentStreak + 1;
+  const longestStreak = Math.max(streakInfo.longestStreak, currentStreak);
 
   const updated = {
     currentStreak,

@@ -9,7 +9,7 @@ import {
   Headphones,
   Gamepad2
 } from 'lucide-react';
-import { speakEnglish, sound } from '../utils/sound';
+import { speakEnglish, sound, stopSpeaking } from '../utils/sound';
 
 export default function DictationMode({
   allWords = [],
@@ -73,7 +73,7 @@ export default function DictationMode({
 
   useEffect(() => {
     if (currentWord && currentWord.word) {
-      speakEnglish(currentWord.word, 0.9);
+      speakEnglish(currentWord.word);
       setInputVal('');
       setIsAnswered(false);
       setIsCorrect(false);
@@ -82,6 +82,7 @@ export default function DictationMode({
         inputRef.current.focus();
       }
     }
+    return stopSpeaking;
   }, [currentWord, currentIndex]);
 
   const normalize = (str) => {
@@ -215,7 +216,7 @@ export default function DictationMode({
           
           <div className="flex items-center justify-center gap-2">
             <button
-              onClick={() => speakEnglish(currentWord.word, 0.9)}
+              onClick={() => speakEnglish(currentWord.word)}
               className="w-14 h-14 rounded-2xl bg-[#2B4C7E] text-white flex items-center justify-center shadow-md hover:scale-105 transition-transform"
               title="Phát âm tiếng Anh"
             >

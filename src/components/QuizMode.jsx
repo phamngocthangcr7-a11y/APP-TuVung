@@ -10,7 +10,7 @@ import {
   Sparkles,
   Gamepad2
 } from 'lucide-react';
-import { speakEnglish, sound } from '../utils/sound';
+import { speakEnglish, sound, stopSpeaking } from '../utils/sound';
 import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 
 export default function QuizMode({
@@ -102,8 +102,9 @@ export default function QuizMode({
     setIsAnswered(false);
 
     if (quizType === 'listening' && currentWord?.word) {
-      speakEnglish(currentWord.word, 0.9);
+      speakEnglish(currentWord.word);
     }
+    return stopSpeaking;
   }, [currentWord, allWords, quizType, quizQueue.length]);
 
   // Handle Option Selection
@@ -241,7 +242,7 @@ export default function QuizMode({
       return (
         <div className="text-center py-4 space-y-3">
           <button
-            onClick={() => speakEnglish(currentWord.word, 0.9)}
+            onClick={() => speakEnglish(currentWord.word)}
             className="w-16 h-16 rounded-2xl bg-[#2B4C7E] text-white flex items-center justify-center mx-auto shadow-md transition-all active:scale-95 group"
           >
             <Headphones className="w-8 h-8 group-hover:scale-110 transition-transform" />
@@ -299,7 +300,7 @@ export default function QuizMode({
             {currentWord.word}
           </h2>
           <button
-            onClick={() => speakEnglish(currentWord.word, 0.9)}
+            onClick={() => speakEnglish(currentWord.word)}
             className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
           >
             <Volume2 className="w-5 h-5" />

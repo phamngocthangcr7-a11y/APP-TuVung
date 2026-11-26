@@ -2257,7 +2257,7 @@ export const getToeicExampleFallback = (rawWord, pos = 'noun', meaning = '') => 
  * Tra cứu phiên âm IPA chuẩn từ Datamuse API (CMUdict 134,000+ từ) và Free Dictionary API
  * Hỗ trợ cả từ đơn và cụm từ (phrases)
  */
-export const lookupEnglishPronunciation = async (rawWord) => {
+export const lookupEnglishPronunciation = async (rawWord, signal) => {
   const word = (rawWord || '').trim();
   if (!word) return '';
 
@@ -2275,11 +2275,11 @@ export const lookupEnglishPronunciation = async (rawWord) => {
 
     // A. Thử Datamuse API trước (Rất nhanh và chính xác theo CMU Pronouncing Dictionary)
     try {
-      const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(cleanPart)}&md=r&ipa=1`);
+      const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(cleanPart)}&md=r&ipa=1`, { signal });
       if (res.ok) {
         const data = await res.json();
         const tag = data[0]?.tags?.find(t => t.startsWith('ipa_pron:'));
-        if (tag) {
+        if (tag && data[0]?.word?.toLowerCase() === cleanPart) {
           partIpa = tag.replace('ipa_pron:', '').trim();
         }
       }
@@ -2290,7 +2290,7 @@ export const lookupEnglishPronunciation = async (rawWord) => {
     // B. Nếu Datamuse chưa có, thử Free Dictionary API
     if (!partIpa) {
       try {
-        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanPart)}`);
+        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanPart)}`, { signal });
         if (dictRes.ok) {
           const dictData = await dictRes.json();
           const p = dictData[0]?.phonetic || dictData[0]?.phonetics?.find(ph => ph.text)?.text || '';
@@ -2306,7 +2306,7 @@ export const lookupEnglishPronunciation = async (rawWord) => {
     }
   }
 
-  return ipaParts.join(' ');
+  return ipaParts.length === parts.length ? ipaParts.join(' ') : '';
 };
 
 /**
@@ -2362,9 +2362,6 @@ export const fetchAuthenticSentence = async (rawWord) => {
       if (!candidate) {
         candidate = results.find(r => r.text && wordRegex.test(r.text) && r.text.length <= 150);
       }
-      if (!candidate && results[0]?.text) {
-        candidate = results[0];
-      }
 
       if (candidate && candidate.text) {
         const ex = candidate.text.trim();
@@ -2384,7 +2381,7 @@ export const fetchAuthenticSentence = async (rawWord) => {
 /**
  * Tra cứu từ vựng tiếng Anh: Phiên âm IPA, loại từ, nghĩa tiếng Việt chuẩn, và ví dụ TOEIC thực tế
  */
-export const lookupEnglishWord = async (rawWord) => {
+const lookupWord = async (rawWord, signal) => {
   const word = (rawWord || '').trim();
   if (!word) {
     return { found: false, error: 'Vui lòng nhập từ vựng tiếng Anh' };
@@ -2393,7 +2390,7 @@ export const lookupEnglishWord = async (rawWord) => {
   const result = {
     word,
     phonetic: '',
-    partOfSpeech: inferPartOfSpeech(word),
+    partOfSpeech: '',
     meaning: '',
     allMeanings: [],
     example: '',
@@ -2404,16 +2401,19 @@ export const lookupEnglishWord = async (rawWord) => {
   // 1. Kiểm tra kho ví dụ TOEIC chuẩn trước
   const curated = CURATED_TOEIC_EXAMPLES[word.toLowerCase()];
   if (curated) {
+    result.meaning = curated.meaning || '';
+    result.allMeanings = result.meaning ? [result.meaning] : [];
     result.example = curated.example;
     result.exampleTranslation = curated.translation;
     if (curated.partOfSpeech) result.partOfSpeech = curated.partOfSpeech;
     if (curated.pronunciation) result.phonetic = curated.pronunciation;
+    if (result.meaning && result.example && result.exampleTranslation && result.phonetic) return { ...result, found: true };
   }
 
   // 2. Tra nghĩa tiếng Việt & loại từ qua Google Translate Single API
   try {
     const transUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`;
-    const transRes = await fetch(transUrl);
+    const transRes = await fetch(transUrl, { signal });
     if (transRes.ok) {
       const transData = await transRes.json();
       
@@ -2449,7 +2449,7 @@ export const lookupEnglishWord = async (rawWord) => {
   try {
     if (!word.includes(' ')) {
       const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-      const dictRes = await fetch(dictUrl);
+      const dictRes = await fetch(dictUrl, { signal });
       if (dictRes.ok) {
         const dictData = await dictRes.json();
         const entry = dictData[0];
@@ -2462,7 +2462,7 @@ export const lookupEnglishWord = async (rawWord) => {
           const meaningObj = entry.meanings?.[0];
           if (meaningObj?.partOfSpeech) {
             const pos = meaningObj.partOfSpeech.toLowerCase();
-            if (pos.includes('verb')) result.partOfSpeech = 'verb';
+            if (pos === 'verb') result.partOfSpeech = 'verb';
             else if (pos.includes('adj')) result.partOfSpeech = 'adj';
             else if (pos.includes('adv')) result.partOfSpeech = 'adv';
             else if (pos.includes('noun')) result.partOfSpeech = 'noun';
@@ -2489,7 +2489,7 @@ export const lookupEnglishWord = async (rawWord) => {
   // 4. Nếu chưa có phiên âm phonetic, gọi lookupEnglishPronunciation (CMUdict qua Datamuse)
   if (!result.phonetic) {
     try {
-      result.phonetic = await lookupEnglishPronunciation(word);
+      result.phonetic = await lookupEnglishPronunciation(word, signal);
     } catch (e) {
       // ignore
     }
@@ -2499,7 +2499,7 @@ export const lookupEnglishWord = async (rawWord) => {
   if (!result.example) {
     try {
       const tatoebaUrl = `https://tatoeba.org/en/api_v0/search?from=eng&query=${encodeURIComponent(word)}`;
-      const tatoebaRes = await fetch(tatoebaUrl);
+      const tatoebaRes = await fetch(tatoebaUrl, { signal });
       if (tatoebaRes.ok) {
         const tatoebaData = await tatoebaRes.json();
         const results = tatoebaData.results || [];
@@ -2509,9 +2509,7 @@ export const lookupEnglishWord = async (rawWord) => {
         if (!match) {
           match = results.find(r => r.text && wordRegex.test(r.text) && r.text.length <= 150);
         }
-        if (!match && results[0]?.text) {
-          match = results[0];
-        }
+
 
         if (match && match.text) {
           result.example = match.text.trim();
@@ -2526,7 +2524,7 @@ export const lookupEnglishWord = async (rawWord) => {
   if (result.example && !result.exampleTranslation) {
     try {
       const exTransUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(result.example)}`;
-      const exRes = await fetch(exTransUrl);
+      const exRes = await fetch(exTransUrl, { signal });
       if (exRes.ok) {
         const exData = await exRes.json();
         result.exampleTranslation = exData[0]?.[0]?.[0] || '';
@@ -2538,6 +2536,20 @@ export const lookupEnglishWord = async (rawWord) => {
 
   return result;
 };
+
+export async function lookupEnglishWord(word, signal) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, 10000);
+  try {
+    return await lookupWord(word, controller.signal);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  }
+}
 
 /**
  * Kiểm tra xem nghĩa người dùng nhập có khớp với nghĩa chuẩn từ điển không

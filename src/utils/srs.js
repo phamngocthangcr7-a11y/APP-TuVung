@@ -25,7 +25,8 @@ export const getTodayDateString = () => {
  * Cộng thêm ngày vào chuỗi YYYY-MM-DD
  */
 export const addDaysToDate = (dateString, days) => {
-  const date = new Date(dateString || getTodayDateString());
+  const [yearPart, monthPart, dayPart] = (dateString || getTodayDateString()).split('-').map(Number);
+  const date = new Date(yearPart, monthPart - 1, dayPart);
   date.setDate(date.getDate() + days);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

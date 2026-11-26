@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { speakEnglish } from '../utils/sound';
 import { getTodayDateString } from '../utils/srs';
-import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
 import { exportAllDataAsJSON, importDataFromJSON, deepRecoverCustomWords } from '../utils/storage';
 
 export default function DailyJournal({
@@ -403,7 +402,7 @@ export default function DailyJournal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {wordsInDate.map(word => {
                     const isFav = favoriteIds.includes(word.id);
-                    const isCustom = String(word.id || '').startsWith('usr_');
+                    const isCustom = word.isCustom || customWords.some(item => item.id === word.id);
 
                     return (
                       <div 
@@ -452,24 +451,13 @@ export default function DailyJournal({
 
                           {/* Vietnamese Meaning */}
                           <div className="text-xs sm:text-sm font-bold text-[#1E3A5F] bg-[#F1F5F9] p-2 rounded-xl">
-                            {(() => {
-                              const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
-                              if (curated?.meaning && (word.meaning?.includes('số ít') || word.meaning?.includes('bởi vị') || word.meaning?.includes('chưa dịch'))) {
-                                return curated.meaning;
-                              }
-                              return word.meaning;
-                            })()}
+                            {word.meaning}
                           </div>
 
                           {/* Example */}
                           {(() => {
-                            const curated = CURATED_TOEIC_EXAMPLES[word.word?.toLowerCase()];
-                            let ex = curated?.example || (word.example || '').trim();
-                            let trans = curated?.translation || (word.exampleTranslation || '').trim();
-                            if (!curated && isBadTemplateSentence(ex, trans)) {
-                              ex = '';
-                              trans = '';
-                            }
+                            const ex = word.example?.trim();
+                            const trans = word.exampleTranslation?.trim();
                             if (!ex) return null;
                             return (
                               <div className="text-xs text-[#4A453E] bg-[#FAF8F5] p-2 rounded-xl border border-[#EAE5DC] space-y-0.5">

@@ -1,662 +1,100 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  X, 
-  FileSpreadsheet, 
-  Check, 
-  AlertCircle, 
-  Sparkles, 
-  Search, 
-  Trash2, 
-  Loader2, 
-  ArrowRight,
-  BookOpen,
-  Layers,
-  History,
-  ShieldCheck,
-  RotateCcw
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Trash2 } from 'lucide-react';
+import EntryDialog from './EntryDialog';
+import { cardError, parseBatch, suggestCard, wordKey } from '../utils/cardEntry';
+import { getBatchDraft, saveBatchDraft, clearBatchDraft, getBatchHistory, saveBatchHistory } from '../utils/storage';
 import { getTodayDateString } from '../utils/srs';
-import { 
-  lookupEnglishWord, 
-  CURATED_TOEIC_EXAMPLES, 
-  isBadTemplateSentence, 
-  inferPartOfSpeech,
-  correctVietnameseSpelling,
-  getToeicExampleFallback
-} from '../utils/dictionary';
-import { 
-  getBatchDraft, 
-  saveBatchDraft, 
-  clearBatchDraft,
-  getBatchHistory,
-  saveBatchHistory
-} from '../utils/storage';
 
-export default function BatchImportModal({
-  isOpen,
-  onClose,
-  onBatchSave
-}) {
-  const [inputText, setInputText] = useState(() => getBatchDraft());
-  const [defaultTag, setDefaultTag] = useState('Nạp hàng ngày');
-  const [targetDate, setTargetDate] = useState(getTodayDateString());
-  const [isAutoTranslating, setIsAutoTranslating] = useState(false);
-  const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0, currentWord: '' });
-  const [manualParsedWords, setManualParsedWords] = useState(null);
-  const [savedSuccessMessage, setSavedSuccessMessage] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
-  const [batchHistory, setBatchHistory] = useState(() => getBatchHistory());
-
-  useEffect(() => {
-    if (isOpen) {
-      setBatchHistory(getBatchHistory());
-      const draft = getBatchDraft();
-      if (!inputText && draft) {
-        setInputText(draft);
-      }
-    }
-  }, [isOpen]);
-
-  // 1. SMART MULTI-FORMAT PARSER
-  const autoParsedWords = useMemo(() => {
-    if (!inputText.trim()) return [];
-
-    const lines = inputText.split(/\r?\n/);
-    const result = [];
-
-    lines.forEach(rawLine => {
-      let line = rawLine.trim();
-      if (!line || line.startsWith('//') || line.startsWith('#')) return;
-
-      // Xóa số thứ tự đầu dòng (ví dụ: "1. ", "1/ ", "1) ", "• ", "- ", "* ", "[1] ")
-      line = line.replace(/^(\d+[\.\/\)\-\:]|\*|\•|\-|\+|\[\d+\]|\(\d+\))\s*/, '').trim();
-      if (!line) return;
-
-      let word = '';
-      let meaning = '';
-      let example = '';
-      let exampleTranslation = '';
-
-      // Thử các loại phân cách phổ biến
-      if (line.includes('\t')) {
-        // Tab-separated (từ Excel, Google Sheets, Quizlet)
-        const parts = line.split('\t').map(p => p.trim());
-        word = parts[0] || '';
-        meaning = parts[1] || '';
-        example = parts[2] || '';
-        exampleTranslation = parts[3] || '';
-      } else if (line.includes('|')) {
-        // Pipe separated (từ | nghĩa | ví dụ | dịch)
-        const parts = line.split('|').map(p => p.trim());
-        word = parts[0] || '';
-        meaning = parts[1] || '';
-        example = parts[2] || '';
-        exampleTranslation = parts[3] || '';
-      } else if (/(\s*[-–—]\s*)/.test(line)) {
-        // Dấu gạch ngang, en-dash, em-dash (kể cả có hoặc không có khoảng trắng)
-        const parts = line.split(/\s*[-–—]\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts[1]?.trim() || '';
-        example = parts[2]?.trim() || '';
-        exampleTranslation = parts[3]?.trim() || '';
-      } else if (line.includes(':')) {
-        // Dấu hai chấm (word: meaning)
-        const parts = line.split(/\s*:\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts.slice(1).join(': ').trim();
-      } else if (/(\s*(=>|->|→|=)\s*)/.test(line)) {
-        // Dấu mũi tên hoặc dấu bằng (word -> meaning)
-        const parts = line.split(/\s*(=>|->|→|=)\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts[parts.length - 1]?.trim() || '';
-      } else if (line.includes(';')) {
-        // Dấu chấm phẩy
-        const parts = line.split(/\s*;\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts[1]?.trim() || '';
-      } else if (line.includes(',')) {
-        // Dấu phẩy (CSV hoặc word, meaning)
-        const parts = line.split(/\s*,\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts.slice(1).join(', ').trim();
-      } else if (/\s{2,}/.test(line)) {
-        // Khoảng trắng kép (copy từ cột không có tab)
-        const parts = line.split(/\s{2,}/);
-        word = parts[0]?.trim() || '';
-        meaning = parts.slice(1).join(' ').trim();
-      } else if (line.includes('/')) {
-        // Dấu gạch chéo
-        const parts = line.split(/\s*\/\s*/);
-        word = parts[0]?.trim() || '';
-        meaning = parts.slice(1).join(' / ').trim();
-      } else {
-        // Chỉ có từ tiếng Anh đơn thuần (không có dấu phân cách)
-        word = line.trim();
-        meaning = '';
-      }
-
-      // Xóa dấu nháy đơn/kép thừa nếu có
-      word = word.trim().replace(/^['"`]+|['"`]+$/g, '');
-
-      if (word && word !== '-') {
-        const lower = word.toLowerCase();
-        const curated = CURATED_TOEIC_EXAMPLES[lower];
-        const determinedPos = curated?.partOfSpeech || inferPartOfSpeech(word);
-
-        // Chuẩn hóa và sửa lỗi chính tả tiếng Việt trong nghĩa người dùng nhập (VD: "bởi vị" -> "do, bởi vì")
-        let cleanedMeaning = correctVietnameseSpelling(meaning);
-        if (!cleanedMeaning && curated?.meaning) {
-          cleanedMeaning = curated.meaning;
-        }
-
-        let initialExample = example || (curated?.example || '');
-        let initialExTranslation = exampleTranslation || (curated?.translation || '');
-
-        if (isBadTemplateSentence(initialExample, initialExTranslation)) {
-          initialExample = curated?.example || '';
-          initialExTranslation = curated?.translation || '';
-        }
-
-        // Đảm bảo 100% luôn có câu ví dụ TOEIC chuẩn và dịch
-        if (!initialExample) {
-          const fallback = getToeicExampleFallback(word, determinedPos, cleanedMeaning);
-          initialExample = fallback.example;
-          initialExTranslation = fallback.translation;
-        }
-
-        result.push({
-          word,
-          pronunciation: curated?.pronunciation || '',
-          meaning: cleanedMeaning || '',
-          example: initialExample,
-          exampleTranslation: initialExTranslation,
-          partOfSpeech: determinedPos,
-          tags: [defaultTag || 'Nạp hàng ngày'],
-          addedDate: targetDate || getTodayDateString()
-        });
-      }
+const sample = '- practical : thiết thực, thực tế\n- portable : dễ mang theo';
+const labels = { word: 'Từ tiếng Anh', meaning: 'Nghĩa tiếng Việt', example: 'Câu ví dụ tiếng Anh', exampleTranslation: 'Bản dịch câu ví dụ' };
+export default function BatchImportModal({ isOpen, onClose, onBatchSave, existingWords = [] }) {
+  const [text, setText] = useState(() => getBatchDraft() || '');
+  const [rows, setRows] = useState(() => parseBatch(text));
+  const [progress, setProgress] = useState('');
+  const [error, setError] = useState('');
+  const [deckTitle, setDeckTitle] = useState('');
+  const [tag, setTag] = useState('Nạp hàng ngày');
+  const [date, setDate] = useState(getTodayDateString);
+  const [history] = useState(getBatchHistory);
+  const request = useRef(null);
+  const autoLookup = useRef(null);
+  useEffect(() => () => {
+    request.current?.abort();
+    clearTimeout(autoLookup.current);
+  }, []);
+  const known = useMemo(() => new Map(existingWords.map(item => [wordKey(item.word), item])), [existingWords]);
+  const problems = useMemo(() => {
+    const seen = new Set();
+    return rows.map(row => {
+      const key = wordKey(row.word);
+      const saved = known.get(key);
+      const issue = seen.has(key) ? 'Trùng với dòng phía trên.'
+        : saved ? (cardError(saved) ? 'Hãy hoàn thiện thẻ này trong sổ trước.' : '') : cardError(row);
+      seen.add(key);
+      return issue;
     });
-
-    return result;
-  }, [inputText, defaultTag, targetDate]);
-
-  // Use manualParsedWords if user triggered auto-translate or edited
-  const activeWords = manualParsedWords || autoParsedWords;
-
-  // Reset manual state when input text changes & auto-save draft to prevent loss
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setInputText(val);
-    saveBatchDraft(val);
-    setManualParsedWords(null);
-    setSavedSuccessMessage('');
-  };
-
-  // 2. AUTO AI / DICTIONARY TRANSLATE & MEANING VERIFICATION BUTTON
-  const handleAutoTranslate = async () => {
-    if (activeWords.length === 0) return;
-
-    setIsAutoTranslating(true);
-    const updated = [...activeWords];
-    const total = updated.length;
-
-    for (let i = 0; i < total; i++) {
-      const item = updated[i];
-      const lower = (item.word || '').toLowerCase();
-      const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-      // 1. Luôn sửa lỗi chính tả tiếng Việt trong nghĩa người dùng (VD: "bởi vị" -> "do, bởi vì")
-      let cleanMeaning = correctVietnameseSpelling(item.meaning);
-      if (!cleanMeaning && curated?.meaning) {
-        cleanMeaning = curated.meaning;
-      }
-      item.meaning = cleanMeaning;
-
-      if (curated) {
-        if (!item.pronunciation && curated.pronunciation) item.pronunciation = curated.pronunciation;
-        if (curated.partOfSpeech) item.partOfSpeech = curated.partOfSpeech;
-        if (!item.example || isBadTemplateSentence(item.example, item.exampleTranslation)) {
-          item.example = curated.example;
-          item.exampleTranslation = curated.translation;
-        }
-      }
-
-      const needsMeaning = !item.meaning || item.meaning.trim() === '';
-      const needsExample = !item.example || item.example.trim() === '' || isBadTemplateSentence(item.example, item.exampleTranslation);
-
-      if (needsMeaning || needsExample || !item.pronunciation) {
-        setTranslateProgress({ current: i + 1, total, currentWord: item.word });
-        try {
-          const dictRes = await lookupEnglishWord(item.word);
-          if (dictRes.found || dictRes.meaning) {
-            if (needsMeaning && dictRes.meaning) item.meaning = dictRes.meaning;
-            if (dictRes.partOfSpeech) item.partOfSpeech = dictRes.partOfSpeech;
-            if (dictRes.phonetic && !item.pronunciation) item.pronunciation = dictRes.phonetic;
-            if (needsExample && dictRes.example) {
-              item.example = dictRes.example;
-              item.exampleTranslation = dictRes.exampleTranslation || '';
-            }
-          }
-        } catch (e) {
-          console.warn('Translate error:', e);
-        }
-      }
-
-      // Đảm bảo 100% không bao giờ để trống câu ví dụ
-      if (!item.example || isBadTemplateSentence(item.example, item.exampleTranslation)) {
-        const fallback = getToeicExampleFallback(item.word, item.partOfSpeech, item.meaning);
-        item.example = fallback.example;
-        item.exampleTranslation = fallback.translation;
-      }
-    }
-
-    setManualParsedWords(updated);
-    setIsAutoTranslating(false);
-    setTranslateProgress({ current: 0, total: 0, currentWord: '' });
-  };
-
-  // Delete a parsed word from preview
-  const handleDeleteWord = (index) => {
-    const list = [...activeWords];
-    list.splice(index, 1);
-    setManualParsedWords(list);
-  };
-
-  // Update a parsed word inline
-  const handleUpdateMeaning = (index, newMeaning) => {
-    const list = [...activeWords];
-    list[index] = { ...list[index], meaning: correctVietnameseSpelling(newMeaning) };
-    setManualParsedWords(list);
-  };
-
-  // Save words (Đảm bảo 100% nghĩa chuẩn chính tả, câu ví dụ chuẩn ETS, không bao giờ để trống)
-  const handleSave = (andStudy = false) => {
-    if (activeWords.length === 0) return;
-
-    const validWords = activeWords.map(w => {
-      const lower = (w.word || '').toLowerCase();
-      const curated = CURATED_TOEIC_EXAMPLES[lower];
-
-      // Tự động sửa lỗi chính tả tiếng Việt trong nghĩa (VD: "bởi vị" -> "do, bởi vì")
-      let cleanMeaning = correctVietnameseSpelling(w.meaning);
-      if (!cleanMeaning && curated?.meaning) {
-        cleanMeaning = curated.meaning;
-      }
-
-      const determinedPos = w.partOfSpeech && w.partOfSpeech !== 'noun'
-        ? w.partOfSpeech
-        : (curated?.partOfSpeech || inferPartOfSpeech(w.word));
-
-      let ex = (w.example && w.example.trim()) ? w.example.trim() : (curated?.example || '');
-      let exTrans = (w.exampleTranslation && w.exampleTranslation.trim()) ? w.exampleTranslation.trim() : (curated?.translation || '');
-
-      if (isBadTemplateSentence(ex, exTrans)) {
-        ex = curated?.example || '';
-        exTrans = curated?.translation || '';
-      }
-
-      // Đảm bảo 100% luôn có câu ví dụ TOEIC chuẩn xác
-      if (!ex) {
-        const fallback = getToeicExampleFallback(w.word, determinedPos, cleanMeaning);
-        ex = fallback.example;
-        exTrans = fallback.translation;
-      }
-
-      return {
-        ...w,
-        pronunciation: (w.pronunciation || '').trim() || (curated?.pronunciation || ''),
-        meaning: cleanMeaning && cleanMeaning.trim() !== '' ? cleanMeaning.trim() : '(Từ mới chưa dịch)',
-        example: ex,
-        exampleTranslation: exTrans,
-        partOfSpeech: determinedPos,
-        tags: [defaultTag || 'Nạp hàng ngày'],
-        addedDate: targetDate || getTodayDateString()
-      };
-    });
-
-    // 1. Lưu bản dán vào lịch sử để không bao giờ bị mất chữ
-    saveBatchHistory(inputText, validWords);
-    setBatchHistory(getBatchHistory());
-
-    // 2. Gộp từ vào Sổ tay
-    onBatchSave(validWords, andStudy ? 'study' : null);
-    clearBatchDraft();
-    setSavedSuccessMessage(`🎉 Đã lưu và bảo vệ thành công ${validWords.length} từ vựng vào Master Vault của bạn!`);
-
-    setTimeout(() => {
-      setInputText('');
-      setManualParsedWords(null);
-      setSavedSuccessMessage('');
-      onClose();
-    }, 900);
-  };
-
-  const handleLoadHistoryItem = (item) => {
-    if (!item || !item.text) return;
-    setInputText(item.text);
-    saveBatchDraft(item.text);
-    setManualParsedWords(null);
-    setShowHistory(false);
-  };
-
-  const handleLoadCuratedPreset = () => {
-    const lines = [];
-    Object.entries(CURATED_TOEIC_EXAMPLES).forEach(([k, v]) => {
-      lines.push(`${k} | ${v.meaning || ''} | ${v.example || ''} | ${v.translation || ''}`);
-    });
-    const content = lines.join('\n');
-    setInputText(content);
-    saveBatchDraft(content);
-    setManualParsedWords(null);
-  };
-
+  }, [rows, known]);
   if (!isOpen) return null;
-
-  const sampleExample = `significantly | một cách đáng kể | Sales increased significantly. | Doanh số tăng đáng kể.
-accommodate | đáp ứng, chứa được | The hall can accommodate 500 guests. | Hội trường chứa được 500 khách.
-abide by - tuân thủ, tuân theo
-account for : giải thích, chiếm tỉ lệ
-contingency plan = kế hoạch dự phòng
-substantiate, chứng minh, xác thực
-prerequisite
-feasibility`;
-
-  const missingMeaningsCount = activeWords.filter(w => !w.meaning || w.meaning.trim() === '').length;
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-7 shadow-2xl border border-slate-200 space-y-4 m-auto overscroll-contain">
-        
-        {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-slate-800">
-                Nhập từ vựng hàng loạt (Batch Import)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Dán danh sách từ từ Excel, Quizlet, website hoặc ghi chú TOEIC hàng ngày
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Success Alert Banner */}
-        {savedSuccessMessage && (
-          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-900 text-xs sm:text-sm font-bold flex items-center gap-2 animate-fadeIn">
-            <Check className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{savedSuccessMessage}</span>
-          </div>
-        )}
-
-        {/* Instructions Guide */}
-        <div className="bg-blue-50/80 p-3 sm:p-3.5 rounded-2xl border border-blue-200 text-xs text-blue-900 space-y-1">
-          <p className="font-bold flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            Hỗ trợ tất cả định dạng (Mỗi từ 1 dòng, không bắt buộc dấu gạch):
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] text-blue-800 font-mono pt-1">
-            <div>• Từ | Nghĩa | Ví dụ | Dịch</div>
-            <div>• Từ - Nghĩa  hoặc  Từ : Nghĩa</div>
-            <div>• Copy từ cột Excel / Google Sheets</div>
-            <div>• Chỉ cần dán từ tiếng Anh (có nút tự dịch AI)</div>
-          </div>
-        </div>
-
-        {/* Inputs */}
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Gắn thẻ phân loại (Tag)
-              </label>
-              <input
-                type="text"
-                value={defaultTag}
-                onChange={(e) => setDefaultTag(e.target.value)}
-                placeholder="e.g. Từ vựng ngày 16/11"
-                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ngày ghi nhận
-              </label>
-              <input
-                type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <span>Dán nội dung từ vựng vào đây:</span>
-                <span className="text-[10px] font-normal text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                  Tự lưu nháp & Master Vault
-                </span>
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {batchHistory.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowHistory(!showHistory)}
-                    className="text-[11px] text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 font-bold flex items-center gap-1 cursor-pointer transition-all"
-                  >
-                    <History className="w-3 h-3 text-indigo-600" />
-                    <span>Lịch sử dán ({batchHistory.length})</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleLoadCuratedPreset}
-                  title="Nạp ngay danh sách hơn 115+ từ vựng TOEIC ETS chuẩn đã có sẵn phiên âm & ví dụ"
-                  className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 font-bold flex items-center gap-1 cursor-pointer transition-all"
-                >
-                  <Sparkles className="w-3 h-3 text-emerald-600" />
-                  <span>Nạp 115+ từ ETS</span>
-                </button>
-
-                {inputText.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInputText('');
-                      clearBatchDraft();
-                      setManualParsedWords(null);
-                    }}
-                    className="text-[11px] text-rose-600 hover:text-rose-800 font-semibold cursor-pointer"
-                  >
-                    Xóa trắng
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputText(sampleExample);
-                    saveBatchDraft(sampleExample);
-                    setManualParsedWords(null);
-                  }}
-                  className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
-                >
-                  Chèn mẫu
-                </button>
-              </div>
-            </div>
-
-            {/* Bảng lịch sử các đợt dán trước đây (Để khôi phục ngay nếu lỡ làm mất) */}
-            {showHistory && (
-              <div className="mb-2 p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2 animate-fadeIn text-xs">
-                <div className="flex items-center justify-between font-bold text-indigo-900">
-                  <span className="flex items-center gap-1.5">
-                    <History className="w-4 h-4 text-indigo-600" />
-                    Lịch sử các lần dán danh sách từ của bạn:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowHistory(false)}
-                    className="text-slate-400 hover:text-slate-600 font-normal"
-                  >
-                    Đóng ✕
-                  </button>
-                </div>
-                <div className="max-h-40 overflow-y-auto space-y-1.5 divide-y divide-indigo-100/60">
-                  {batchHistory.map((item, idx) => (
-                    <div key={item.id || idx} className="pt-1.5 flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-indigo-950 flex items-center gap-1.5">
-                          <span>Đợt dán: {item.count} từ</span>
-                          <span className="text-[10px] text-indigo-500 font-normal">({item.dateStr})</span>
-                        </div>
-                        {item.sampleWords && item.sampleWords.length > 0 && (
-                          <div className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md">
-                            Ví dụ: {item.sampleWords.join(', ')}...
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleLoadHistoryItem(item)}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shrink-0 cursor-pointer shadow-xs"
-                      >
-                        Nạp lại vào ô
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <textarea
-              rows="6"
-              value={inputText}
-              onChange={handleInputChange}
-              placeholder="Dán danh sách từ của bạn vào đây (ví dụ: &#10;1. accommodate - đáp ứng &#10;2. significant: đáng kể &#10;3. prerequisite)..."
-              className="w-full p-3.5 rounded-2xl text-xs sm:text-sm font-mono bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            ></textarea>
-          </div>
-        </div>
-
-        {/* Real-time Preview & AI Auto Translate */}
-        {activeWords.length > 0 && (
-          <div className="space-y-2 pt-1 border-t border-slate-100">
-            
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>Đã nhận diện: {activeWords.length} từ vựng</span>
-                {missingMeaningsCount > 0 && (
-                  <span className="text-amber-600 font-semibold">
-                    ({missingMeaningsCount} từ chưa có nghĩa)
-                  </span>
-                )}
-              </div>
-
-              {/* Auto Translate & Meaning Check Button */}
-              {activeWords.length > 0 && (
-                <button
-                  type="button"
-                  disabled={isAutoTranslating}
-                  onClick={handleAutoTranslate}
-                  title="Kiểm tra đối chiếu từ điển, tự động sửa lỗi chính tả tiếng Việt và điền ví dụ chuẩn"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isAutoTranslating ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Đang kiểm tra ({translateProgress.current}/{translateProgress.total})...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>⚡ Kiểm tra nghĩa & Chuẩn hóa chính tả AI</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* Words Table Preview */}
-            <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-2xl divide-y divide-slate-100 text-xs">
-              {activeWords.map((pw, idx) => (
-                <div key={idx} className="p-2 sm:p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50">
-                  <div className="w-1/3 font-bold text-[#C52243] truncate" title={pw.word}>
-                    {pw.word}
-                  </div>
-
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={pw.meaning}
-                      onChange={(e) => handleUpdateMeaning(idx, e.target.value)}
-                      placeholder="Nhập nghĩa tiếng Việt..."
-                      className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-400"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteWord(idx)}
-                    className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                    title="Xóa dòng này"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        )}
-
-        {/* Modal Actions */}
-        <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            Hủy
-          </button>
-
-          <button
-            type="button"
-            disabled={activeWords.length === 0 || isAutoTranslating}
-            onClick={() => handleSave(false)}
-            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-          >
-            Lưu {activeWords.length} từ vào Sổ tay
-          </button>
-
-          <button
-            type="button"
-            disabled={activeWords.length === 0 || isAutoTranslating}
-            onClick={() => handleSave(true)}
-            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <span>Lưu & Học SmartCards ngay</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
+  const missing = problems.filter(Boolean).length;
+  const updateText = value => {
+    clearTimeout(autoLookup.current);
+    const parsed = parseBatch(value);
+    setText(value); setRows(parsed); saveBatchDraft(value); setError('');
+    if (parsed.some(row => row.meaning && cardError(row))) {
+      autoLookup.current = setTimeout(() => lookup(parsed, true), 900);
+    }
+  };
+  const updateRows = next => {
+    clearTimeout(autoLookup.current);
+    const serialized = next.map(row => Object.keys(labels).map(key => (row[key] || '').replace(/[\r\n\t]+/g, ' ')).join('\t')).join('\n');
+    setRows(next); setText(serialized); saveBatchDraft(serialized); setError('');
+  };
+  const lookup = async (source = rows, onlyWithMeaning = false) => {
+    clearTimeout(autoLookup.current);
+    const controller = new AbortController();
+    request.current = controller;
+    const next = [...source];
+    try {
+      for (let index = 0; index < next.length; index++) {
+        if ((onlyWithMeaning && !next[index].meaning) || known.has(wordKey(next[index].word)) || !cardError(next[index]) || !/[a-z]/i.test(next[index].word)) continue;
+        setProgress('Đang tra ' + (index + 1) + '/' + next.length + ' · ' + next[index].word);
+        next[index] = await suggestCard(next[index], controller.signal);
+        if (controller.signal.aborted) return;
+        updateRows([...next]);
+      }
+    } catch { if (!controller.signal.aborted) setError('Tra cứu bị gián đoạn. Bạn có thể điền các mục còn thiếu.'); }
+    finally { if (!controller.signal.aborted) setProgress(''); }
+  };
+  const save = study => {
+    if (!rows.length || missing || progress) return;
+    const words = rows.map(row => ({ ...row, addedDate: date || getTodayDateString(), tags: [tag.trim() || 'Nạp hàng ngày'] }));
+    try {
+      onBatchSave(words, study ? 'study' : null, deckTitle.trim());
+      saveBatchHistory(text, words); clearBatchDraft(); onClose();
+    } catch (err) { setError(err.message || 'Chưa lưu được danh sách. Hãy thử lại.'); }
+  };
+  return <EntryDialog title="Nhập nhiều thẻ từ" onClose={onClose} wide>
+    <div className="entry-body"><fieldset disabled={!!progress}>
+      <label>Danh sách từ<textarea autoFocus rows={4} value={text} onChange={event => updateText(event.target.value)} placeholder={sample}/></label>
+      <p className="entry-hint">Dán mỗi dòng theo mẫu từ : nghĩa. Ứng dụng tự gợi ý ví dụ song ngữ. Bạn cũng có thể dán bốn cột từ Excel để dùng ví dụ của mình.</p>
+      {history?.length > 0 && <label>Lần nhập trước<select defaultValue="" onChange={e => { if (e.target.value) updateText(history.find(item => item.id === e.target.value).text); e.target.value = ''; }}><option value="">Chọn danh sách đã lưu</option>
+        {history.map(item => <option key={item.id} value={item.id}>{item.dateStr} · {item.count} từ</option>)}</select></label>}
+      {rows.length > 0 && <>
+        <div className="entry-actions"><strong>{rows.length} thẻ · {missing ? missing + ' cần kiểm tra' : 'Sẵn sàng lưu'}</strong>
+        {rows.some(item => cardError(item)) && <button type="button" className="entry-secondary" onClick={() => lookup()}><Search size={16}/>Tra các mục còn thiếu</button>}</div>
+        <div className="entry-preview">{rows.map((row, index) => <details className="entry-row" key={index}>
+          <summary><span>{index + 1}. {row.word || '(Chưa có từ)'}</span><small className={problems[index] ? 'entry-error' : ''}>{problems[index] || (known.has(wordKey(row.word)) ? 'Dùng thẻ đã lưu' : 'Đủ nội dung')}</small></summary>
+          <div className="entry-details">{Object.entries(labels).map(([field, label]) => <label key={field}>{label}<input value={row[field] || ''} onChange={e => updateRows(rows.map((item, i) => i === index ? { ...item, [field]: e.target.value } : item))}/></label>)}
+          <button className="entry-secondary" onClick={() => updateRows(rows.filter((_, i) => i !== index))}><Trash2 size={15}/>Bỏ dòng này</button></div>
+        </details>)}</div>
+        <label>Tên bộ học riêng (tùy chọn)<input maxLength={80} value={deckTitle} onChange={e => setDeckTitle(e.target.value)}/></label>
+        <div className="entry-split"><label>Nhãn chung<input value={tag} onChange={e => setTag(e.target.value)}/></label><label>Ngày thêm<input type="date" value={date} onChange={e => setDate(e.target.value)}/></label></div>
+      </>}
+    </fieldset>
+    {progress && <div className="entry-actions"><p role="status" className="entry-status">{progress}</p>
+      <button className="entry-secondary" onClick={() => { request.current?.abort(); setProgress(''); }}>Dừng tra cứu</button></div>}
+    {error && <p role="alert" className="entry-error">{error}</p>}</div>
+    <footer className="entry-footer"><button className="entry-secondary" onClick={() => save(false)} disabled={!rows.length || !!missing || !!progress}>Lưu vào sổ</button>
+    <button className="entry-primary" disabled={!rows.length || !!missing || !!progress} onClick={() => save(true)}>Lưu và học ngay</button></footer>
+  </EntryDialog>;
 }

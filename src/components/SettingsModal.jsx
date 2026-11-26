@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   X, 
   Settings, 
@@ -11,7 +11,7 @@ import {
   FileSpreadsheet,
   ShieldCheck
 } from 'lucide-react';
-import { speakEnglish } from '../utils/sound';
+import { speakEnglish, stopSpeaking } from '../utils/sound';
 import { exportAllDataAsJSON, importDataFromJSON } from '../utils/storage';
 
 export default function SettingsModal({
@@ -28,6 +28,8 @@ export default function SettingsModal({
   const [autoPlayAudio, setAutoPlayAudio] = useState(settings.autoPlayAudio ?? true);
   const [importStatus, setImportStatus] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => stopSpeaking, []);
 
   if (!isOpen) return null;
 
@@ -159,8 +161,10 @@ export default function SettingsModal({
               step="0.05"
               value={speechRate}
               onChange={(e) => handleSpeechRateChange(parseFloat(e.target.value))}
+              aria-label="Tốc độ phát âm"
               className="w-full accent-blue-600 cursor-pointer"
             />
+            <label className="flex items-center gap-2"><input type="checkbox" checked={autoPlayAudio} onChange={e => handleAutoPlayChange(e.target.checked)}/> Tự động phát âm khi học thẻ</label>
           </div>
         </div>
 

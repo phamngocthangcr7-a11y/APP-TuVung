@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RotateCcw, Clock, Award, Gamepad2 } from 'lucide-react';
-import { speakEnglish, sound } from '../utils/sound';
+import { speakEnglish, sound, stopSpeaking } from '../utils/sound';
 
 export default function MatchGame({
   allWords = [],
@@ -69,6 +69,7 @@ export default function MatchGame({
 
   useEffect(() => {
     startNewGame(selectedSource);
+    return stopSpeaking;
   }, [selectedSource, startNewGame]);
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function MatchGame({
     if (selectedFirst && selectedSecond) return;
 
     if (card.lang === 'en') {
-      speakEnglish(card.text, 1.0);
+      speakEnglish(card.text);
     }
 
     if (!selectedFirst) {

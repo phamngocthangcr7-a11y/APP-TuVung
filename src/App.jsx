@@ -1,3 +1,5 @@
+import { wordKey } from './utils/cardEntry';
+import StudyDecks, { readStudyDecks, saveStudyDeck } from './components/StudyDecks';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
@@ -27,28 +29,24 @@ import {
   recordStudySession,
   getAppSettings,
   saveAppSettings,
-  getWeekNumber,
-  autoEnrichCustomWords,
   deepRecoverCustomWords
 } from './utils/storage';
-import { getTodayDateString, isDueForReview, calculateSRSStats } from './utils/srs';
-import { 
-  CheckCircle2, 
-  Layers, 
-  PenTool, 
-  Gamepad2, 
-  BookOpen
-} from 'lucide-react';
+import { getTodayDateString } from './utils/srs';
+
 
 export default function App() {
   // Navigation State - Default to SmartCards for instant learning
   const [activeTab, setActiveTab] = useState('smartcards'); // 'smartcards', 'journal', 'practice'
   const [practiceSubTab, setPracticeSubTab] = useState('quiz'); // 'quiz', 'dictation', 'match'
-  const [journalFilter, setJournalFilter] = useState('all');
+
 
   // Study Target State
   const [studyWordsList, setStudyWordsList] = useState(null);
   const [studyMode, setStudyMode] = useState('all');
+  const [studyTitle, setStudyTitle] = useState('');
+  const [studyDecks, setStudyDecks] = useState(readStudyDecks);
+  const [showStudyDecks, setShowStudyDecks] = useState(false);
+  const [studyKey, setStudyKey] = useState(0);
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -69,20 +67,6 @@ export default function App() {
 
   // Tự động rà soát & tra cứu bổ sung câu ví dụ thực tế ngầm dưới nền + Tự động quét sâu Master Vault khi tải app
   useEffect(() => {
-    // 1. Quét sâu để đảm bảo khôi phục toàn bộ từ vựng từ Master Vault hoặc bản sao lưu cũ
-    try {
-      const recovered = deepRecoverCustomWords();
-      if (Array.isArray(recovered) && recovered.length > customWords.length) {
-        setCustomWords(recovered.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
-      }
-    } catch (_) {}
-
-    autoEnrichCustomWords((updatedList) => {
-      if (Array.isArray(updatedList) && updatedList.length > 0) {
-        setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
-      }
-    });
-
     // Lắng nghe sự kiện storage để đồng bộ tức thì nếu mở nhiều tab hoặc sửa dữ liệu
     const handleStorageChange = (e) => {
       if (!e.key || e.key.includes('toeic_custom_words') || e.key.includes('toeic_word_srs')) {
@@ -112,7 +96,7 @@ export default function App() {
         nextReviewDate: w.addedDate || todayStr,
         state: 'new'
       };
-      list.push({ ...w, srs: liveSrs });
+      list.push({ ...w, isCustom: true, srs: liveSrs });
     });
 
     // 2. Built-in Sets Words
@@ -133,11 +117,6 @@ export default function App() {
     return list;
   }, [customWords, srsProgress, todayStr]);
 
-  // Words due for Spaced Repetition review today
-  const dueWords = useMemo(() => {
-    return allWords.filter(w => isDueForReview(w, todayStr));
-  }, [allWords, todayStr]);
-
   // Handlers
   const handleAddWord = (wordData) => {
     if (!wordData || !wordData.word || String(wordData.word).trim() === '' || String(wordData.word).trim() === '-') return;
@@ -145,33 +124,40 @@ export default function App() {
     setCustomWords(prev => [newWord, ...prev]);
   };
 
-  const handleBatchSave = (batchList, action = null) => {
+  const handleBatchSave = (batchList, action = null, deckTitle = '') => {
     const valid = (batchList || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
     if (valid.length === 0) return;
-    const created = addBatchCustomWords(valid);
+    const existing = new Map(getCustomWords().map(word => [wordKey(word.word), word]));
+    const newWords = valid.filter(word => !existing.has(wordKey(word.word)));
+    const created = newWords.length ? addBatchCustomWords(newWords) : [];
+    const saved = new Map(created.map(word => [wordKey(word.word), word]));
+    const deckWords = valid.map(word => existing.get(wordKey(word.word)) || saved.get(wordKey(word.word)));
     const freshWords = getCustomWords();
     setCustomWords(freshWords.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
 
-    if (action === 'study') {
-      handleStartSmartCards(created);
-    }
+    if (deckTitle) setStudyDecks(saveStudyDeck(deckTitle, deckWords));
+    if (action === 'study') handleStartSmartCards(deckWords.map(word => ({ ...word, srs: srsProgress[word.id] || word.srs })), deckTitle);
 
-    // Tự động tìm câu ví dụ thực tế ngầm dưới nền nếu có từ chưa có ví dụ
-    setTimeout(() => {
-      autoEnrichCustomWords((updatedList) => {
-        if (Array.isArray(updatedList) && updatedList.length > 0) {
-          setCustomWords(updatedList.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
-        }
-      });
-    }, 1000);
+
   };
 
-  const handleDeepRecovery = useCallback(() => {
-    const recovered = deepRecoverCustomWords();
+  const handleDeepRecovery = useCallback(async () => {
+    const before = getCustomWords().length;
+    let snapshot = [];
+    try {
+      const response = await fetch('/toeic_master_restored.json');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) snapshot = data;
+      }
+    } catch {
+      // Browser backups remain available offline.
+    }
+    const recovered = deepRecoverCustomWords(snapshot);
     const clean = (recovered || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
     setCustomWords(clean);
     setSrsProgress(getWordSrsProgress());
-    return clean.length;
+    return clean.length - before;
   }, []);
 
   const handleEditWord = (wordData) => {
@@ -187,6 +173,8 @@ export default function App() {
     if (window.confirm('Bạn có chắc chắn muốn xóa từ vựng này khỏi sổ tay?')) {
       const remaining = deleteCustomWord(wordId);
       setCustomWords(remaining);
+      setFavoriteIds(getFavoriteIds());
+      setSrsProgress(getWordSrsProgress());
     }
   };
 
@@ -214,6 +202,9 @@ export default function App() {
   };
 
   const handleResetProgress = () => {
+    const cleared = getCustomWords().map(({ srs, ...word }) => word);
+    saveCustomWords(cleared);
+    setCustomWords(cleared);
     localStorage.removeItem('toeic_word_srs_progress_v2');
     setSrsProgress({});
   };
@@ -231,11 +222,14 @@ export default function App() {
     if (newTab === 'smartcards') {
       setStudyWordsList(null);
       setStudyMode('decks');
+      setStudyKey(key => key + 1);
     }
     setActiveTab(newTab);
   };
 
-  const handleStartSmartCards = (target) => {
+  const handleStartSmartCards = (target, title = '') => {
+    setStudyTitle(title);
+    setStudyKey(key => key + 1);
     if (Array.isArray(target)) {
       setStudyWordsList(target);
       setStudyMode('custom_list');
@@ -263,9 +257,6 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         setActiveTab={handleTabChange}
-        streakInfo={streakInfo}
-        dueTodayCount={dueWords.length}
-        customWordsCount={customWords.length}
         onOpenAddModal={() => {
           setEditingWord(null);
           setIsAddModalOpen(true);
@@ -275,18 +266,23 @@ export default function App() {
       />
 
       {/* Main Content Area wrapped in ErrorBoundary */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
         
         <ErrorBoundary onReset={() => setActiveTab('smartcards')}>
           
           {/* 1. Smart Cards (SRS) View - Central Learning Tab */}
           {activeTab === 'smartcards' && (
             <SmartCards
+              key={studyKey}
+              settings={settings}
+              onUpdateSettings={handleUpdateSettings}
               allWords={allWords}
               customWords={customWords}
               builtInSets={BUILTIN_SETS}
               onUpdateWordSrs={handleUpdateWordSrs}
               onRecordStudySession={handleRecordSession}
+              onOpenStudyDecks={() => setShowStudyDecks(true)}
+              initialTitle={studyTitle}
               initialWords={studyWordsList}
               initialMode={studyMode}
               favoriteIds={favoriteIds}
@@ -323,7 +319,7 @@ export default function App() {
               onDeleteWord={handleDeleteWord}
               onStartSmartCards={handleStartSmartCards}
               onStartQuiz={handleStartQuiz}
-              initialFilter={journalFilter}
+              initialFilter="custom"
               onDataImported={handleDataImported}
               onDeepRecovery={handleDeepRecovery}
             />
@@ -420,10 +416,19 @@ export default function App() {
         }}
       />
 
+      {showStudyDecks && <StudyDecks decks={studyDecks} words={customWords}
+        onCreate={(title, words, imported) => setStudyDecks(saveStudyDeck(title, words, imported))}
+        onStudy={(words, title) => {
+          setShowStudyDecks(false);
+          handleStartSmartCards(words.map(word => ({ ...word, srs: srsProgress[word.id] || word.srs })), title);
+        }}
+        onClose={() => setShowStudyDecks(false)} />}
+
       {/* Add / Edit Word Modal with Auto Meaning Check */}
       {isAddModalOpen && (
         <ErrorBoundary>
           <WordModal
+            existingWords={customWords}
             isOpen={isAddModalOpen}
             onClose={() => {
               setIsAddModalOpen(false);
@@ -439,6 +444,7 @@ export default function App() {
       {isBatchModalOpen && (
         <ErrorBoundary>
           <BatchImportModal
+            existingWords={customWords}
             isOpen={isBatchModalOpen}
             onClose={() => setIsBatchModalOpen(false)}
             onBatchSave={handleBatchSave}
