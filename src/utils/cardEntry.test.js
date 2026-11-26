@@ -1,4 +1,4 @@
-import { cardError, parseBatch, suggestCard } from './cardEntry';
+import { cardError, parseBatch, reviewBatchCard, suggestCard } from './cardEntry';
 
 test('preserves hyphenated terms and assigns all four pasted columns to the same card', () => {
   const [row] = parseBatch('follow-up\tviệc theo dõi\tWe sent a follow-up email.\tChúng tôi đã gửi email theo dõi.');
@@ -41,4 +41,13 @@ test('fills all bilingual examples from the pasted list and corrects known typos
   expect(cards.map(cardError)).toEqual(Array(18).fill(''));
   expect(cards[3].word).toBe('alternative');
   expect(cards[4].meaning).toBe('tuy vậy, dù vậy');
+});
+
+test('flags spelling candidates and reviews every entered sense independently', () => {
+  const typo = reviewBatchCard({ word: 'pratical', meaning: 'thiết thực' });
+  expect(typo.spellings).toContain('practical');
+  const mismatch = reviewBatchCard({ word: 'produce', meaning: 'tạo ra; điểm đến' });
+  expect(mismatch.different).toBe(true);
+  expect(mismatch.senses).toContainEqual({ type: 'danh từ', meaning: 'nông sản, rau củ quả' });
+  expect(reviewBatchCard({ word: 'produce', meaning: 'tạo ra; nông sản' }).different).toBe(false);
 });

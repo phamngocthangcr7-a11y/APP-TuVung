@@ -42,3 +42,25 @@ test('keeps incomplete batch entries editable and imports reviewed entries toget
   expect(save.mock.calls[0][1]).toBe('study');
 });
 
+
+test('offers alternate senses and saves the chosen addition with the original', () => {
+  const save = jest.fn();
+  act(() => root.render(<BatchImportModal isOpen onClose={() => {}} onBatchSave={save}/>));
+  setValue(host.querySelector('textarea'), 'produce: tạo ra');
+  const alternative = [...host.querySelectorAll('.entry-review li')].find(li => li.textContent.includes('nông sản'));
+  const add = [...alternative.querySelectorAll('button')].find(el => el.textContent === 'Thêm nghĩa');
+  act(() => Simulate.click(add));
+  act(() => Simulate.click(button('Lưu vào sổ')));
+  expect(save.mock.calls[0][0][0].meaning).toBe('tạo ra; nông sản, rau củ quả');
+});
+
+test('asks the learner to resolve or confirm a meaning mismatch before saving', () => {
+  const save = jest.fn();
+  act(() => root.render(<BatchImportModal isOpen onClose={() => {}} onBatchSave={save}/>));
+  setValue(host.querySelector('textarea'), 'practical: mặt trời');
+  expect(button('Lưu vào sổ').disabled).toBe(true);
+  act(() => Simulate.click(button('Dùng nghĩa này')));
+  expect(button('Lưu vào sổ').disabled).toBe(false);
+  act(() => Simulate.click(button('Lưu vào sổ')));
+  expect(save.mock.calls[0][0][0].meaning).toBe('thiết thực, thực tế');
+});

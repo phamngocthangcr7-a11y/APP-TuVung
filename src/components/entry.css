@@ -31,3 +31,10 @@
 .entry-row summary small.entry-error{color:#9f341c}
 .entry-dialog fieldset{margin:0;padding:0;border:0;min-width:0;display:grid;gap:12px}
 @media(max-width:500px){.entry-header,.entry-body,.entry-footer{padding:14px 16px}.entry-split{grid-template-columns:1fr}.entry-actions{gap:6px}}
+
+.entry-review { display: grid; gap: 8px; padding: 12px; background: #edf6f3; border-radius: 10px; }
+.entry-review ul { margin: 0; padding: 0; list-style: none; }
+.entry-review li { padding: 8px 0; border-top: 1px solid #cfded9; }
+.entry-review .entry-actions { margin-top: 5px; }
+.entry-body .entry-confirm { display: flex; align-items: center; gap: 8px; }
+.entry-body .entry-confirm input { width: auto; min-width: 16px; }
