@@ -15,7 +15,7 @@ export function readStudyDecks() {
 }
 
 export function saveStudyDeck(title, words, imported = false) {
-  const id = crypto.randomUUID();
+  const id = globalThis.crypto?.randomUUID?.() || Date.now() + "_" + Math.random().toString(36).slice(2);
   const deck = {
     id, title,
     words: words.map((word, i) => {
@@ -96,3 +96,4 @@ export default function StudyDecks({ decks, words, onCreate, onStudy, onClose })
     </div>
   </EntryDialog>;
 }
+
