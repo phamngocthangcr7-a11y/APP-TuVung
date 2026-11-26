@@ -53,11 +53,11 @@ export default function BatchImportModal({ isOpen, onClose, onBatchSave, existin
     const serialized = next.map(row => Object.keys(labels).map(key => (row[key] || '').replace(/[\r\n\t]+/g, ' ')).join('\t')).join('\n');
     setRows(next); setText(serialized); saveBatchDraft(serialized); setError('');
   };
-  const needsLookup = (row, onlyWithMeaning) => {
-    if ((onlyWithMeaning && !row.meaning) || known.has(wordKey(row.word)) ||
+  const needsLookup = (row, automatic) => {
+    if (known.has(wordKey(row.word)) ||
         row.reference || !/[a-z]/i.test(row.word)) return false;
     const review = reviewBatchCard(row);
-    return onlyWithMeaning && review.spellings.length ? false : Boolean(cardError(row) || !review.known);
+    return automatic && review.spellings.length ? false : Boolean(cardError(row) || !review.known);
   };
   const patchRow = (index, update) => {
     setReviewConfirmed(false);
@@ -72,12 +72,12 @@ export default function BatchImportModal({ isOpen, onClose, onBatchSave, existin
     const value = append ? [row.meaning.trim(), extra.join(', ')].filter(Boolean).join('; ') : meaning;
     return { ...row, meaning: value };
   });
-  const lookup = async (source = rows, onlyWithMeaning = false) => {
+  const lookup = async (source = rows, automatic = false) => {
     clearTimeout(autoLookup.current);
     const controller = new AbortController();
     request.current = controller;
     const next = [...source];
-    const pending = source.flatMap((row, index) => needsLookup(row, onlyWithMeaning) ? [index] : []);
+    const pending = source.flatMap((row, index) => needsLookup(row, automatic) ? [index] : []);
     try {
       for (let offset = 0; offset < pending.length; offset += 4) {
         setProgress(`Đang tra từ điển · ${Math.min(offset + 4, pending.length)}/${pending.length} thẻ`);
@@ -101,7 +101,7 @@ export default function BatchImportModal({ isOpen, onClose, onBatchSave, existin
   return <EntryDialog title="Nhập nhiều thẻ từ" onClose={onClose} wide>
     <div className="entry-body"><fieldset disabled={!!progress}>
       <label>Danh sách từ<textarea autoFocus rows={4} value={text} onChange={event => updateText(event.target.value)} placeholder={sample}/></label>
-      <p className="entry-hint">Dán mỗi dòng theo mẫu từ : nghĩa. Mở từng thẻ để rà chính tả, đối chiếu nghĩa và xem ví dụ song ngữ.</p>
+      <p className="entry-hint">Dán mỗi dòng một từ tiếng Anh hoặc theo mẫu từ : nghĩa. Ứng dụng tự tra nghĩa và ví dụ song ngữ. Mở từng thẻ để xem gợi ý.</p>
       {history?.length > 0 && <label>Lần nhập trước<select defaultValue="" onChange={e => { if (e.target.value) updateText(history.find(item => item.id === e.target.value).text); e.target.value = ''; }}><option value="">Chọn danh sách đã lưu</option>
         {history.map(item => <option key={item.id} value={item.id}>{item.dateStr} · {item.count} từ</option>)}</select></label>}
       {rows.length > 0 && <>

@@ -64,3 +64,29 @@ test('asks the learner to resolve or confirm a meaning mismatch before saving', 
   act(() => Simulate.click(button('Lưu vào sổ')));
   expect(save.mock.calls[0][0][0].meaning).toBe('thiết thực, thực tế');
 });
+
+test('automatically looks up a pasted English-only word', async () => {
+  const previous = global.fetch;
+  jest.useFakeTimers();
+  global.fetch = jest.fn(async url => ({
+    ok: true,
+    json: async () => url.includes('dictionaryapi')
+      ? [{ phonetic: '/ˈmɑːrʃmæloʊ/', meanings: [{ partOfSpeech: 'noun', definitions: [{ example: 'She toasted a marshmallow over the fire.' }] }] }]
+      : [[[url.includes('dt=bd') ? 'kẹo dẻo' : 'Cô ấy nướng một viên kẹo dẻo trên lửa.']]]
+  }));
+  try {
+    const save = jest.fn();
+    act(() => root.render(<BatchImportModal isOpen onClose={() => {}} onBatchSave={save}/>));
+    setValue(host.querySelector('textarea'), 'marshmallow');
+    await act(async () => { jest.advanceTimersByTime(900); });
+    expect(button('Lưu vào sổ').disabled).toBe(false);
+    act(() => Simulate.click(button('Lưu vào sổ')));
+    expect(save.mock.calls[0][0][0]).toMatchObject({
+      meaning: 'kẹo dẻo', example: 'She toasted a marshmallow over the fire.',
+      exampleTranslation: 'Cô ấy nướng một viên kẹo dẻo trên lửa.'
+    });
+  } finally {
+    global.fetch = previous;
+    jest.useRealTimers();
+  }
+});
