@@ -7,3 +7,14 @@
 5. Mở ứng dụng trên trình duyệt đang có dữ liệu, đăng nhập bằng liên kết trong email, rồi chọn **Tài khoản → Đưa sổ cũ trên trình duyệt này vào tài khoản**. Mở cùng tài khoản trên thiết bị thứ hai để kiểm tra sổ từ, bộ học riêng và tiến độ.
 
 Khi thiếu cấu hình, ứng dụng tiếp tục dùng sổ từ cục bộ.
+
+
+Nếu liên kết trong email bị dùng trước khi người học bấm, mở **Authentication → Emails** và đổi nội dung của cả **Confirm signup** lẫn **Magic Link** sang mã xác nhận. Dùng nội dung sau cho mỗi mẫu:
+
+```html
+<h2>Mã đăng nhập Vocab TOEIC</h2>
+<p>Nhập mã này trong mục Đăng nhập trên Vocab TOEIC:</p>
+<p><strong>{{ .Token }}</strong></p>
+```
+
+Trong app, gửi email đăng nhập rồi chọn **Nhập mã từ email**.

@@ -5,6 +5,7 @@ import EntryDialog from './components/EntryDialog';
 import { setNotebookAccount, withGuestNotebook } from './utils/notebookStorage';
 import { syncNotebook } from './utils/notebookSync';
 import { exportAllDataAsJSON, importDataFromJSON } from './utils/storage';
+import { readAuthReturn, signInLinkMessage } from './utils/authReturn';
 
 // The publishable key is safe to ship in the browser. Other deployments can
 // supply their own project through build-time environment variables.
@@ -14,19 +15,26 @@ const productionUrl = 'https://apmmaxhugqhnqhlzvuex.supabase.co';
 const productionKey = 'sb_publishable_69TI1csbyCq-PrXE6rrSHw_2Vu205gj';
 const customUrl = process.env.REACT_APP_SUPABASE_URL;
 const customKey = process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY;
+const authReturn = typeof window !== 'undefined' ? readAuthReturn(window.location.href) : null;
 const client = customUrl && customKey ? createClient(customUrl, customKey)
   : isProductionSite ? createClient(productionUrl, productionKey) : null;
 const loading = <main className="mx-auto max-w-md p-6" role="status">Đang mở sổ từ…</main>;
 
-function AccountNotebook({ user }) {
+function AccountNotebook({ user, linkError }) {
   const [ready, setReady] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(linkError));
+  const [useCode, setUseCode] = useState(false);
+  const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [syncStatus, setSyncStatus] = useState('');
   const flush = useRef(null);
   const account = user?.id || null;
+
+  useEffect(() => {
+    if (linkError && !account) setOpen(true);
+  }, [linkError, account]);
 
   useEffect(() => {
     setNotebookAccount(account);
@@ -103,7 +111,18 @@ function AccountNotebook({ user }) {
         throw new Error('Đã đến giới hạn gửi email đăng nhập. Hãy dùng liên kết đã nhận hoặc thử lại sau.');
       }
       if (error) throw error;
-      setMessage('Hãy mở liên kết đăng nhập trong email bằng trình duyệt bạn muốn dùng để học.');
+      setMessage('Mở email mới nhất. Nếu email có mã xác nhận, chọn Nhập mã từ email. Nếu có liên kết, mở liên kết trong trình duyệt bạn muốn dùng để học.');
+    });
+  };
+
+  const verifyCode = event => {
+    event.preventDefault();
+    run(async () => {
+      const { error } = await client.auth.verifyOtp({ email: email.trim(), token: code, type: 'email' });
+      if (error?.code === 'otp_expired' || error?.code === 'invalid_credentials') {
+        throw new Error('Mã đã hết hạn hoặc không đúng. Hãy dùng mã trong email mới nhất.');
+      }
+      if (error) throw error;
     });
   };
 
@@ -142,13 +161,20 @@ function AccountNotebook({ user }) {
           <button type="button" className="entry-secondary" disabled={busy} onClick={signOut}>Đăng xuất</button>
         </div>
         {message && <p role="status">{message}</p>}
-      </div> : <form onSubmit={signIn}>
+      </div> : <form onSubmit={useCode ? verifyCode : signIn}>
         <div className="entry-body">
+          {linkError && <p role="alert" className="entry-error">{linkError}</p>}
           <label>Email<input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)}/></label>
+          {useCode && <label>Mã xác nhận từ email<input required autoFocus inputMode="numeric" autoComplete="one-time-code"
+            pattern="[0-9]{6,10}" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 10))}/></label>}
           <p>Dùng cùng một email để mở cùng sổ từ trên máy tính và điện thoại.</p>
           {message && <p role="status">{message}</p>}
         </div>
-        <div className="entry-footer"><button className="entry-primary" disabled={busy}>Gửi liên kết đăng nhập</button></div>
+        <div className="entry-footer">
+          <button type="button" className="entry-secondary" disabled={busy}
+            onClick={() => { setUseCode(value => !value); setMessage(''); }}>{useCode ? 'Quay lại gửi email' : 'Nhập mã từ email'}</button>
+          <button className="entry-primary" disabled={busy}>{useCode ? 'Xác nhận mã' : 'Gửi email đăng nhập'}</button>
+        </div>
       </form>}
     </EntryDialog>}
   </>;
@@ -157,15 +183,42 @@ function AccountNotebook({ user }) {
 export default function AccountApp() {
   const [initializing, setInitializing] = useState(Boolean(client));
   const [user, setUser] = useState(null);
+  const [linkError, setLinkError] = useState('');
   useEffect(() => {
     if (!client) return;
+    let active = true;
     const { data } = client.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
+      if (session) setLinkError('');
       setInitializing(false);
     });
-    return () => data.subscription.unsubscribe();
+    if (authReturn) {
+      const checkReturn = async () => {
+        let message = '';
+        try {
+          const { error } = await client.auth.initialize();
+          const code = authReturn.errorCode || error?.details?.code || error?.code;
+          if (code || error) {
+            message = signInLinkMessage(code);
+          } else {
+            const { data: sessionData } = await client.auth.getSession();
+            if (!sessionData.session) message = signInLinkMessage();
+          }
+        } catch {
+          message = signInLinkMessage();
+        }
+        if (!active) return;
+        setLinkError(message);
+        window.history.replaceState(window.history.state, '', authReturn.cleanUrl);
+      };
+      checkReturn();
+    }
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
   if (!client) return <App/>;
   if (initializing) return loading;
-  return <AccountNotebook key={user?.id || 'guest'} user={user}/>;
+  return <AccountNotebook key={user?.id || 'guest'} user={user} linkError={user ? '' : linkError}/>;
 }
