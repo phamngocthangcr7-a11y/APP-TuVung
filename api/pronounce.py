@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import math
 import shutil
 import tempfile
 import threading
@@ -9,15 +10,15 @@ import wave
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
-from piper import PiperVoice
+import numpy as np
+from kokoro_onnx import Kokoro
 
 
-VOICE_NAME = "en_US-norman-medium"
-VOICE_DIRECTORY = (
-    "https://huggingface.co/rhasspy/piper-voices/resolve/e70533d/"
-    "en/en_US/norman/medium/"
-)
-MODEL_CACHE = Path(tempfile.gettempdir()) / "vocab-toeic-piper-norman-e70533d"
+VOICE_NAME = "am_michael"
+MODEL_NAME = "kokoro-v1.0.int8.onnx"
+VOICES_NAME = "voices-v1.0.bin"
+MODEL_DIRECTORY = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/"
+MODEL_CACHE = Path(tempfile.gettempdir()) / "vocab-toeic-kokoro-v1"
 voice_lock = threading.Lock()
 voice = None
 
@@ -30,11 +31,11 @@ def load_voice():
         if voice is not None:
             return voice
         MODEL_CACHE.mkdir(parents=True, exist_ok=True)
-        for suffix in (".onnx", ".onnx.json"):
-            model_file = MODEL_CACHE / (VOICE_NAME + suffix)
+        for name in (MODEL_NAME, VOICES_NAME):
+            model_file = MODEL_CACHE / name
             if model_file.is_file():
                 continue
-            with urllib.request.urlopen(VOICE_DIRECTORY + model_file.name, timeout=20) as download:
+            with urllib.request.urlopen(MODEL_DIRECTORY + name, timeout=20) as download:
                 with tempfile.NamedTemporaryFile(dir=MODEL_CACHE, delete=False) as temporary:
                     temporary_path = Path(temporary.name)
                     try:
@@ -44,15 +45,20 @@ def load_voice():
                         temporary_path.unlink(missing_ok=True)
                         raise
                 temporary_path.replace(model_file)
-        voice = PiperVoice.load(MODEL_CACHE / (VOICE_NAME + ".onnx"))
+        voice = Kokoro(str(MODEL_CACHE / MODEL_NAME), str(MODEL_CACHE / VOICES_NAME))
         return voice
 
 
-def make_audio(text):
+def make_audio(text, speed):
     speaker = load_voice()
+    samples, sample_rate = speaker.create(text, voice=VOICE_NAME, speed=speed, lang="en-us")
+    pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2")
     audio = io.BytesIO()
     with wave.open(audio, "wb") as wav:
-        speaker.synthesize_wav(text, wav)
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(pcm.tobytes())
     return audio.getvalue()
 
 
@@ -63,16 +69,21 @@ class handler(BaseHTTPRequestHandler):
             if not 1 <= length <= 8192:
                 raise ValueError("Invalid request length")
             payload = json.loads(self.rfile.read(length))
-            text = payload.get("text", "") if isinstance(payload, dict) else ""
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid pronunciation payload")
+            text = payload.get("text", "")
+            speed = payload.get("speed", 0.9)
+            if not isinstance(speed, (int, float)) or not math.isfinite(speed) or not 0.6 <= speed <= 1.2:
+                raise ValueError("Invalid pronunciation speed")
             text = " ".join(text.split()) if isinstance(text, str) else ""
             if not 1 <= len(text) <= 500 or not any(character.isalnum() for character in text):
                 raise ValueError("Invalid pronunciation text")
         except (ValueError, UnicodeError):
-            self.send_error(400, "Enter 1 to 500 characters of text")
+            self.send_error(400, "Invalid pronunciation input")
             return
 
         try:
-            audio = make_audio(text)
+            audio = make_audio(text, speed)
         except Exception:
             logging.exception("Pronunciation service could not synthesize audio")
             self.send_error(503, "Pronunciation temporarily unavailable")

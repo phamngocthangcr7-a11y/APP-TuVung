@@ -13,19 +13,20 @@ export function unlockMobileAudio() {
 
 const speechCache = new Map();
 
-async function fetchSpeech(text, context, signal) {
-  if (speechCache.has(text)) return speechCache.get(text);
+async function fetchSpeech(text, speed, context, signal) {
+  const cacheKey = JSON.stringify([text, speed]);
+  if (speechCache.has(cacheKey)) return speechCache.get(cacheKey);
   const response = await fetch('/api/pronounce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, speed }),
     signal
   });
   if (!response.ok || !response.headers.get('content-type')?.startsWith('audio/')) {
     throw new Error('Pronunciation unavailable');
   }
   const audio = await context.decodeAudioData(await response.arrayBuffer());
-  speechCache.set(text, audio);
+  speechCache.set(cacheKey, audio);
   if (speechCache.size > 24) speechCache.delete(speechCache.keys().next().value);
   return audio;
 }
@@ -35,6 +36,7 @@ export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9)
   stopSpeaking();
   const text = String(rawText || '').trim().replace(/\s+/g, ' ');
   if (!text || text.length > 500) return Promise.resolve('unavailable');
+  const speed = Number.isFinite(rate) ? Number(Math.min(1.2, Math.max(0.6, rate)).toFixed(2)) : 0.9;
 
   sound.init();
   const context = sound.ctx;
@@ -64,11 +66,10 @@ export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9)
     const timeout = setTimeout(() => finish('unavailable'), 35_000);
     activePlayback = { cancel: () => finish('cancelled') };
 
-    Promise.all([resume, fetchSpeech(text, context, controller.signal)]).then(([, audio]) => {
+    Promise.all([resume, fetchSpeech(text, speed, context, controller.signal)]).then(([, audio]) => {
       if (settled) return;
       source = context.createBufferSource();
       source.buffer = audio;
-      source.playbackRate.value = rate;
       source.connect(context.destination);
       source.onended = () => finish('ended');
       source.start();

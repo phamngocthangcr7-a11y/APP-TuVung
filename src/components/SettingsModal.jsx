@@ -145,7 +145,7 @@ export default function SettingsModal({
                 <label className="text-xs sm:text-sm font-bold text-slate-800">
                   Tốc độ phát âm: {speechRate}x
                 </label>
-                <p className="text-xs text-slate-500">Giọng nam tiếng Anh Mỹ giống nhau trên điện thoại và máy tính.</p>
+                <p className="text-xs text-slate-500">Giọng Anh–Mỹ Kokoro. Đổi tốc độ đọc vẫn giữ nguyên cao độ.</p>
               </div>
 
               <button

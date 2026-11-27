@@ -11,8 +11,8 @@ const context = {
 beforeEach(() => { sound.ctx = context; });
 afterEach(() => { stopSpeaking(); sound.ctx = null; jest.restoreAllMocks(); });
 
-test('plays the shared server recording at the configured rate after unlocking mobile audio', async () => {
-  const source = { playbackRate: {}, connect: jest.fn(), start: jest.fn(), stop: jest.fn(), disconnect: jest.fn() };
+test('requests synthesis at the chosen speed without shifting playback pitch', async () => {
+  const source = { playbackRate: { value: 1 }, connect: jest.fn(), start: jest.fn(), stop: jest.fn(), disconnect: jest.fn() };
   context.createBufferSource.mockReturnValue(source);
   const oldFetch = global.fetch;
   global.fetch = jest.fn(async () => ({
@@ -22,10 +22,10 @@ test('plays the shared server recording at the configured rate after unlocking m
     const playback = speakEnglish('The team will review your request.', 0.85);
     expect(context.resume).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith('/api/pronounce', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ text: 'The team will review your request.' })
+      method: 'POST', body: JSON.stringify({ text: 'The team will review your request.', speed: 0.85 })
     }));
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(source.playbackRate.value).toBe(0.85);
+    expect(source.playbackRate.value).toBe(1);
     expect(source.start).toHaveBeenCalledTimes(1);
     source.onended();
     await expect(playback).resolves.toBe('ended');
