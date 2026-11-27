@@ -11,62 +11,69 @@ export function unlockMobileAudio() {
   if (sound.ctx?.state === 'suspended') sound.ctx.resume().catch(() => {});
 }
 
-const maleVoiceNames = /\b(?:male|aaron|alex|daniel|fred|evan|oliver|arthur|reed|tom|guy|david|mark|george|ryan|james|brian|eric|brandon|christopher|steffan|roger)\b/i;
+const speechCache = new Map();
 
-export function selectMaleEnglishVoice(voices) {
-  const supported = voices.filter(voice => /^en(?:[-_]|$)/i.test(voice.lang) &&
-    maleVoiceNames.test(voice.name) && !/\bfemale\b/i.test(voice.name));
-  return supported.find(voice => /^en[-_]US$/i.test(voice.lang)) || supported[0];
+async function fetchSpeech(text, context, signal) {
+  if (speechCache.has(text)) return speechCache.get(text);
+  const response = await fetch('/api/pronounce', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal
+  });
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('audio/')) {
+    throw new Error('Pronunciation unavailable');
+  }
+  const audio = await context.decodeAudioData(await response.arrayBuffer());
+  speechCache.set(text, audio);
+  if (speechCache.size > 24) speechCache.delete(speechCache.keys().next().value);
+  return audio;
 }
 
-// A new request cancels pending and active speech.
+// Start from a gesture when needed and keep the audio engine open during the download.
 export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9) {
   stopSpeaking();
-  const text = String(rawText || '').trim();
-  const synth = typeof window !== 'undefined' && window.speechSynthesis;
-  if (!text || !synth || !window.SpeechSynthesisUtterance) return Promise.resolve('unavailable');
-  return new Promise(resolve => {
-    let utterance;
-    let voiceTimeout;
-    let settled = false;
+  const text = String(rawText || '').trim().replace(/\s+/g, ' ');
+  if (!text || text.length > 500) return Promise.resolve('unavailable');
 
+  sound.init();
+  const context = sound.ctx;
+  if (!context) return Promise.resolve('unavailable');
+  const controller = new AbortController();
+  // Calling resume immediately preserves the mobile user gesture.
+  const resume = context.state === 'running' ? Promise.resolve() : context.resume();
+
+  return new Promise(resolve => {
+    let source;
+    let settled = false;
     const finish = result => {
       if (settled) return;
       settled = true;
-      clearTimeout(voiceTimeout);
-      synth.removeEventListener?.('voiceschanged', speak);
-      if (utterance) utterance.onend = utterance.onerror = null;
+      clearTimeout(timeout);
+      controller.abort();
+      if (source) {
+        source.onended = null;
+        if (result !== 'ended') {
+          try { source.stop(); } catch { /* Source may have failed before starting. */ }
+        }
+        source.disconnect();
+      }
       activePlayback = null;
       resolve(result);
     };
+    const timeout = setTimeout(() => finish('unavailable'), 35_000);
+    activePlayback = { cancel: () => finish('cancelled') };
 
-    function speak() {
-      if (settled || utterance) return;
-      const voice = selectMaleEnglishVoice(synth.getVoices());
-      if (!voice) return;
-      clearTimeout(voiceTimeout);
-      synth.removeEventListener?.('voiceschanged', speak);
-      try {
-        utterance = new window.SpeechSynthesisUtterance(text);
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-        utterance.rate = rate;
-        utterance.onend = () => finish('ended');
-        utterance.onerror = () => finish('unavailable');
-        if (synth.paused) synth.resume();
-        synth.speak(utterance);
-      } catch {
-        finish('unavailable');
-      }
-    }
-
-    activePlayback = { cancel() {
-      finish('cancelled');
-      if (utterance) synth.cancel();
-    } };
-    synth.addEventListener?.('voiceschanged', speak);
-    voiceTimeout = setTimeout(() => finish('unavailable'), 700);
-    speak();
+    Promise.all([resume, fetchSpeech(text, context, controller.signal)]).then(([, audio]) => {
+      if (settled) return;
+      source = context.createBufferSource();
+      source.buffer = audio;
+      source.playbackRate.value = rate;
+      source.connect(context.destination);
+      source.onended = () => finish('ended');
+      source.start();
+      clearTimeout(timeout);
+    }).catch(() => finish('unavailable'));
   });
 }
 

@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/pronounce.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{node_modules/**,build/**,public/**,src/**,supabase/**}"
+    }
+  }
+}

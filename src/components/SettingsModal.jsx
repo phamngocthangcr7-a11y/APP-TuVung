@@ -145,7 +145,7 @@ export default function SettingsModal({
                 <label className="text-xs sm:text-sm font-bold text-slate-800">
                   Tốc độ phát âm: {speechRate}x
                 </label>
-                <p className="text-xs text-slate-500">Ưu tiên giọng nam tiếng Anh Mỹ có trên thiết bị.</p>
+                <p className="text-xs text-slate-500">Giọng nam tiếng Anh Mỹ giống nhau trên điện thoại và máy tính.</p>
               </div>
 
               <button
@@ -153,7 +153,7 @@ export default function SettingsModal({
                 onClick={async () => {
                   setVoiceStatus('');
                   const result = await speakEnglish('The team will review your request tomorrow.', speechRate);
-                  if (result === 'unavailable') setVoiceStatus('Chưa tìm được giọng nam tiếng Anh có thể phát trên thiết bị này.');
+                  if (result === 'unavailable') setVoiceStatus('Chưa tải được giọng đọc. Hãy thử lại khi có mạng.');
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-blue-700 hover:bg-blue-50 transition-colors"
               >

@@ -52,7 +52,7 @@ export default function SmartCards({
   const playEnglish = useCallback(async (text) => {
     setAudioError('');
     if (await speakEnglish(text, settings.speechRate) === 'unavailable') {
-      setAudioError('Chưa phát được giọng nam tiếng Anh. Hãy kiểm tra giọng đọc tiếng Anh đã cài trên thiết bị.');
+      setAudioError('Chưa phát được giọng đọc. Hãy kiểm tra mạng và bấm nút nghe để thử lại.');
     }
   }, [settings.speechRate]);
   const [sessionTargetWords, setSessionTargetWords] = useState([]); // Danh sách gốc N từ của phiên học
