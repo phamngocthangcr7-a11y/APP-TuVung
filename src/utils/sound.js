@@ -12,47 +12,104 @@ export function unlockMobileAudio() {
 }
 
 const speechCache = new Map();
+const pendingSpeech = new Map();
+let preloading = null;
 
-async function fetchSpeech(text, speed, context, signal) {
-  const cacheKey = JSON.stringify([text, speed]);
-  if (speechCache.has(cacheKey)) return speechCache.get(cacheKey);
+function getSpeechClip(rawText, rate) {
+  const text = String(rawText || '').trim().replace(/\s+/g, ' ');
+  if (!text || text.length > 500) return null;
+  const speed = Number.isFinite(rate) ? Number(Math.min(1.2, Math.max(0.6, rate)).toFixed(2)) : 0.9;
+  return { text, speed, key: JSON.stringify([text, speed]) };
+}
+
+async function fetchSpeech(clip, context, signal) {
   const response = await fetch('/api/pronounce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, speed }),
+    body: JSON.stringify({ text: clip.text, speed: clip.speed }),
     signal
   });
   if (!response.ok || !response.headers.get('content-type')?.startsWith('audio/')) {
     throw new Error('Pronunciation unavailable');
   }
   const audio = await context.decodeAudioData(await response.arrayBuffer());
-  speechCache.set(cacheKey, audio);
-  if (speechCache.size > 24) speechCache.delete(speechCache.keys().next().value);
+  if (!signal.aborted) {
+    speechCache.set(clip.key, audio);
+    if (speechCache.size > 24) speechCache.delete(speechCache.keys().next().value);
+  }
   return audio;
 }
 
-// Start from a gesture when needed and keep the audio engine open during the download.
-export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9) {
-  stopSpeaking();
-  const text = String(rawText || '').trim().replace(/\s+/g, ' ');
-  if (!text || text.length > 500) return Promise.resolve('unavailable');
-  const speed = Number.isFinite(rate) ? Number(Math.min(1.2, Math.max(0.6, rate)).toFixed(2)) : 0.9;
+function requestSpeech(clip, context) {
+  if (speechCache.has(clip.key)) return { audio: Promise.resolve(speechCache.get(clip.key)), release() {} };
 
+  let pending = pendingSpeech.get(clip.key);
+  if (!pending) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    pending = { controller, listeners: 0 };
+    pending.audio = fetchSpeech(clip, context, controller.signal).finally(() => {
+      clearTimeout(timeout);
+      if (pendingSpeech.get(clip.key) === pending) pendingSpeech.delete(clip.key);
+    });
+    pendingSpeech.set(clip.key, pending);
+  }
+
+  pending.listeners++;
+  return {
+    audio: pending.audio,
+    release() {
+      pending.listeners--;
+      if (!pending.listeners && pendingSpeech.get(clip.key) === pending) {
+        pendingSpeech.delete(clip.key);
+        pending.controller.abort();
+      }
+    }
+  };
+}
+
+// Keep at most one upcoming card loading. Playback can join that same download.
+export function preloadEnglish(rawText, rate) {
+  const clip = getSpeechClip(rawText, rate);
+  if (!clip || !sound.ctx || speechCache.has(clip.key) || preloading?.key === clip.key) return;
+  preloading?.cancel();
+  const request = requestSpeech(clip, sound.ctx);
+  preloading = { key: clip.key, cancel: request.release };
+  request.audio.catch(() => {}).finally(() => {
+    if (preloading?.cancel === request.release) {
+      preloading = null;
+      request.release();
+    }
+  });
+}
+
+export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9, onStart) {
+  const clip = getSpeechClip(rawText, rate);
+  if (!clip) return Promise.resolve('unavailable');
   sound.init();
   const context = sound.ctx;
   if (!context) return Promise.resolve('unavailable');
-  const controller = new AbortController();
-  // Calling resume immediately preserves the mobile user gesture.
-  const resume = context.state === 'running' ? Promise.resolve() : context.resume();
 
-  return new Promise(resolve => {
+  // A tap may unlock audio after autoplay. Keep the same download in flight.
+  const resume = context.state === 'running' ? Promise.resolve() : context.resume();
+  if (activePlayback?.key === clip.key && !activePlayback.started) {
+    activePlayback.onStart = onStart || activePlayback.onStart;
+    resume.catch(() => {});
+    return activePlayback.result;
+  }
+
+  stopSpeaking();
+  const request = requestSpeech(clip, context);
+  const playback = { key: clip.key, started: false, onStart };
+  activePlayback = playback;
+  playback.result = new Promise(resolve => {
     let source;
     let settled = false;
     const finish = result => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      controller.abort();
+      request.release();
       if (source) {
         source.onended = null;
         if (result !== 'ended') {
@@ -60,22 +117,25 @@ export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9)
         }
         source.disconnect();
       }
-      activePlayback = null;
+      if (activePlayback === playback) activePlayback = null;
       resolve(result);
     };
     const timeout = setTimeout(() => finish('unavailable'), 35_000);
-    activePlayback = { cancel: () => finish('cancelled') };
+    playback.cancel = () => finish('cancelled');
 
-    Promise.all([resume, fetchSpeech(text, speed, context, controller.signal)]).then(([, audio]) => {
+    Promise.all([resume, request.audio]).then(([, audio]) => {
       if (settled) return;
       source = context.createBufferSource();
       source.buffer = audio;
       source.connect(context.destination);
       source.onended = () => finish('ended');
       source.start();
+      playback.started = true;
       clearTimeout(timeout);
+      playback.onStart?.();
     }).catch(() => finish('unavailable'));
   });
+  return playback.result;
 }
 
 class SoundEffects {

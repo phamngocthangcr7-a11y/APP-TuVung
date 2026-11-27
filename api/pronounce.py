@@ -7,10 +7,12 @@ import tempfile
 import threading
 import urllib.request
 import wave
+from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 import numpy as np
+import onnxruntime as ort
 from kokoro_onnx import Kokoro
 
 
@@ -45,10 +47,16 @@ def load_voice():
                         temporary_path.unlink(missing_ok=True)
                         raise
                 temporary_path.replace(model_file)
-        voice = Kokoro(str(MODEL_CACHE / MODEL_NAME), str(MODEL_CACHE / VOICES_NAME))
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 2
+        options.inter_op_num_threads = 1
+        session = ort.InferenceSession(str(MODEL_CACHE / MODEL_NAME), sess_options=options,
+                                       providers=["CPUExecutionProvider"])
+        voice = Kokoro.from_session(session, str(MODEL_CACHE / VOICES_NAME))
         return voice
 
 
+@lru_cache(maxsize=48)
 def make_audio(text, speed):
     speaker = load_voice()
     samples, sample_rate = speaker.create(text, voice=VOICE_NAME, speed=speed, lang="en-us")

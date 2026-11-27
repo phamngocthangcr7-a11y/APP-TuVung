@@ -1,7 +1,7 @@
 import DeckLibrary from './DeckLibrary';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Volume2, Star, Award, ArrowLeft } from 'lucide-react';
-import { speakEnglish, sound, stopSpeaking, unlockMobileAudio } from '../utils/sound';
+import { speakEnglish, preloadEnglish, sound, stopSpeaking, unlockMobileAudio } from '../utils/sound';
 import { calculateNextSrs, SRS_RATING, isDueForReview, getTodayDateString, getDeckProgress, buildStudyQueue } from '../utils/srs';
 import { TOEIC_CORE_DECKS } from '../data/defaultVocab';
 import { CURATED_TOEIC_EXAMPLES, isBadTemplateSentence } from '../utils/dictionary';
@@ -48,13 +48,22 @@ export default function SmartCards({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const autoPlayAudio = settings.autoPlayAudio ?? true;
-  const [audioError, setAudioError] = useState('');
+  const [audioStatus, setAudioStatus] = useState('');
+  const audioAttempt = useRef(0);
+  const nextWord = activeQueue[currentIndex + 1]?.word;
   const playEnglish = useCallback(async (text) => {
-    setAudioError('');
-    if (await speakEnglish(text, settings.speechRate) === 'unavailable') {
-      setAudioError('Chưa phát được giọng đọc. Hãy kiểm tra mạng và bấm nút nghe để thử lại.');
+    const attempt = ++audioAttempt.current;
+    setAudioStatus('Đang tải âm thanh…');
+    const result = await speakEnglish(text, settings.speechRate, () => {
+      if (attempt !== audioAttempt.current) return;
+      setAudioStatus('Đang phát âm thanh…');
+      if (autoPlayAudio && viewMode === 'study') preloadEnglish(nextWord, settings.speechRate);
+    });
+    if (attempt === audioAttempt.current) {
+      setAudioStatus(result === 'unavailable'
+        ? 'Chưa phát được giọng đọc. Hãy kiểm tra mạng và bấm lại nút nghe.' : '');
     }
-  }, [settings.speechRate]);
+  }, [autoPlayAudio, nextWord, settings.speechRate, viewMode]);
   const [sessionTargetWords, setSessionTargetWords] = useState([]); // Danh sách gốc N từ của phiên học
 
   // Active Recall State (Phase 2 - Luyện gõ củng cố sau khi học)
@@ -220,12 +229,21 @@ export default function SmartCards({
     setIsSizeModalOpen(true);
   };
 
+  useEffect(() => {
+    if (!isSizeModalOpen || !autoPlayAudio || !selectedDeckForSession) return;
+    const [firstWord] = buildStudyQueue(
+      getWordsForDeck(selectedDeckForSession.id), sessionSize, studyModeType, todayStr
+    );
+    preloadEnglish(firstWord?.word, settings.speechRate);
+  }, [isSizeModalOpen, autoPlayAudio, selectedDeckForSession, getWordsForDeck, sessionSize,
+    studyModeType, todayStr, settings.speechRate]);
+
   const currentWord = activeQueue[currentIndex];
 
   useEffect(() => {
-    setAudioError('');
+    setAudioStatus('');
     if (viewMode === 'study' && currentWord && autoPlayAudio) playEnglish(currentWord.word);
-    return stopSpeaking;
+    return () => { audioAttempt.current++; stopSpeaking(); };
   }, [currentWord, currentIndex, recallIndex, autoPlayAudio, viewMode, playEnglish]);
 
   // 1. NÚT CHƯA NHỚ (Lặp lại ở cuối phiên)
@@ -472,7 +490,7 @@ export default function SmartCards({
         {!isRecall && (effectivePos || effectivePronunciation) && <p>{[effectivePos, effectivePronunciation].filter(Boolean).join(' · ')}</p>}
         <button className="study-audio" onClick={() => playEnglish(item.word)}><Volume2 size={18}/>{isRecall ? 'Nghe gợi ý' : 'Nghe từ'}</button>
       </div>
-      {audioError && <p role="status">{audioError}</p>}
+      {audioStatus && <p className="text-center text-sm" role="status">{audioStatus}</p>}
       {isRecall ? <form className="study-recall" onSubmit={handleCheckRecall}>
         <label htmlFor="recall-answer">Từ hoặc cụm từ tiếng Anh</label>
         <input id="recall-answer" lang="en" ref={recallInputRef} autoFocus autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} readOnly={done || recallFeedback === 'revealed'} value={recallInput} onChange={e => {setRecallInput(e.target.value); setRecallFeedback(null);}}/>
