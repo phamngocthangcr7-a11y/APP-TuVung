@@ -11,69 +11,62 @@ export function unlockMobileAudio() {
   if (sound.ctx?.state === 'suspended') sound.ctx.resume().catch(() => {});
 }
 
-// A new request cancels the previous word, sentence, or recording fallback.
+const maleVoiceNames = /\b(?:male|aaron|alex|daniel|fred|evan|oliver|arthur|reed|tom|guy|david|mark|george|ryan|james|brian|eric|brandon|christopher|steffan|roger)\b/i;
+
+export function selectMaleEnglishVoice(voices) {
+  const supported = voices.filter(voice => /^en(?:[-_]|$)/i.test(voice.lang) &&
+    maleVoiceNames.test(voice.name) && !/\bfemale\b/i.test(voice.name));
+  return supported.find(voice => /^en[-_]US$/i.test(voice.lang)) || supported[0];
+}
+
+// A new request cancels pending and active speech.
 export function speakEnglish(rawText, rate = getAppSettings().speechRate || 0.9) {
   stopSpeaking();
   const text = String(rawText || '').trim();
-  if (!text || typeof window === 'undefined') return Promise.resolve('unavailable');
+  const synth = typeof window !== 'undefined' && window.speechSynthesis;
+  if (!text || !synth || !window.SpeechSynthesisUtterance) return Promise.resolve('unavailable');
   return new Promise(resolve => {
-    let audio;
     let utterance;
-    let recordingTimeout;
+    let voiceTimeout;
     let settled = false;
-    const synth = window.speechSynthesis;
-    function finish(result) {
+
+    const finish = result => {
       if (settled) return;
       settled = true;
-      clearTimeout(recordingTimeout);
+      clearTimeout(voiceTimeout);
+      synth.removeEventListener?.('voiceschanged', speak);
       if (utterance) utterance.onend = utterance.onerror = null;
-      if (audio) {
-        audio.onended = audio.onerror = null;
-        audio.pause();
-      }
       activePlayback = null;
       resolve(result);
-    }
-    activePlayback = { cancel() {
-      finish('cancelled');
-      if (utterance) synth?.cancel();
-    } };
-    function playRecording() {
-      if (settled) return;
-      if (!/^[a-z]+$/i.test(text)) {
-        finish('unavailable');
-        return;
-      }
+    };
+
+    function speak() {
+      if (settled || utterance) return;
+      const voice = selectMaleEnglishVoice(synth.getVoices());
+      if (!voice) return;
+      clearTimeout(voiceTimeout);
+      synth.removeEventListener?.('voiceschanged', speak);
       try {
-        audio = new Audio('https://ssl.gstatic.com/dictionary/static/sounds/20200429/' + text.toLowerCase() + '--_us_1.mp3');
-        audio.playbackRate = rate;
-        recordingTimeout = setTimeout(() => finish('unavailable'), 7000);
-        audio.onplaying = () => clearTimeout(recordingTimeout);
-        audio.onended = () => finish('ended');
-        audio.onerror = () => finish('unavailable');
-        audio.play().catch(() => finish('unavailable'));
+        utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+        utterance.rate = rate;
+        utterance.onend = () => finish('ended');
+        utterance.onerror = () => finish('unavailable');
+        if (synth.paused) synth.resume();
+        synth.speak(utterance);
       } catch {
         finish('unavailable');
       }
     }
-    if (!synth || !window.SpeechSynthesisUtterance) {
-      playRecording();
-      return;
-    }
-    try {
-      utterance = new window.SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = rate;
-      const voices = synth.getVoices();
-      const voice = voices.find(v => /^en[-_]US$/i.test(v.lang)) || voices.find(v => /^en\b/i.test(v.lang));
-      if (voice) utterance.voice = voice;
-      utterance.onend = () => finish('ended');
-      utterance.onerror = playRecording;
-      if (synth.paused) synth.resume();
-      synth.speak(utterance);
-    } catch {
-      playRecording();
-    }
+
+    activePlayback = { cancel() {
+      finish('cancelled');
+      if (utterance) synth.cancel();
+    } };
+    synth.addEventListener?.('voiceschanged', speak);
+    voiceTimeout = setTimeout(() => finish('unavailable'), 700);
+    speak();
   });
 }
 

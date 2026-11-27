@@ -20,6 +20,7 @@ export default function SmartCards({
   initialWords = null,
   initialTitle = '',
   onOpenStudyDecks,
+  onTransferData,
   onOpenAddModal,
   onOpenBatchModal,
   favoriteIds = [],
@@ -37,7 +38,7 @@ export default function SmartCards({
   });
 
   const [activeDeck, setActiveDeck] = useState(null);
-  const [sessionSize, setSessionSize] = useState(10); // Khuyên dùng 30 từ như yêu cầu người dùng
+  const [sessionSize, setSessionSize] = useState(10);
   const [studyModeType, setStudyModeType] = useState('due_first'); // 'new_first' (Học từ mới tiếp theo), 'due_first' (Ôn từ đến hạn), 'mixed' (Kết hợp)
   const [isSizeModalOpen, setIsSizeModalOpen] = useState(false);
   const [selectedDeckForSession, setSelectedDeckForSession] = useState(null);
@@ -51,7 +52,7 @@ export default function SmartCards({
   const playEnglish = useCallback(async (text) => {
     setAudioError('');
     if (await speakEnglish(text, settings.speechRate) === 'unavailable') {
-      setAudioError('Chưa phát được âm thanh. Hãy kiểm tra giọng đọc tiếng Anh trên thiết bị hoặc thử lại.');
+      setAudioError('Chưa phát được giọng nam tiếng Anh. Hãy kiểm tra giọng đọc tiếng Anh đã cài trên thiết bị.');
     }
   }, [settings.speechRate]);
   const [sessionTargetWords, setSessionTargetWords] = useState([]); // Danh sách gốc N từ của phiên học
@@ -384,7 +385,10 @@ export default function SmartCards({
   const handleCheckRecall = (event) => {
     event.preventDefault();
     if (!currentRecallWord) return;
-    if (recallFeedback === 'correct' || recallFeedback === 'revealed') {
+    if (recallFeedback === 'revealed') {
+      setRecallFeedback(null);
+      requestAnimationFrame(() => recallInputRef.current?.focus());
+    } else if (recallFeedback === 'correct') {
       advanceRecall();
     } else if (isMatchAnswer(recallInput, currentRecallWord.word)) {
       sound.playCorrect();
@@ -401,7 +405,7 @@ export default function SmartCards({
   const handleRevealAnswer = () => {
     if (!currentRecallWord) return;
     markRecallForReview();
-    setRecallInput(currentRecallWord.word);
+    setRecallInput('');
     setRecallFeedback('revealed');
   };
 
@@ -412,7 +416,7 @@ export default function SmartCards({
     return (
       <div>
         <DeckLibrary decks={displayDecks} stats={deckStats} overall={overallStats} start={startSession}
-          open={handleOpenDeck} add={onOpenAddModal} openStudyDecks={onOpenStudyDecks} recover={handleTriggerDeepRecovery} />
+          open={handleOpenDeck} add={onOpenAddModal} openStudyDecks={onOpenStudyDecks} transferData={onTransferData} recover={handleTriggerDeepRecovery} />
         {toastMessage && <p className="study-notice" role="status">{toastMessage}</p>}
         {isSizeModalOpen && selectedDeckForSession && (
           <div className="study-overlay" onClick={() => setIsSizeModalOpen(false)}>
@@ -454,7 +458,7 @@ export default function SmartCards({
   if (!item) return <section className="study-sheet"><h2>Chưa có thẻ để học</h2><button onClick={leaveSession}>Về bộ thẻ</button></section>;
   const index = isRecall ? recallIndex : currentIndex;
   const total = isRecall ? recallQueue.length : activeQueue.length;
-  const done = recallFeedback === 'correct' || recallFeedback === 'revealed';
+  const done = recallFeedback === 'correct';
   const isFavorited = favoriteIds.includes(item.id);
   return <section className="study-session">
     <div className="study-line"><button onClick={leaveSession}><ArrowLeft size={16}/> Bộ thẻ</button><strong>{activeDeck?.title}</strong><span>{index + 1} / {total}</span></div>
@@ -471,10 +475,10 @@ export default function SmartCards({
       {audioError && <p role="status">{audioError}</p>}
       {isRecall ? <form className="study-recall" onSubmit={handleCheckRecall}>
         <label htmlFor="recall-answer">Từ hoặc cụm từ tiếng Anh</label>
-        <input id="recall-answer" lang="en" ref={recallInputRef} autoFocus autoComplete="off" spellCheck={false} readOnly={done} value={recallInput} onChange={e => {setRecallInput(e.target.value); setRecallFeedback(null);}}/>
-        <div aria-live="polite">{recallFeedback === 'incorrect' ? 'Chưa đúng. Bạn có thể thử lại hoặc xem gợi ý.' : recallFeedback === 'correct' ? 'Chính xác!' : recallFeedback === 'revealed' ? 'Đây là đáp án. Đọc lại từ trước khi tiếp tục.' : revealedHint ? 'Bắt đầu bằng ' + item.word.slice(0, item.word.length > 3 ? 2 : 1) + '…' : ''}</div>
-        <div className="study-actions">{!done && <><button type="button" onClick={handleShowHint}>Gợi ý chữ cái</button><button type="button" onClick={handleRevealAnswer}>Xem đáp án</button></>}
-          <button className="study-primary" disabled={!recallInput.trim()}>{done ? index + 1 === total ? 'Hoàn thành' : 'Từ tiếp theo' : 'Kiểm tra'}</button></div>
+        <input id="recall-answer" lang="en" ref={recallInputRef} autoFocus autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} readOnly={done || recallFeedback === 'revealed'} value={recallInput} onChange={e => {setRecallInput(e.target.value); setRecallFeedback(null);}}/>
+        <div aria-live="polite">{recallFeedback === 'incorrect' ? 'Chưa đúng. Bạn có thể thử lại hoặc xem gợi ý.' : recallFeedback === 'correct' ? 'Chính xác!' : recallFeedback === 'revealed' ? <>Đáp án <strong lang="en">{item.word}</strong>. Bấm Ẩn đáp án rồi gõ lại.</> : revealedHint ? 'Bắt đầu bằng ' + item.word.slice(0, item.word.length > 3 ? 2 : 1) + '…' : ''}</div>
+        <div className="study-actions">{!done && recallFeedback !== 'revealed' && <><button type="button" onClick={handleShowHint}>Gợi ý chữ cái</button><button type="button" onClick={handleRevealAnswer}>Xem đáp án</button></>}
+          <button className="study-primary" disabled={recallFeedback !== 'revealed' && !recallInput.trim()}>{recallFeedback === 'revealed' ? 'Ẩn đáp án và gõ lại' : done ? index + 1 === total ? 'Hoàn thành' : 'Từ tiếp theo' : 'Kiểm tra'}</button></div>
       </form> : <>
         {isFlipped ? <div className="study-details">
           <h2>Nghĩa tiếng Việt</h2><p>{displayMeaning}</p>

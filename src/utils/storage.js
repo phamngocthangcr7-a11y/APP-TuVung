@@ -3,7 +3,8 @@
 // Hỗ trợ lưu từ vựng hàng ngày, phân loại theo tuần, sao lưu & phục hồi
 // =========================================================================
 
-import { getTodayDateString } from './srs';
+import { addDaysToDate, getTodayDateString } from './srs';
+export const STUDY_DECKS_KEY = 'toeic_personal_decks_v1';
 const STORAGE_KEYS = {
   CUSTOM_WORDS: 'toeic_custom_words_v2',
   CUSTOM_WORDS_BACKUP: 'toeic_custom_words_v2_backup',
@@ -372,9 +373,10 @@ export const saveAppSettings = (settings) => {
  */
 export const exportAllDataAsJSON = () => {
   const data = {
-    version: '2.0',
+    version: '2.1',
     exportDate: new Date().toISOString(),
     customWords: getCustomWords(),
+    studyDecks: readStudyDecks(),
     srsProgress: getWordSrsProgress(),
     streakInfo: getStreakInfo(),
     favorites: getFavoriteIds(),
@@ -386,22 +388,85 @@ export const exportAllDataAsJSON = () => {
 /**
  * Nhập dữ liệu từ file JSON sao lưu
  */
+export function readStudyDecks() {
+  try {
+    const value = JSON.parse(localStorage.getItem(STUDY_DECKS_KEY));
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
 export const importDataFromJSON = (jsonString) => {
   try {
     const data = JSON.parse(jsonString);
-    if (data.customWords && Array.isArray(data.customWords)) {
-      saveCustomWords(data.customWords);
+    if (!Array.isArray(data?.customWords) || data.customWords.some(word =>
+      typeof word?.word !== 'string' || !word.word.trim())) {
+      throw new Error('Tệp sao lưu sổ từ không hợp lệ.');
     }
-    if (data.srsProgress && typeof data.srsProgress === 'object') {
-      localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(data.srsProgress));
+    const customWords = getCustomWords();
+    const byName = new Map(customWords.map(word => [wordKey(word.word), word]));
+    const byId = new Set(customWords.map(word => word.id));
+    const aliases = new Map();
+    const merged = [...customWords];
+    for (const word of data.customWords) {
+      const name = wordKey(word.word);
+      const existing = byName.get(name);
+      if (existing) {
+        if (word.id) aliases.set(word.id, existing.id);
+        continue;
+      }
+      const id = typeof word.id === 'string' && word.id && !byId.has(word.id) ? word.id : newWordId();
+      if (word.id) aliases.set(word.id, id);
+      const card = { ...word, id, isCustom: true };
+      merged.push(card);
+      byName.set(name, card);
+      byId.add(id);
     }
-    if (data.streakInfo) {
-      localStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(data.streakInfo));
+
+    // Preserve local records and use the latest dated learning record for a shared word.
+    const progress = Object.assign(Object.create(null), getWordSrsProgress());
+    for (const [sourceId, incoming] of Object.entries(data.srsProgress || {})) {
+      if (!incoming || typeof incoming !== 'object') continue;
+      const id = aliases.get(sourceId) || sourceId;
+      if (!progress[id] || (incoming.lastReviewedDate || '') > (progress[id].lastReviewedDate || '')) {
+        progress[id] = incoming;
+      }
     }
-    if (data.favorites && Array.isArray(data.favorites)) {
-      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(data.favorites));
+
+    const streak = getStreakInfo();
+    const history = { ...streak.history };
+    for (const [date, count] of Object.entries(data.streakInfo?.history || {})) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(count) || count <= 0) continue;
+      history[date] = Math.max(history[date] || 0, count);
     }
-    return { success: true, count: data.customWords?.length || 0 };
+    const lastStudiedDate = Object.keys(history).sort().pop() || streak.lastStudiedDate;
+    let consecutive = 0;
+    for (let day = lastStudiedDate; day && history[day]; day = addDaysToDate(day, -1)) consecutive++;
+    const mergedStreak = { lastStudiedDate, history, currentStreak: consecutive || streak.currentStreak,
+      longestStreak: Math.max(consecutive, streak.longestStreak, Number(data.streakInfo?.longestStreak) || 0) };
+
+    const decks = readStudyDecks();
+    const knownDecks = new Set(decks.map(deck => deck.id));
+    if (Array.isArray(data.studyDecks)) {
+      for (const deck of data.studyDecks) {
+        if (typeof deck?.id !== 'string' || knownDecks.has(deck.id) || typeof deck.title !== 'string' ||
+          !Array.isArray(deck.words) || deck.words.some(word => typeof word?.word !== 'string' || typeof word?.id !== 'string')) continue;
+        decks.push({ ...deck, words: deck.words.map(word => ({ ...word, id: aliases.get(word.id) || word.id })) });
+        knownDecks.add(deck.id);
+      }
+    }
+
+    saveCustomWords(merged);
+    localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
+    localStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(mergedStreak));
+    localStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
+    if (Array.isArray(data.favorites)) {
+      const favorites = [...new Set([...getFavoriteIds(), ...data.favorites.filter(id => typeof id === 'string')
+        .map(id => aliases.get(id) || id)])];
+      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+    }
+    return { success: true, count: data.customWords.length, total: merged.length };
   } catch (err) {
     console.error('Import failed:', err);
     return { success: false, error: err.message };

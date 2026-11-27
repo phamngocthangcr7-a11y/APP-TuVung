@@ -1,19 +1,10 @@
 import React, { useState } from 'react';
 import EntryDialog from './EntryDialog';
 import { buildStudyQueue, getDeckProgress } from '../utils/srs';
+import { readStudyDecks, STUDY_DECKS_KEY } from '../utils/storage';
 import { cardError } from '../utils/cardEntry';
 
-const key = 'toeic_personal_decks_v1';
 const fields = ['word', 'meaning', 'example', 'exampleTranslation', 'partOfSpeech', 'pronunciation'];
-
-export function readStudyDecks() {
-  try {
-    const decks = JSON.parse(localStorage.getItem(key));
-    return Array.isArray(decks) ? decks : [];
-  } catch {
-    return [];
-  }
-}
 
 export function saveStudyDeck(title, words, imported = false) {
   const id = globalThis.crypto?.randomUUID?.() || Date.now() + "_" + Math.random().toString(36).slice(2);
@@ -25,7 +16,7 @@ export function saveStudyDeck(title, words, imported = false) {
     })
   };
   const decks = [deck, ...readStudyDecks()];
-  localStorage.setItem(key, JSON.stringify(decks));
+  localStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
   return decks;
 }
 

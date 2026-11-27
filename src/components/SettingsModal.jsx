@@ -26,6 +26,7 @@ export default function SettingsModal({
 }) {
   const [speechRate, setSpeechRate] = useState(settings.speechRate || 0.9);
   const [autoPlayAudio, setAutoPlayAudio] = useState(settings.autoPlayAudio ?? true);
+  const [voiceStatus, setVoiceStatus] = useState('');
   const [importStatus, setImportStatus] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -141,12 +142,16 @@ export default function SettingsModal({
                 <label className="text-xs sm:text-sm font-bold text-slate-800">
                   Tốc độ phát âm: {speechRate}x
                 </label>
-                <p className="text-xs text-slate-500">Tùy chỉnh tốc độ đọc của Web Speech API</p>
+                <p className="text-xs text-slate-500">Ưu tiên giọng nam tiếng Anh Mỹ có trên thiết bị.</p>
               </div>
 
               <button
                 type="button"
-                onClick={() => speakEnglish('Accommodate your requests significantly', speechRate)}
+                onClick={async () => {
+                  setVoiceStatus('');
+                  const result = await speakEnglish('The team will review your request tomorrow.', speechRate);
+                  if (result === 'unavailable') setVoiceStatus('Chưa tìm được giọng nam tiếng Anh có thể phát trên thiết bị này.');
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-blue-700 hover:bg-blue-50 transition-colors"
               >
                 <Volume2 className="w-3.5 h-3.5 text-blue-600" />
@@ -154,6 +159,7 @@ export default function SettingsModal({
               </button>
             </div>
 
+            {voiceStatus && <p role="status" className="text-sm text-slate-700">{voiceStatus}</p>}
             <input
               type="range"
               min="0.6"
@@ -222,7 +228,7 @@ export default function SettingsModal({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-800">Khôi phục từ file JSON</div>
-                  <div className="text-[11px] text-slate-500">Tải lên file sao lưu đã xuất trước đó</div>
+                  <div className="text-[11px] text-slate-500">Gộp sổ từ, bộ học riêng và tiến độ từ tệp sao lưu</div>
                 </div>
               </button>
             </div>

@@ -1,5 +1,5 @@
 import { wordKey } from './utils/cardEntry';
-import StudyDecks, { readStudyDecks, saveStudyDeck } from './components/StudyDecks';
+import StudyDecks, { saveStudyDeck } from './components/StudyDecks';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
@@ -15,7 +15,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 import { BUILTIN_SETS } from './data/defaultVocab';
 import { 
-  getCustomWords, 
+  getCustomWords,
+  readStudyDecks,
   saveCustomWords, 
   addCustomWord, 
   addBatchCustomWords, 
@@ -219,6 +220,7 @@ export default function App() {
   };
 
   const handleDataImported = () => {
+    setStudyDecks(readStudyDecks());
     setCustomWords(getCustomWords());
     setSrsProgress(getWordSrsProgress());
     setStreakInfo(getStreakInfo());
@@ -291,6 +293,7 @@ export default function App() {
               onUpdateWordSrs={handleUpdateWordSrs}
               onRecordStudySession={handleRecordSession}
               onOpenStudyDecks={() => setShowStudyDecks(true)}
+              onTransferData={() => setIsSettingsModalOpen(true)}
               initialTitle={studyTitle}
               initialWords={studyWordsList}
               initialMode={studyMode}

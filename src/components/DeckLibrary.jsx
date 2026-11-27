@@ -9,7 +9,7 @@ const covers = {
   deck_phrases: [MessagesSquare, 'Cụm từ', 'Học cách diễn đạt theo cụm.']
 };
 
-export default function DeckLibrary({ decks, stats, overall, start, open, add, recover, openStudyDecks }) {
+export default function DeckLibrary({ decks, stats, overall, start, open, add, recover, openStudyDecks, transferData }) {
   const [flipped, setFlipped] = useState(false);
   const next = decks.find(d => stats[d.id].dueCount > 0) || decks.find(d => stats[d.id].newCount > 0);
   const due = Object.values(stats).reduce((sum, deck) => sum + deck.dueCount, 0);
@@ -32,7 +32,9 @@ export default function DeckLibrary({ decks, stats, overall, start, open, add, r
         <progress aria-label={'Tiến độ bộ ' + title} max={info.total || 1} value={info.learnedCount}/>
         <p className="deck-today">{info.learnedToday} từ học lần đầu hôm nay</p>
         <button onClick={() => info.total ? open(deck) : add()}>{info.total ? 'Mở bộ thẻ' : 'Thêm từ đầu tiên'}</button>
+        {deck.isCustom && !info.total && <button onClick={transferData}>Chuyển dữ liệu từ thiết bị khác</button>}
       </article>;
-    })}</div></section><button className="recover-link" onClick={recover}><RotateCcw size={14}/> Khôi phục kho từ cũ</button>
+    })}</div></section>
+    <button className="recover-link" onClick={recover}><RotateCcw size={14}/> Khôi phục kho từ cũ</button>
   </div>;
 }

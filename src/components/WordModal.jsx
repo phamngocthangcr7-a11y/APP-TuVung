@@ -58,7 +58,7 @@ export default function WordModal({ isOpen, onClose, onSave, editingWord, existi
     setStatus('Đang phát âm…');
     const result = await speakEnglish(card.word);
     if (result === 'ended') setStatus('');
-    if (result === 'unavailable') setStatus('Chưa phát được âm thanh. Hãy kiểm tra kết nối và giọng tiếng Anh trên thiết bị.');
+    if (result === 'unavailable') setStatus('Chưa phát được giọng nam tiếng Anh. Hãy kiểm tra giọng đọc đã cài trên thiết bị.');
   };
   const save = event => {
     event.preventDefault();
