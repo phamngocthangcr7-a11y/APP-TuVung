@@ -1,3 +1,4 @@
+import { notebookStorage } from './notebookStorage';
 // =========================================================================
 // QUẢN LÝ DỮ LIỆU TỪ VỰNG & LOCAL STORAGE
 // Hỗ trợ lưu từ vựng hàng ngày, phân loại theo tuần, sao lưu & phục hồi
@@ -23,7 +24,7 @@ const STORAGE_KEYS = {
  */
 export const getBatchHistory = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
+    const raw = notebookStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
     return raw ? JSON.parse(raw) : [];
   } catch (_) {
     return [];
@@ -33,7 +34,7 @@ export const getBatchHistory = () => {
 export const saveBatchHistory = (rawText, words = []) => {
   try {
     if (!rawText || !rawText.trim()) return;
-    const raw = localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
+    const raw = notebookStorage.getItem(STORAGE_KEYS.BATCH_HISTORY);
     let history = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(history)) history = [];
 
@@ -56,7 +57,7 @@ export const saveBatchHistory = (rawText, words = []) => {
 
     history.unshift(newEntry);
     if (history.length > 15) history = history.slice(0, 15);
-    localStorage.setItem(STORAGE_KEYS.BATCH_HISTORY, JSON.stringify(history));
+    notebookStorage.setItem(STORAGE_KEYS.BATCH_HISTORY, JSON.stringify(history));
   } catch (e) {
     console.warn('Lỗi lưu lịch sử nạp từ:', e);
   }
@@ -64,7 +65,7 @@ export const saveBatchHistory = (rawText, words = []) => {
 
 function readStoredWords(key) {
   try {
-    const value = JSON.parse(localStorage.getItem(key));
+    const value = JSON.parse(notebookStorage.getItem(key));
     const list = Array.isArray(value) ? value : value?.customWords;
     if (!Array.isArray(list)) return null;
     return list.filter(w => typeof w?.word === 'string' && w.word.trim() && w.word.trim() !== '-');
@@ -108,7 +109,7 @@ export function deepRecoverCustomWords(snapshot = []) {
  */
 export const getBatchDraft = () => {
   try {
-    return localStorage.getItem(STORAGE_KEYS.BATCH_DRAFT) || '';
+    return notebookStorage.getItem(STORAGE_KEYS.BATCH_DRAFT) || '';
   } catch (_) {
     return '';
   }
@@ -117,16 +118,16 @@ export const getBatchDraft = () => {
 export const saveBatchDraft = (text) => {
   try {
     if (text) {
-      localStorage.setItem(STORAGE_KEYS.BATCH_DRAFT, text);
+      notebookStorage.setItem(STORAGE_KEYS.BATCH_DRAFT, text);
     } else {
-      localStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
+      notebookStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
     }
   } catch (_) {}
 };
 
 export const clearBatchDraft = () => {
   try {
-    localStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
+    notebookStorage.removeItem(STORAGE_KEYS.BATCH_DRAFT);
   } catch (_) {}
 };
 
@@ -172,13 +173,13 @@ export function saveCustomWords(words) {
     }
   }
   try {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, serialized);
+    notebookStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS, serialized);
   } catch {
     throw new Error('Không thể lưu vào trình duyệt. Hãy kiểm tra dung lượng và thử lại.');
   }
   try {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, serialized);
-    localStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify([...words, ...archive]));
+    notebookStorage.setItem(STORAGE_KEYS.CUSTOM_WORDS_BACKUP, serialized);
+    notebookStorage.setItem(STORAGE_KEYS.MASTER_VAULT, JSON.stringify([...words, ...archive]));
   } catch (error) {
     console.warn('Không thể cập nhật bản sao dự phòng.', error);
   }
@@ -247,8 +248,8 @@ export const deleteCustomWord = (wordId) => {
   const favorites = getFavoriteIds().filter(id => id !== wordId);
   const progress = getWordSrsProgress();
   delete progress[wordId];
-  localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
-  localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
+  notebookStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+  notebookStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
   return filtered;
 };
 
@@ -257,7 +258,7 @@ export const deleteCustomWord = (wordId) => {
  */
 export const getWordSrsProgress = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.WORD_SRS_PROGRESS);
+    const raw = notebookStorage.getItem(STORAGE_KEYS.WORD_SRS_PROGRESS);
     return raw ? JSON.parse(raw) : {};
   } catch (err) {
     return {};
@@ -271,7 +272,7 @@ export const saveWordSrsProgress = (wordId, newSrs) => {
   try {
     const progress = getWordSrsProgress();
     progress[wordId] = newSrs;
-    localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
+    notebookStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
 
     // Nếu là từ người dùng tạo, cập nhật trực tiếp vào custom words
     if (wordId.startsWith('usr_')) {
@@ -287,7 +288,7 @@ export const saveWordSrsProgress = (wordId, newSrs) => {
  */
 export const getFavoriteIds = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+    const raw = notebookStorage.getItem(STORAGE_KEYS.FAVORITES);
     return raw ? JSON.parse(raw) : [];
   } catch (err) {
     return [];
@@ -301,7 +302,7 @@ export const toggleFavoriteId = (wordId) => {
   const favs = getFavoriteIds();
   const exists = favs.includes(wordId);
   const updated = exists ? favs.filter(id => id !== wordId) : [...favs, wordId];
-  localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(updated));
+  notebookStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(updated));
   return updated;
 };
 
@@ -311,7 +312,7 @@ export const toggleFavoriteId = (wordId) => {
 export const getStreakInfo = () => {
   const empty = { currentStreak: 0, longestStreak: 0, lastStudiedDate: null, history: {} };
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.STREAK_INFO));
+    const saved = JSON.parse(notebookStorage.getItem(STORAGE_KEYS.STREAK_INFO));
     if (!saved?.lastStudiedDate) return empty;
     const today = getTodayDateString();
     const yesterday = new Date(today + 'T12:00:00');
@@ -340,7 +341,7 @@ export const recordStudySession = (count = 1) => {
     history
   };
 
-  localStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(updated));
+  notebookStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(updated));
   return updated;
 };
 
@@ -349,7 +350,7 @@ export const recordStudySession = (count = 1) => {
  */
 export const getAppSettings = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const raw = notebookStorage.getItem(STORAGE_KEYS.SETTINGS);
     const defaults = {
       soundEnabled: true,
       speechRate: 0.9,
@@ -365,7 +366,7 @@ export const getAppSettings = () => {
 };
 
 export const saveAppSettings = (settings) => {
-  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  notebookStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
 };
 
 /**
@@ -390,7 +391,7 @@ export const exportAllDataAsJSON = () => {
  */
 export function readStudyDecks() {
   try {
-    const value = JSON.parse(localStorage.getItem(STUDY_DECKS_KEY));
+    const value = JSON.parse(notebookStorage.getItem(STUDY_DECKS_KEY));
     return Array.isArray(value) ? value : [];
   } catch {
     return [];
@@ -458,13 +459,13 @@ export const importDataFromJSON = (jsonString) => {
     }
 
     saveCustomWords(merged);
-    localStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
-    localStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(mergedStreak));
-    localStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
+    notebookStorage.setItem(STORAGE_KEYS.WORD_SRS_PROGRESS, JSON.stringify(progress));
+    notebookStorage.setItem(STORAGE_KEYS.STREAK_INFO, JSON.stringify(mergedStreak));
+    notebookStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
     if (Array.isArray(data.favorites)) {
       const favorites = [...new Set([...getFavoriteIds(), ...data.favorites.filter(id => typeof id === 'string')
         .map(id => aliases.get(id) || id)])];
-      localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+      notebookStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
     }
     return { success: true, count: data.customWords.length, total: merged.length };
   } catch (err) {

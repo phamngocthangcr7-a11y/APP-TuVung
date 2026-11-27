@@ -1,3 +1,4 @@
+import { getNotebookAccount } from '../utils/notebookStorage';
 import React, { useState, useMemo, useRef } from 'react';
 import { 
   Search, 
@@ -63,8 +64,10 @@ export default function DailyJournal({
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const account = getNotebookAccount();
     const reader = new FileReader();
     reader.onload = (event) => {
+      if (getNotebookAccount() !== account) return;
       const content = event.target?.result;
       if (typeof content === 'string') {
         const result = importDataFromJSON(content);

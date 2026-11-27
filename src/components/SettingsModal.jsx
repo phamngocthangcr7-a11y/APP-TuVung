@@ -1,3 +1,4 @@
+import { getNotebookAccount } from '../utils/notebookStorage';
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   X, 
@@ -86,8 +87,10 @@ export default function SettingsModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const account = getNotebookAccount();
     const reader = new FileReader();
     reader.onload = (event) => {
+      if (getNotebookAccount() !== account) return;
       const content = event.target?.result;
       if (typeof content === 'string') {
         const result = importDataFromJSON(content);

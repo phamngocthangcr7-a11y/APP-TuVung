@@ -1,3 +1,4 @@
+import { getNotebookAccount, notebookStorage } from '../utils/notebookStorage';
 import React, { useState } from 'react';
 import EntryDialog from './EntryDialog';
 import { buildStudyQueue, getDeckProgress } from '../utils/srs';
@@ -16,7 +17,7 @@ export function saveStudyDeck(title, words, imported = false) {
     })
   };
   const decks = [deck, ...readStudyDecks()];
-  localStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
+  notebookStorage.setItem(STUDY_DECKS_KEY, JSON.stringify(decks));
   return decks;
 }
 
@@ -47,7 +48,9 @@ export default function StudyDecks({ decks, words, progress, onCreate, onStudy, 
     if (!file) return;
     try {
       if (file.size > 2_000_000) throw Error('Tệp vượt quá 2 MB.');
+      const account = getNotebookAccount();
       const data = JSON.parse(await file.text());
+      if (getNotebookAccount() !== account) return;
       if (data.format !== 'vocab-toeic-deck-1' || typeof data.title !== 'string' ||
           !data.title.trim() || !Array.isArray(data.cards) || !data.cards.length ||
           data.cards.some(card => !card || fields.some(f => card[f] != null && typeof card[f] !== 'string') || cardError(card))) {

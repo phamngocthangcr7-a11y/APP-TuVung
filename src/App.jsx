@@ -1,3 +1,4 @@
+import { getNotebookAccount, notebookStorage } from './utils/notebookStorage';
 import { wordKey } from './utils/cardEntry';
 import StudyDecks, { saveStudyDeck } from './components/StudyDecks';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -35,7 +36,7 @@ import {
 import { getTodayDateString } from './utils/srs';
 
 
-export default function App() {
+export default function App({ accountBar, isAccountNotebook = false }) {
   // Navigation State - Default to SmartCards for instant learning
   const [activeTab, setActiveTab] = useState('smartcards'); // 'smartcards', 'journal', 'practice'
   const [practiceSubTab, setPracticeSubTab] = useState('quiz'); // 'quiz', 'dictation', 'match'
@@ -70,7 +71,10 @@ export default function App() {
   useEffect(() => {
     // Lắng nghe sự kiện storage để đồng bộ tức thì nếu mở nhiều tab hoặc sửa dữ liệu
     const handleStorageChange = (e) => {
-      if (!e.key || e.key === 'toeic_study_streak_v2') setStreakInfo(getStreakInfo());
+      if (!e.key || e.key.endsWith('toeic_study_streak_v2')) setStreakInfo(getStreakInfo());
+      if (!e.key || e.key.endsWith('toeic_personal_decks_v1')) setStudyDecks(readStudyDecks());
+      if (!e.key || e.key.endsWith('toeic_favorite_ids_v2')) setFavoriteIds(getFavoriteIds());
+      if (!e.key || e.key.endsWith('toeic_app_settings_v2')) setSettings(getAppSettings());
       if (!e.key || e.key.includes('toeic_custom_words') || e.key.includes('toeic_word_srs')) {
         const freshCustom = getCustomWords();
         setCustomWords(freshCustom.filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-'));
@@ -152,23 +156,25 @@ export default function App() {
   };
 
   const handleDeepRecovery = useCallback(async () => {
+    const account = getNotebookAccount();
     const before = getCustomWords().length;
     let snapshot = [];
     try {
-      const response = await fetch('/toeic_master_restored.json');
-      if (response.ok) {
+      const response = isAccountNotebook ? null : await fetch('/toeic_master_restored.json');
+      if (response?.ok) {
         const data = await response.json();
         if (Array.isArray(data)) snapshot = data;
       }
     } catch {
       // Browser backups remain available offline.
     }
+    if (getNotebookAccount() !== account) return 0;
     const recovered = deepRecoverCustomWords(snapshot);
     const clean = (recovered || []).filter(w => w && w.word && String(w.word).trim() !== '' && String(w.word).trim() !== '-');
     setCustomWords(clean);
     setSrsProgress(getWordSrsProgress());
     return clean.length - before;
-  }, []);
+  }, [isAccountNotebook]);
 
   const handleEditWord = (wordData) => {
     if (!editingWord) return;
@@ -215,7 +221,7 @@ export default function App() {
     const cleared = getCustomWords().map(({ srs, ...word }) => word);
     saveCustomWords(cleared);
     setCustomWords(cleared);
-    localStorage.removeItem('toeic_word_srs_progress_v2');
+    notebookStorage.removeItem('toeic_word_srs_progress_v2');
     setSrsProgress({});
   };
 
@@ -277,6 +283,7 @@ export default function App() {
       />
 
       {/* Main Content Area wrapped in ErrorBoundary */}
+      {accountBar}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
         
         <ErrorBoundary onReset={() => setActiveTab('smartcards')}>
