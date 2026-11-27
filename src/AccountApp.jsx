@@ -6,9 +6,16 @@ import { setNotebookAccount, withGuestNotebook } from './utils/notebookStorage';
 import { syncNotebook } from './utils/notebookSync';
 import { exportAllDataAsJSON, importDataFromJSON } from './utils/storage';
 
-const url = process.env.REACT_APP_SUPABASE_URL;
-const key = process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY;
-const client = url && key ? createClient(url, key) : null;
+// The publishable key is safe to ship in the browser. Other deployments can
+// supply their own project through build-time environment variables.
+const isProductionSite = typeof window !== 'undefined' &&
+  window.location.origin === 'https://app-tu-vung-weld.vercel.app';
+const productionUrl = 'https://apmmaxhugqhnqhlzvuex.supabase.co';
+const productionKey = 'sb_publishable_69TI1csbyCq-PrXE6rrSHw_2Vu205gj';
+const customUrl = process.env.REACT_APP_SUPABASE_URL;
+const customKey = process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY;
+const client = customUrl && customKey ? createClient(customUrl, customKey)
+  : isProductionSite ? createClient(productionUrl, productionKey) : null;
 const loading = <main className="mx-auto max-w-md p-6" role="status">Đang mở sổ từ…</main>;
 
 function AccountNotebook({ user }) {
@@ -89,6 +96,12 @@ function AccountNotebook({ user }) {
         email: email.trim(),
         options: { emailRedirectTo: window.location.origin }
       });
+      if (error?.code === 'email_address_not_authorized') {
+        throw new Error('Hãy dùng email quản trị dự án Supabase. Dịch vụ gửi mail hiện chưa hỗ trợ email ngoài nhóm.');
+      }
+      if (error?.code === 'over_email_send_rate_limit') {
+        throw new Error('Đã đến giới hạn gửi email đăng nhập. Hãy dùng liên kết đã nhận hoặc thử lại sau.');
+      }
       if (error) throw error;
       setMessage('Hãy mở liên kết đăng nhập trong email bằng trình duyệt bạn muốn dùng để học.');
     });
